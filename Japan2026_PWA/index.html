@@ -343,6 +343,78 @@
         /* Offline indicator */
         #offline-bar { display: none; background: #f57c00; color: white; text-align: center; font-size: 12px; padding: 6px; flex-shrink: 0; }
         body.offline #offline-bar { display: block; }
+
+        /* ── Liquid-Glass-Haut (Apple) ── */
+        /* Ambienter Farbverlauf hinter dem Glas (Theme-bewusst, kein DOM-Element nötig). */
+        body { background:
+            radial-gradient(58% 42% at 14% 4%, rgba(255,59,48,.20), transparent 62%),
+            radial-gradient(52% 38% at 92% 14%, rgba(10,132,255,.16), transparent 60%),
+            radial-gradient(66% 52% at 74% 100%, rgba(255,149,0,.14), transparent 64%),
+            var(--bg);
+            background-attachment: fixed;
+        }
+        :root:not([data-theme="light"]) body { background:
+            radial-gradient(58% 42% at 14% 4%, rgba(255,69,58,.20), transparent 62%),
+            radial-gradient(52% 38% at 92% 14%, rgba(10,132,255,.18), transparent 60%),
+            radial-gradient(66% 52% at 74% 100%, rgba(255,159,10,.12), transparent 64%),
+            var(--bg);
+            background-attachment: fixed;
+        }
+        :root[data-theme="dark"] body { background:
+            radial-gradient(58% 42% at 14% 4%, rgba(255,69,58,.20), transparent 62%),
+            radial-gradient(52% 38% at 92% 14%, rgba(10,132,255,.18), transparent 60%),
+            radial-gradient(66% 52% at 74% 100%, rgba(255,159,10,.12), transparent 64%),
+            var(--bg);
+            background-attachment: fixed;
+        }
+        /* Karten, Chips, Drawer, Dialoge, Einstellungen → transluzentes, reflektierendes Glas. */
+        body .act-card, body .place-card, body .chip, body .chip-sm, body .filter-bar,
+        body .drawer, body dialog, body .hotel-input-wrap, body .btn-icon, body .btn-secondary {
+            -webkit-backdrop-filter: saturate(180%) blur(18px);
+            backdrop-filter: saturate(180%) blur(18px);
+            background: rgba(255,255,255,.55);
+            border: 1px solid rgba(255,255,255,.4);
+            box-shadow: 0 6px 24px rgba(0,0,0,.09), inset 0 0 0 .5px rgba(255,255,255,.28);
+        }
+        :root:not([data-theme="light"]) body .act-card, :root:not([data-theme="light"]) body .place-card,
+        :root:not([data-theme="light"]) body .chip, :root:not([data-theme="light"]) body .chip-sm,
+        :root:not([data-theme="light"]) body .filter-bar, :root:not([data-theme="light"]) body .drawer,
+        :root:not([data-theme="light"]) body dialog, :root:not([data-theme="light"]) body .hotel-input-wrap,
+        :root:not([data-theme="light"]) body .btn-icon, :root:not([data-theme="light"]) body .btn-secondary {
+            background: rgba(30,32,38,.58);
+            border: 1px solid rgba(255,255,255,.10);
+            box-shadow: 0 6px 24px rgba(0,0,0,.35), inset 0 0 0 .5px rgba(255,255,255,.06);
+        }
+        :root[data-theme="dark"] body .act-card, :root[data-theme="dark"] body .place-card,
+        :root[data-theme="dark"] body .chip, :root[data-theme="dark"] body .chip-sm,
+        :root[data-theme="dark"] body .filter-bar, :root[data-theme="dark"] body .drawer,
+        :root[data-theme="dark"] body dialog, :root[data-theme="dark"] body .hotel-input-wrap,
+        :root[data-theme="dark"] body .btn-icon, :root[data-theme="dark"] body .btn-secondary {
+            background: rgba(30,32,38,.58);
+            border: 1px solid rgba(255,255,255,.10);
+            box-shadow: 0 6px 24px rgba(0,0,0,.35), inset 0 0 0 .5px rgba(255,255,255,.06);
+        }
+        /* Die App-Schale durchsichtig machen, damit der Verlauf hinterm Glas scheint. */
+        body .app-container, body #app { background: transparent; }
+
+        /* Weichere Kanten: größere Radien auf den Haupt-Surfaces. */
+        body .act-card { border-radius: 22px; }
+        body .place-card { border-radius: 18px; }
+        body .chip { border-radius: 999px; }
+        /* Glas ohne Unterstützung → solide Flächen, Lesbarkeit bleibt. */
+        @supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+            body .act-card, body .place-card, body .chip, body .chip-sm, body .filter-bar,
+            body .drawer, body dialog, body .hotel-input-wrap, body .btn-icon, body .btn-secondary {
+                background: var(--bg-elevated);
+                border: 1px solid transparent;
+            }
+        }
+
+        /* ── Halb-Sterne-Bewertung (Layer-Technik, präzise 0.5er-Schritte) ── */
+        .stars { position: relative; display: inline-block; font-size: 13px; letter-spacing: 1px; line-height: 1; vertical-align: -1px; }
+        .stars-empty { color: rgba(120,120,128,.32); }
+        .stars-fill { position: absolute; top: 0; left: 0; bottom: 0; overflow: hidden; white-space: nowrap; color: #ff9f0a; }
+        .act-rating { margin: -6px 0 11px; }
     </style>
 </head>
 <body>
@@ -822,8 +894,11 @@ async function loadCategory(cityKey, cat, silent = false) {
                 if (seen.has(k) || picks.some(q => q.title.trim().toLowerCase() === k)) continue;
                 seen.add(k); picks.push(p);
             }
+            // Garantie: mindestens 5 Vorschläge pro Ort+Kategorie (auch bei schwachen Quellen).
+            if (picks.length < 5) picks.push(...catFallbacks(cityKey, cat, 5 - picks.length));
             if (!picks.length) return 0;
             const rows = await mapPool(picks, 4, async p => {
+                if (p.fallback) return { title: p.title, lat: null, lng: null, rating: null, desc: `${cat.t} – Tipp für ${cityKey}.`, imgUrl: null };
                 const det = await fetchPOIDetails(p, cityKey);
                 return { title: p.title, lat: p.lat, lng: p.lng, rating: await fetchRating(p, det, cat), desc: det.desc, imgUrl: det.imgUrl };
             });
@@ -855,15 +930,28 @@ function useType(t) {
 }
 
 function starsHtml(s) {
-    const n = Math.max(1, Math.min(5, Math.round(s)));
-    return '★'.repeat(n) + '☆'.repeat(5 - n);
+    const v = Math.max(0, Math.min(5, +s || 0));
+    const pct = Math.round(v / 5 * 100);
+    return `<span class="stars" role="img" aria-label="${v.toFixed(1)} von 5 Sternen"><span class="stars-fill" style="width:${pct}%">★★★★★</span><span class="stars-empty">★★★★★</span></span>`;
 }
 function ratingHtmlFor(a) {
     if (a.type !== '🍣 Restaurant') return '';
     const q = encodeURIComponent(`${a.title} ${a.topPlace} Japan`);
     if (a.rating?.stars)
-        return `<div class="act-rating" style="color:#f5a623">${starsHtml(a.rating.stars)} <b>${a.rating.stars.toFixed(1)}</b>${a.rating.source === 'Google' && a.rating.count ? ` <span style="opacity:.7">(${a.rating.count})</span>` : ''} <span style="opacity:.6;font-size:11px">Bewertung von ${a.rating.source}</span></div>`;
+        return `<div class="act-rating" style="color:#f5a623">${starsHtml(a.rating.stars)} <b style="color:var(--label)">${a.rating.stars.toFixed(1)}</b>${a.rating.source === 'Google' && a.rating.count ? ` <span style="opacity:.7">(${a.rating.count})</span>` : ''} <span style="opacity:.6;font-size:11px">Bewertung von ${a.rating.source}</span></div>`;
     return `<div class="act-rating" style="font-size:12px">★ Bewertungen: <a target="_blank" rel="noopener" href="https://www.google.de/maps/search/${q}">Google</a> · <a target="_blank" rel="noopener" href="https://www.tripadvisor.de/Search?q=${q}">TripAdvisor</a> · <a target="_blank" rel="noopener" href="https://tabelog.com/rst_list/?sw=${q}">Tabelog</a></div>`;
+}
+// Garantierte Mindestanzahl: wenn echte Quellen unter 5 Treffer liefern, ergänzen
+// wir generische Kategorie-Tipps (ohne Fake-Daten/Bewertungen).
+function catFallbacks(cityKey, cat, need) {
+    const tips = {
+        '🏯 Sehenswürdigkeit': ['Spaziergang durchs Zentrum', 'Bekannter Tempel/Shrine bei der Stadtmitte', 'Aussichtspunkt mit Stadtblick', 'Historisches Museum', 'Abendlicher Architektur-Rundgang'],
+        '🍣 Restaurant': ['Restaurantviertel am Abend erkunden', 'Lokale Ramen-Spezialität probieren', 'Frische Kuche vom Markt', 'Café für lokale Desserts', 'Izakaya mit kleinen Gerichten'],
+        '🛍️ Shopping': ['Einkaufsstraße im Zentrum', 'Department Store mit Souvenir-Etage', 'Lokale Handwerksläden', 'Überdachte Einkaufspassage', 'Nachtmarkt & Street Food'],
+        '🏔️ Ausflug': ['Stadtpark-Spaziergang', 'Onsen / öffentliches Bad probieren', 'Tagesausflug mit der Bahn in die Natur', 'Fluss- oder See-Promenade', 'Wanderweg am Stadtrand']
+    };
+    return (tips[cat.t] || tips['🏯 Sehenswürdigkeit']).slice(0, need)
+        .map((title, i) => ({ title: `${title} in ${cityKey}`, lat: null, lng: null, fallback: true, fid: 'fb' + i + cat.t }));
 }
 
 const clean = n => n.replace(/ \(Ankunft\)| \(Abreise\)/g, '');
