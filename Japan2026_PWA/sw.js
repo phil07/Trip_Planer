@@ -1,5 +1,5 @@
 // Japan 2026 PWA – Service Worker
-const CACHE = 'japan2026-v14';
+const CACHE = 'japan2026-v15';
 const OFFLINE_ASSETS = [
   './',
   './index.html',

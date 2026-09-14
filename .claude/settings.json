@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -sI *)",
+      "Bash(curl -s -o /dev/null -w *)",
+      "mcp__claude-in-chrome__tabs_context_mcp"
+    ]
+  }
+}

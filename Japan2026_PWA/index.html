@@ -451,6 +451,10 @@
             <label>OpenTripMap API-Key (optional)</label>
             <input type="text" id="s-otmkey" placeholder="Für bessere Aktivitäten-Kategorien & Empfehlungen">
         </div>
+        <div class="form-group">
+            <label>Google Places API-Key (optional)</label>
+            <input type="text" id="s-googlekey" placeholder="Für ★-Bewertungen von Restaurants (Quelle: Google)">
+        </div>
         <button class="btn" onclick="saveSettings()">Speichern</button>
         <button class="btn btn-secondary" style="margin-top:6px" onclick="this.closest('dialog').close()">Abbrechen</button>
     </dialog>
@@ -570,8 +574,9 @@ const INITIAL_PLACES = [
 // ─── STATE ────────────────────────────────────────────────────────────────
 let places = [], acts = [], startDate = "2026-11-17", computedData = [], currentFilter = "Alle", currentTypeFilter = "Alle";
 let otmKey = localStorage.getItem('jp26_otm_key') || '';
+let googleKey = localStorage.getItem('jp26_google_key') || '';
 let crawlerDone = false;
-const activityPageState = {};
+const actsFill = {}, cityBooted = {};
 let activityLoadInProgress = false;
 let userLocation = null;
 let locationRequested = false;
@@ -629,7 +634,7 @@ async function fetchOpenTripMapDetails(xid) {
         const res = await fetch(url);
         if (!res.ok) return {};
         const d = await res.json();
-        return { desc: d.wikipedia_extracts?.text || d.info?.descr || '', imgUrl: d.preview?.source || null };
+        return { desc: d.wikipedia_extracts?.text || d.info?.descr || '', imgUrl: d.preview?.source || null, rate: typeof d.rate === 'number' ? d.rate : null };
     } catch(e) { return {}; }
 }
 
@@ -715,7 +720,7 @@ async function fetchPOIDetails(poi, cityHint) {
         const det = await fetchOpenTripMapDetails(poi.xid);
         const desc = det.desc && det.desc.length > 20 ? det.desc.trim() : `Sehenswürdigkeit in der Region ${cityHint}.`;
         const imgUrl = det.imgUrl || await fetchCommonsImage(poi.title, cityHint);
-        return { desc, imgUrl, type: categorizeFromKinds(poi.kinds) };
+        return { desc, imgUrl, type: categorizeFromKinds(poi.kinds), otmDetail: det };
     }
     let desc = `Sehenswürdigkeit in der Region ${cityHint}.`, imgUrl = null;
     try {
@@ -725,6 +730,135 @@ async function fetchPOIDetails(poi, cityHint) {
     } catch(e) {}
     if (!imgUrl) imgUrl = await fetchCommonsImage(poi.title, cityHint);
     return { desc, imgUrl, type: poi.type || categorize(poi.title, desc) };
+}
+
+// ─── KATEGORIE-LOADER (pro Ort + Kategorie, min. 10 aus mehreren Quellen) ──
+// 4 feste Kategorien sind immer sichtbar & klickbar; ein Klick lädt genau diesen
+// Ort + diese Kategorie. Kategorien sind die einzige Quelle der Typ-Einteilung.
+const CATS = [
+    { t: '🏯 Sehenswürdigkeit', osm: `node["tourism"~"attraction|museum|viewpoint|gallery|zoo|artwork"];node["historic"];` },
+    { t: '🍣 Restaurant',       osm: `node["amenity"~"restaurant|cafe|fast_food|bar|food_court|marketplace"];way["amenity"~"restaurant|cafe|fast_food|bar|food_court|marketplace"];` },
+    { t: '🛍️ Shopping',         osm: `node["shop"];way["shop"];` },
+    { t: '🏔️ Ausflug',          osm: `node["leisure"~"park|garden|nature_reserve"];node["natural"];node["tourism"~"camp_site|picnic_site"];` }
+];
+const catKinds = {
+    '🏯 Sehenswürdigkeit': /(attractions|historic|religion|museums|castles|viewpoints|towers|buildings)/,
+    '🍣 Restaurant': /(foods|restaurants|cafes|bars)/,
+    '🛍️ Shopping': /(shops|mall|marketplaces)/,
+    '🏔️ Ausflug': /(natural|beaches|water|geological|gardens_and_parks|nature_reserves|zoos)/
+};
+
+async function mapPool(arr, n, fn) {
+    const out = new Array(arr.length); let i = 0;
+    async function worker() { while (i < arr.length) { const j = i++; out[j] = await fn(arr[j]); } }
+    await Promise.all(Array.from({ length: Math.min(n, arr.length) }, worker));
+    return out;
+}
+
+async function overpassCatQuery(lat, lng, radius, cat) {
+    const q = `[out:json][timeout:15];(${cat.osm});out center 40;`;
+    const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: q, headers: { 'User-Agent': 'Japan2026TravelApp/1.0' } });
+    if (!res.ok) throw new Error('overpass ' + res.status);
+    return ((await res.json()).elements || []).map(el => ({
+        title: el.tags?.['name:en'] || el.tags?.['name:de'] || el.tags?.int_name || (isLatinTitle(el.tags?.name) ? el.tags.name : null),
+        lat: el.lat ?? el.center?.lat, lng: el.lon ?? el.center?.lon
+    })).filter(p => p.title && p.lat != null && p.lng != null);
+}
+async function otmCatQuery(lat, lng, radius, cat) {
+    if (!otmKey) return [];
+    const list = await fetchOpenTripMapPOIs(lat, lng, radius, 40);
+    return (list || []).filter(p => p.kinds && catKinds[cat.t].test(p.kinds) && isLatinTitle(p.name))
+        .map(p => ({ title: p.name, lat: p.point.lat, lng: p.point.lon, xid: p.xid, kinds: p.kinds }));
+}
+async function wikiCatQuery(lang, lat, lng, cat) {
+    if (cat.t === '🍣 Restaurant' && lang === 'en') return []; // Restaurants kommen aus OSM/OTM, nicht aus Wikipedia
+    const url = `https://${lang}.wikipedia.org/w/api.php?action=query&list=geosearch&gscoord=${lat}|${lng}&gsradius=10000&gslimit=80&format=json`;
+    return ((await jsonp(url))?.query?.geosearch || [])
+        .filter(p => isLatinTitle(p.title) && categorize(p.title) === cat.t)
+        .map(p => ({ title: p.title, lat: p.lat, lng: p.lon }));
+}
+
+// ★-Bewertung für Restaurants mit Quellen-Angabe (OpenTripMap rate via xid-Details,
+// Google Places nur wenn Key hinterlegt; sonst null → App zeigt Bewertungs-Links).
+async function fetchRating(poi, det, cat) {
+    if (det?.otmDetail && typeof det.otmDetail.rate === 'number' && det.otmDetail.rate > 0)
+        return { stars: +(det.otmDetail.rate / 2).toFixed(1), count: 0, source: 'OpenTripMap' };
+    if (!googleKey || cat.t !== '🍣 Restaurant' || !poi.lat || !poi.lng) return null;
+    try {
+        const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${poi.lat},${poi.lng}&rankby=prominence&keyword=${encodeURIComponent(poi.title)}&key=${encodeURIComponent(googleKey)}`;
+        const d = await (await fetch(url)).json();
+        const best = (d.results || []).find(x => x.rating) || (d.results || [])[0];
+        if (best && best.rating) return { stars: +best.rating.toFixed(1), count: best.user_ratings_total || 0, source: 'Google' };
+    } catch (e) {}
+    return null;
+}
+
+// Kern-Loader: lädt ≥10 Vorschläge für einen Ort + eine Kategorie aus allen Quellen
+// (Overpass, OpenTripMap, de-/en-Wikipedia), dedupliziert und re-rendert am Ende.
+async function loadCategory(cityKey, cat, silent = false) {
+    const root = places.find(p => clean(p.name) === cityKey);
+    if (!root) return 0;
+    const fid = cityKey + '|' + cat.t;
+    if (actsFill[fid]) return actsFill[fid];
+    actsFill[fid] = (async () => {
+        let added = 0;
+        try {
+            const lists = await Promise.all([
+                overpassCatQuery(root.lat, root.lng, 10000, cat).catch(() => []),
+                otmCatQuery(root.lat, root.lng, 10000, cat).catch(() => []),
+                wikiCatQuery('en', root.lat, root.lng, cat).catch(() => []),
+                wikiCatQuery('de', root.lat, root.lng, cat).catch(() => [])
+            ]);
+            const seen = new Set(acts.filter(a => a.topPlace === cityKey).map(a => a.title.trim().toLowerCase()));
+            const picks = [];
+            outer:
+            for (const list of lists) for (const p of list) {
+                if (picks.length >= 14) break outer;
+                if (!p.title || p.lat == null) continue;
+                const k = p.title.trim().toLowerCase();
+                if (seen.has(k) || picks.some(q => q.title.trim().toLowerCase() === k)) continue;
+                seen.add(k); picks.push(p);
+            }
+            if (!picks.length) return 0;
+            const rows = await mapPool(picks, 4, async p => {
+                const det = await fetchPOIDetails(p, cityKey);
+                return { title: p.title, lat: p.lat, lng: p.lng, rating: await fetchRating(p, det, cat), desc: det.desc, imgUrl: det.imgUrl };
+            });
+            for (const poi of rows) {
+                if (acts.some(a => a.topPlace === cityKey && a.title === poi.title)) continue;
+                acts.push({ id: Date.now() + Math.random(), topPlace: cityKey, type: cat.t, title: poi.title, desc: poi.desc, imgUrl: poi.imgUrl, lat: poi.lat, lng: poi.lng, rating: poi.rating });
+                added++;
+            }
+        } catch (e) {
+            if (!silent) showToast('❌ Laden fehlgeschlagen – Verbindung prüfen.');
+        }
+        persist(); renderActs();
+        return added;
+    })();
+    const n = await actsFill[fid];
+    delete actsFill[fid];
+    return n;
+}
+
+function useType(t) {
+    currentTypeFilter = t; renderActs();
+    if (currentFilter === 'Alle' || currentFilter === '__favs__') return;
+    if (acts.filter(a => a.topPlace === currentFilter && a.type === t).length < 10) {
+        const cat = CATS.find(c => c.t === t);
+        if (cat) loadCategory(currentFilter, cat, true).catch(() => {});
+    }
+}
+
+function starsHtml(s) {
+    const n = Math.max(1, Math.min(5, Math.round(s)));
+    return '★'.repeat(n) + '☆'.repeat(5 - n);
+}
+function ratingHtmlFor(a) {
+    if (a.type !== '🍣 Restaurant') return '';
+    const q = encodeURIComponent(`${a.title} ${a.topPlace} Japan`);
+    if (a.rating?.stars)
+        return `<div class="act-rating" style="color:#f5a623">${starsHtml(a.rating.stars)} <b>${a.rating.stars.toFixed(1)}</b>${a.rating.source === 'Google' && a.rating.count ? ` <span style="opacity:.7">(${a.rating.count})</span>` : ''} <span style="opacity:.6;font-size:11px">Bewertung von ${a.rating.source}</span></div>`;
+    return `<div class="act-rating" style="font-size:12px">★ Bewertungen: <a target="_blank" rel="noopener" href="https://www.google.de/maps/search/${q}">Google</a> · <a target="_blank" rel="noopener" href="https://www.tripadvisor.de/Search?q=${q}">TripAdvisor</a> · <a target="_blank" rel="noopener" href="https://tabelog.com/rst_list/?sw=${q}">Tabelog</a></div>`;
 }
 
 const clean = n => n.replace(/ \(Ankunft\)| \(Abreise\)/g, '');
@@ -805,6 +939,7 @@ function calculateDates() {
     document.getElementById('drawer-nights').innerText = `${total} Nächte gesamt`;
     document.getElementById('s-startdate').value = startDate;
     document.getElementById('s-otmkey').value = otmKey;
+    document.getElementById('s-googlekey').value = googleKey;
 }
 
 function persist() {
@@ -819,6 +954,7 @@ function appReset() {
     if (!confirm('App zurücksetzen?')) return;
     localStorage.clear();
     if (otmKey) localStorage.setItem('jp26_otm_key', otmKey); // API-Key ist kein Reisedaten-Feld
+    if (googleKey) localStorage.setItem('jp26_google_key', googleKey);
     places = JSON.parse(JSON.stringify(INITIAL_PLACES));
     acts = []; startDate = "2026-11-17"; crawlerDone = false;
     saveData();
@@ -828,6 +964,8 @@ function saveSettings() {
     startDate = document.getElementById('s-startdate').value||"2026-11-17";
     otmKey = document.getElementById('s-otmkey').value.trim();
     localStorage.setItem('jp26_otm_key', otmKey);
+    googleKey = document.getElementById('s-googlekey').value.trim();
+    localStorage.setItem('jp26_google_key', googleKey);
     saveData();
     document.getElementById('modal-settings').close();
 }
@@ -1313,17 +1451,22 @@ function renderActs() {
         : currentFilter === '__favs__' ? acts.filter(a => a.favorite)
         : acts.filter(a => a.topPlace === currentFilter);
 
+    // Kategorien sind immer sichtbar & klickbar (auch bei 0 Einträgen) –
+    // Zähler füllen sich live, sobald loadCategory() den Ort+Kategorie füllt.
     const tBar = document.getElementById('typeFilters');
-    const types = [...new Set(acts.map(a => a.type).filter(Boolean))];
-    if (types.length > 1) {
-        tBar.style.display = 'flex';
-        tBar.innerHTML = `<button class="chip chip-sm ${currentTypeFilter==='Alle'?'active':''}" aria-pressed="${currentTypeFilter==='Alle'}" onclick="setTypeFilter('Alle')">Alle Arten</button>`;
-        types.forEach(t => {
-            tBar.innerHTML += `<button class="chip chip-sm ${currentTypeFilter===t?'active':''}" aria-pressed="${currentTypeFilter===t}" onclick="setTypeFilter('${t.replace(/'/g,"\\'")}')">${t}</button>`;
-        });
-    } else {
-        tBar.style.display = 'none';
-        tBar.innerHTML = '';
+    tBar.style.display = 'flex';
+    const catBase = (currentFilter === '__favs__') ? null : currentFilter;
+    tBar.innerHTML = `<button class="chip chip-sm ${currentTypeFilter==='Alle'?'active':''}" aria-pressed="${currentTypeFilter==='Alle'}" onclick="setTypeFilter('Alle')">Alle Arten</button>`;
+    for (const cat of CATS) {
+        const cnt = catBase ? acts.filter(a => a.topPlace === catBase && a.type === cat.t).length
+                            : acts.filter(a => a.type === cat.t).length;
+        tBar.innerHTML += `<button class="chip chip-sm ${currentTypeFilter===cat.t?'active':''}" aria-pressed="${currentTypeFilter===cat.t}" onclick="useType('${cat.t.replace(/'/g,"\\'")}')">${cat.t}${cnt ? ` <b style="opacity:.6">${cnt}</b>` : ''}</button>`;
+    }
+    // Beim Öffnen eines Ortes: alle Kategorien für genau diesen Ort im Hintergrund füllen.
+    if (currentFilter && currentFilter !== 'Alle' && currentFilter !== '__favs__'
+        && places.some(p => clean(p.name) === currentFilter) && !cityBooted[currentFilter]) {
+        cityBooted[currentFilter] = true;
+        CATS.forEach(cat => loadCategory(currentFilter, cat, true).catch(() => {}));
     }
     if (currentTypeFilter !== 'Alle') filtered = filtered.filter(a => a.type === currentTypeFilter);
 
@@ -1346,6 +1489,7 @@ function renderActs() {
                 <div class="act-type">${a.type} • ${a.topPlace}${liveDistance ? ` • 📍 ${liveDistance}` : ''}</div>
                 <h3 class="act-title">${a.title}</h3>
                 <p class="act-desc">${a.desc}</p>
+                ${ratingHtmlFor(a)}
                 <div class="act-btns">
                     ${(a.lat && a.lng) ? `<button class="btn-icon btn-map-act">🗺️ Karte</button>` : ''}
                     <button class="btn-icon btn-web-act">🌐 Web</button>
@@ -1503,42 +1647,18 @@ function planDayRoute(city) {
 }
 
 async function loadMoreActs(city, silent = false) {
-    if (!city || city === 'Alle' || activityLoadInProgress) return 0;
-    const root = places.find(p => clean(p.name) === city);
-    if (!root) return 0;
+    if (!city || city === 'Alle' || city === '__favs__' || activityLoadInProgress
+        || !places.some(p => clean(p.name) === city)) return 0;
 
     activityLoadInProgress = true;
     if (!silent) showToast(`🔍 Weitere Aktivitäten für ${city} werden geladen…`, 4500);
-
-    const state = activityPageState[city] || { page: 0 };
     let added = 0;
     try {
-        // gsradius is capped at 10000m by the Wikipedia API; widen the result limit on later pages instead.
-        const limit = Math.min(500, 50 + state.page * 50);
-        const pois = await fetchPOIs(root, 10000, limit);
-
-        for (const poi of pois) {
-            if (added >= 5) break;
-            if (acts.some(a => a.topPlace === city && a.title === poi.title)) continue;
-            const { desc, imgUrl, type } = await fetchPOIDetails(poi, city);
-            acts.push({ id: Date.now()+Math.random(), topPlace:city, type, title: poi.title, desc, imgUrl, lat: poi.lat, lng: poi.lng });
-            added++;
-            persist();
-            await new Promise(r => setTimeout(r, 100));
-        }
-
-        state.page++;
-        activityPageState[city] = state;
-    } catch(e) {
-        if (!silent) showToast('Internetverbindung prüfen – beim nächsten Scrollen erneut versuchen.');
+        // Füllt pro Kategorie nach: jeweils min. 10 aus allen Quellen (Overpass/OTM/Wikipedia).
+        for (const cat of CATS) added += await loadCategory(city, cat, silent);
     } finally {
         activityLoadInProgress = false;
-        persist();
-        renderActs();
-        if (!silent) {
-            if (added) showToast(`✅ ${added} neue Aktivitäten für ${city}`);
-            else showToast('🔍 Suche wird mit weiteren Quellen fortgesetzt…');
-        }
+        if (!silent) showToast(added ? `✅ ${added} neue Aktivitäten für ${city}` : '🔍 Keine weiteren neuen Aktivitäten gefunden');
     }
     return added;
 }
