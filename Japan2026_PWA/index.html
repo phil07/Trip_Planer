@@ -551,7 +551,7 @@
     <div class="app-header">
         <div class="header-btn" onclick="toggleMenu()" role="button" aria-label="Menü öffnen">☰</div>
         <h1 class="header-title" id="pageTitle">Reiseroute Karte</h1>
-        <div class="header-btn" onclick="appReset()" role="button" aria-label="Zurücksetzen" title="Reset">↺</div>
+        <div style="width:44px"></div>
     </div>
 
     <!-- MAP -->
@@ -636,7 +636,7 @@
                 <button class="theme-btn" data-theme="dark" onclick="setTheme('dark')" title="Dunkel">🌙</button>
             </div>
             Gespeichert im LocalStorage<br>
-            <span style="text-decoration:underline;cursor:pointer" onclick="appReset()">Alles zurücksetzen</span>
+            <span style="text-decoration:underline;cursor:pointer; color: var(--label);" onclick="appReset()">Alles zurücksetzen</span>
         </div>
     </div>
 
@@ -783,8 +783,8 @@ const INITIAL_PLACES = [
 
 // ─── STATE ────────────────────────────────────────────────────────────────
 let places = [], acts = [], startDate = "2026-11-17", computedData = [], currentFilter = "Alle", currentTypeFilter = "Alle";
-let otmKey = localStorage.getItem('jp26_otm_key') || '';
-let googleKey = localStorage.getItem('jp26_google_key') || '';
+let otmKey = localStorage.getItem('jp26_otm_key') || '5ae2e3f221c38a28845f05b6fe7d1bbe5f882bdb639788fdee5a4455';
+let googleKey = localStorage.getItem('jp26_google_key') || 'AIzaSyDOj37JMlA6qejATY76fHH34hLofMCwpHk';
 let crawlerDone = false;
 const actsFill = {}, cityBooted = {}, catsLoading = new Set();
 let activityLoadInProgress = false;
