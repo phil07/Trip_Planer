@@ -893,18 +893,28 @@ function renderActImage(container, activity) {
 const isLatin = s => !/[　-ヿ㐀-鿿豈-﫿＀-￯]/.test(s || '');
 
 async function fetchOverpassPOIs(lat, lng, radius, limit) {
-    const query = `[out:json][timeout:12];(
+    const general = `[out:json][timeout:12];(
         node["tourism"~"attraction|museum|viewpoint|gallery|zoo|artwork"](around:${radius},${lat},${lng});
         node["amenity"~"restaurant|cafe|fast_food|bar|marketplace"](around:${radius},${lat},${lng});
         node["historic"](around:${radius},${lat},${lng});
         node["leisure"~"park|garden"](around:${radius},${lat},${lng});
     );out center ${limit};`;
-    const res = await fetch('https://overpass-api.de/api/interpreter', { method:'POST', body: query });
-    if (!res.ok) throw new Error('overpass');
-    return ((await res.json()).elements||[]).map(el => ({
+    // Eigene Restaurant-Query mit eigenem Budget (auch Ways), damit Restaurants
+    // nicht von der globalen Limit-Kappung ausgehungert werden.
+    const restaurants = `[out:json][timeout:12];(
+        node["amenity"~"restaurant|cafe|fast_food|bar|food_court|marketplace"](around:${radius},${lat},${lng});
+        way["amenity"~"restaurant|cafe|fast_food|bar|food_court|marketplace"](around:${radius},${lat},${lng});
+    );out center ${limit};`;
+    const [g, r] = await Promise.all([
+        fetch('https://overpass-api.de/api/interpreter', { method:'POST', body: general }),
+        fetch('https://overpass-api.de/api/interpreter', { method:'POST', body: restaurants })
+    ]);
+    if (!g.ok || !r.ok) throw new Error('overpass');
+    const map = el => ({
         title: el.tags?.['name:en'] || el.tags?.['name:de'] || el.tags?.int_name || (isLatin(el.tags?.name) ? el.tags.name : null),
         lat: el.lat ?? el.center?.lat, lng: el.lon ?? el.center?.lon
-    })).filter(p => p.title && p.lat != null && p.lng != null);
+    });
+    return [...(await g.json()).elements, ...(await r.json()).elements].map(map).filter(p => p.title && p.lat != null && p.lng != null);
 }
 
 async function fetchWikiGeosearchPOIs(lang, lat, lng, radius, limit) {

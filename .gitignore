@@ -7,3 +7,5 @@
 # Windows
 Thumbs.db
 Desktop.ini
+# Local Netlify folder
+.netlify

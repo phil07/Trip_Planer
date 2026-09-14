@@ -645,20 +645,29 @@ function categorizeFromOsmTags(tags) {
 const isLatinTitle = s => !/[　-ヿ㐀-鿿豈-﫿＀-￯]/.test(s || '');
 
 async function fetchOverpassPOIs(lat, lng, radius, limit) {
-    const query = `[out:json][timeout:15];(
+    const general = `[out:json][timeout:15];(
         node["tourism"~"attraction|museum|viewpoint|gallery|zoo|artwork"](around:${radius},${lat},${lng});
         node["amenity"~"restaurant|cafe|fast_food|bar|marketplace"](around:${radius},${lat},${lng});
         node["shop"](around:${radius},${lat},${lng});
         node["leisure"~"park|garden"](around:${radius},${lat},${lng});
         node["historic"](around:${radius},${lat},${lng});
     );out center ${limit};`;
-    const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query });
-    if (!res.ok) throw new Error('Overpass request failed: ' + res.status);
-    const data = await res.json();
-    return (data.elements || []).map(el => ({
+    // Eigene Restaurant-Query mit eigenem Budget (auch Ways – die tragen die meisten echten
+    // japanischen Lademnamen), damit Restaurants nicht von der globalen Limit-Kappung ausgehungert werden.
+    const restaurants = `[out:json][timeout:15];(
+        node["amenity"~"restaurant|cafe|fast_food|bar|food_court|marketplace"](around:${radius},${lat},${lng});
+        way["amenity"~"restaurant|cafe|fast_food|bar|food_court|marketplace"](around:${radius},${lat},${lng});
+    );out center ${limit};`;
+    const [g, r] = await Promise.all([
+        fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: general }),
+        fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: restaurants })
+    ]);
+    if (!g.ok || !r.ok) throw new Error('Overpass request failed: ' + (g.status || r.status));
+    const map = el => ({
         title: el.tags?.['name:en'] || el.tags?.['name:de'] || el.tags?.int_name || (isLatinTitle(el.tags?.name) ? el.tags.name : null),
         lat: el.lat ?? el.center?.lat, lng: el.lon ?? el.center?.lon, type: categorizeFromOsmTags(el.tags)
-    })).filter(el => el.title);
+    });
+    return [...(await g.json()).elements, ...(await r.json()).elements].map(map).filter(el => el.title);
 }
 
 async function fetchWikiGeosearchPOIs(lang, lat, lng, limit) {
