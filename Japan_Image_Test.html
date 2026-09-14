@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Bild-API Test</title>
+<style>
+body { font-family: sans-serif; padding: 20px; max-width: 700px; }
+.test { margin: 15px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+.ok { background: #e8f5e9; border-color: #4caf50; }
+.fail { background: #ffebee; border-color: #f44336; }
+.pending { background: #fff8e1; border-color: #ffc107; }
+img { max-width: 200px; max-height: 120px; object-fit: cover; border-radius: 6px; display: block; margin-top: 8px; }
+pre { font-size: 11px; word-break: break-all; color: #555; margin: 5px 0 0; }
+</style>
+</head>
+<body>
+<h2>Japan App – Bild-API Diagnose</h2>
+<p>Testet alle API-Quellen für <strong>Senso-ji</strong>. Öffne DevTools → Console für Details.</p>
+<div id="results"></div>
+
+<script>
+const TITLE = 'Senso-ji';
+const results = document.getElementById('results');
+
+function addResult(id, label) {
+    const div = document.createElement('div');
+    div.className = 'test pending';
+    div.id = id;
+    div.innerHTML = `<strong>${label}</strong><br><span>⏳ Lädt…</span>`;
+    results.appendChild(div);
+    return div;
+}
+
+function setResult(div, ok, msg, imgUrl) {
+    div.className = 'test ' + (ok ? 'ok' : 'fail');
+    div.innerHTML = `<strong>${div.querySelector('strong').innerText}</strong><br>
+        <span>${ok ? '✅' : '❌'} ${msg}</span>
+        <pre>${imgUrl || ''}</pre>
+        ${imgUrl ? `<img src="${imgUrl}" onerror="this.style.border='2px solid red';this.title='Bild lädt nicht'" onload="this.title='Bild OK'">` : ''}`;
+}
+
+async function test(id, label, fn) {
+    const div = addResult(id, label);
+    try {
+        const result = await fn();
+        setResult(div, !!result, result ? 'Erfolgreich' : 'Kein Bild gefunden', result);
+    } catch(e) {
+        setResult(div, false, 'Fehler: ' + e.message, null);
+    }
+}
+
+// Test 1: Wikipedia Action API (EN)
+test('t1', '1. Wikipedia Action API (EN) – action=query&prop=pageimages', async () => {
+    const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(TITLE)}&prop=pageimages&pithumbsize=600&format=json&origin=*`;
+    const r = await fetch(url);
+    const d = await r.json();
+    const page = Object.values(d.query.pages)[0];
+    return page?.thumbnail?.source || null;
+});
+
+// Test 2: Wikipedia Action API (DE)
+test('t2', '2. Wikipedia Action API (DE) – action=query&prop=pageimages', async () => {
+    const url = `https://de.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(TITLE)}&prop=pageimages&pithumbsize=600&format=json&origin=*`;
+    const r = await fetch(url);
+    const d = await r.json();
+    const page = Object.values(d.query.pages)[0];
+    return page?.thumbnail?.source || null;
+});
+
+// Test 3: Wikipedia REST Summary API (EN)
+test('t3', '3. Wikipedia REST Summary (EN) – /api/rest_v1/page/summary', async () => {
+    const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(TITLE)}`);
+    const d = await r.json();
+    return d.originalimage?.source || d.thumbnail?.source || null;
+});
+
+// Test 4: Wikimedia Commons Search
+test('t4', '4. Wikimedia Commons – generator=search', async () => {
+    const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(TITLE)}&gsrlimit=1&prop=imageinfo&iiprop=url&iiurlwidth=600&format=json&origin=*`;
+    const r = await fetch(url);
+    const d = await r.json();
+    const pages = d?.query?.pages;
+    if (!pages) return null;
+    const page = Object.values(pages)[0];
+    return page?.imageinfo?.[0]?.thumburl || null;
+});
+
+// Test 5: Wikipedia Action API with extracts+pageimages (exact query from app)
+test('t5', '5. Wikipedia Action API (EN) – prop=extracts|pageimages (App-Query)', async () => {
+    const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(TITLE)}&prop=extracts|pageimages&exintro=1&explaintext=1&exchars=240&pithumbsize=600&format=json&origin=*`;
+    const r = await fetch(url);
+    const d = await r.json();
+    const page = Object.values(d?.query?.pages || {})[0];
+    return page?.thumbnail?.source || null;
+});
+
+// Test 6: Direct upload.wikimedia.org image load
+test('t6', '6. Direkter Bild-Load von upload.wikimedia.org', async () => {
+    const knownUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Sensoji_2016.jpg/640px-Sensoji_2016.jpg';
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => resolve(knownUrl);
+        img.onerror = () => resolve(null);
+        img.src = knownUrl;
+        setTimeout(() => resolve(null), 6000);
+    });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="40" fill="#d32f2f"/>
+  <circle cx="96" cy="96" r="72" fill="white"/>
+  <text x="96" y="96" font-family="serif" font-size="80" font-weight="bold" fill="#d32f2f" text-anchor="middle" dominant-baseline="central">日</text>
+  <text x="96" y="158" font-family="sans-serif" font-size="16" font-weight="600" fill="#d32f2f" text-anchor="middle">2026</text>
+</svg>

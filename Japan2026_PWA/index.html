@@ -1,0 +1,1618 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Japan 2026</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#FF3B30" id="metaThemeColor">
+    <script>
+        (function(){
+            var t = localStorage.getItem('jp26_theme') || 'system';
+            if (t !== 'system') document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Japan 2026">
+    <meta name="application-name" content="Japan 2026">
+    <meta name="msapplication-TileColor" content="#FF3B30">
+
+    <!-- Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- App Icons -->
+    <link rel="icon" type="image/svg+xml" href="icons/icon-192.svg">
+    <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.svg">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" crossorigin="anonymous" />
+
+    <style>
+        :root {
+            color-scheme: light;
+            --primary: #FF3B30; --primary-soft: rgba(255,59,48,.12);
+            --accent: #007AFF; --accent-soft: rgba(0,122,255,.12);
+            --bg: #F2F2F7; --bg-elevated: #FFFFFF; --bg-secondary: #EFEFF4; --bg-secondary-press: #E3E3E9;
+            --border: #E5E5EA; --handle: #D1D1D6; --scrim: rgba(255,255,255,.85);
+            --label: #1C1C1E; --muted: #8E8E93; --label-tertiary: #C7C7CC;
+            --overlay: rgba(0,0,0,.45);
+            --shadow-sm: 0 1px 2px rgba(0,0,0,.05), 0 1px 6px rgba(0,0,0,.05);
+            --shadow-md: 0 2px 10px rgba(0,0,0,.08), 0 8px 24px rgba(0,0,0,.08);
+            --img-placeholder: linear-gradient(135deg,#e8eaf6,#fce4ec);
+        }
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                color-scheme: dark;
+                --primary: #FF453A; --primary-soft: rgba(255,69,58,.18);
+                --accent: #0A84FF; --accent-soft: rgba(10,132,255,.18);
+                --bg: #000000; --bg-elevated: #1C1C1E; --bg-secondary: #2C2C2E; --bg-secondary-press: #3A3A3C;
+                --border: #38383A; --handle: #48484A; --scrim: rgba(28,28,30,.75);
+                --label: #F2F2F7; --muted: #98989D; --label-tertiary: #636366;
+                --overlay: rgba(0,0,0,.6);
+                --shadow-sm: 0 1px 2px rgba(0,0,0,.3), 0 1px 6px rgba(0,0,0,.24);
+                --shadow-md: 0 2px 10px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.3);
+                --img-placeholder: linear-gradient(135deg,#232336,#33202a);
+            }
+        }
+        :root[data-theme="dark"] {
+            color-scheme: dark;
+            --primary: #FF453A; --primary-soft: rgba(255,69,58,.18);
+            --accent: #0A84FF; --accent-soft: rgba(10,132,255,.18);
+            --bg: #000000; --bg-elevated: #1C1C1E; --bg-secondary: #2C2C2E; --bg-secondary-press: #3A3A3C;
+            --border: #38383A; --handle: #48484A; --scrim: rgba(28,28,30,.75);
+            --label: #F2F2F7; --muted: #98989D; --label-tertiary: #636366;
+            --overlay: rgba(0,0,0,.6);
+            --shadow-sm: 0 1px 2px rgba(0,0,0,.3), 0 1px 6px rgba(0,0,0,.24);
+            --shadow-md: 0 2px 10px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.3);
+            --img-placeholder: linear-gradient(135deg,#232336,#33202a);
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root {
+            /* Apple-ish type scale (SF Pro metrics) */
+            --fs-title1: 28px; --fs-title2: 22px; --fs-title3: 20px;
+            --fs-headline: 17px; --fs-body: 16px; --fs-callout: 15px;
+            --fs-subhead: 14px; --fs-footnote: 13px; --fs-caption: 11px;
+            /* 4pt spacing rhythm */
+            --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
+            --radius-sm: 10px; --radius-md: 14px; --radius-lg: 20px;
+            --ease-out: cubic-bezier(.22,1,.36,1); --ease-spring: cubic-bezier(.34,1.56,.64,1);
+        }
+        html { -webkit-text-size-adjust: 100%; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Arial, sans-serif;
+            background: var(--bg); margin: 0;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; min-height: 100dvh;
+            color: var(--label);
+            font-size: var(--fs-body);
+            -webkit-font-smoothing: antialiased;
+            transition: background .25s ease, color .25s ease;
+        }
+        .app-container {
+            width: 100%; height: 100vh; height: 100dvh;
+            background: var(--bg); display: flex; flex-direction: column;
+            position: relative; overflow: hidden;
+        }
+        @media (min-width: 600px) {
+            body { background: #1c1c1e; align-items: center; }
+            .app-container { width: 390px; height: 844px; max-height: 95vh; border-radius: 40px; border: 12px solid #000; }
+        }
+
+        /* Safe area insets for notch phones */
+        .app-header {
+            background: var(--primary); color: white;
+            padding: 8px 6px;
+            padding-top: calc(8px + env(safe-area-inset-top));
+            display: flex; align-items: center; justify-content: space-between;
+            z-index: 1000; flex-shrink: 0;
+            transition: background .25s ease;
+        }
+        .header-title { font-size: var(--fs-headline); font-weight: 600; letter-spacing: -0.2px; margin: 0; }
+        .header-btn {
+            font-size: 19px; cursor: pointer; width: 44px; height: 44px;
+            display: flex; align-items: center; justify-content: center; border-radius: 50%;
+            transition: background .15s, transform .1s ease;
+        }
+        .header-btn:active { background: rgba(255,255,255,.2); transform: scale(.9); }
+
+        .view { display: none; flex: 1; flex-direction: column; overflow: hidden; position: relative; min-height: 0; }
+        .view.active { display: flex; animation: view-in .32s var(--ease-out); }
+        @keyframes view-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+        #map { flex: 1; width: 100%; min-height: 0; background: var(--bg-secondary); z-index: 1; }
+        .custom-marker { text-align: center; font-size: 24px; text-shadow: 0 2px 4px rgba(0,0,0,.3); margin: -12px 0 0 -12px; }
+        .hotel-marker { text-align: center; font-size: 20px; margin: -10px 0 0 -10px; }
+
+        .bottom-sheet {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: var(--scrim); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+            border-radius: 22px 22px 0 0;
+            padding: 20px;
+            padding-bottom: calc(20px + env(safe-area-inset-bottom));
+            box-shadow: 0 -8px 30px rgba(0,0,0,.16);
+            transform: translateY(120%); transition: transform .4s cubic-bezier(.32,.72,0,1); z-index: 2000;
+            max-height: 75vh; overflow-y: auto;
+            color: var(--label);
+        }
+        .bottom-sheet.open { transform: translateY(0); }
+        .sheet-handle { width: 36px; height: 5px; background: var(--handle); border-radius: 3px; margin: 0 auto 14px; }
+
+        .btn { background: var(--primary); color: white; border: none; padding: 13px 15px; border-radius: var(--radius-md); font-weight: 600; width: 100%; margin-top: 12px; cursor: pointer; font-size: var(--fs-callout); letter-spacing: -0.1px; min-height: 46px; transition: transform .1s var(--ease-out), opacity .1s, background .2s; }
+        .btn:active { transform: scale(.98); opacity: .85; }
+        .btn-secondary { background: var(--bg-secondary); color: var(--label); }
+        .btn-accent { background: var(--accent); }
+        .btn-icon { background: var(--bg-secondary); border: none; border-radius: var(--radius-sm); padding: 9px 14px; min-height: 40px; font-size: 12.5px; font-weight: 600; cursor: pointer; color: var(--label); display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; transition: transform .1s, background .15s; }
+        .btn-icon:active { transform: scale(.96); background: var(--bg-secondary-press); }
+        .edit-btn { background: none; border: none; cursor: pointer; font-size: 14px; width: 32px; height: 32px; border-radius: 50%; color: var(--muted); transition: background .15s; }
+        .edit-btn:active { color: var(--primary); background: var(--primary-soft); }
+
+        .scroll-content { flex: 1; overflow-y: auto; padding: var(--sp-4); padding-bottom: calc(90px + env(safe-area-inset-bottom)); min-height: 0; }
+
+        /* Places — grouped inset list (iOS Settings-style), rows share one rounded container */
+        #placesList { padding-top: var(--sp-2); }
+        .place-card {
+            background: var(--bg-elevated); padding: 13px 14px; display: flex; align-items: stretch;
+            border-bottom: 1px solid var(--border);
+        }
+        .place-card:first-child { border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md); }
+        .place-card:last-child { border-bottom: none; border-bottom-left-radius: var(--radius-md); border-bottom-right-radius: var(--radius-md); }
+        .place-card.dragging { opacity: .4; }
+        .place-card.drag-over { box-shadow: inset 0 2px 0 var(--primary); }
+        .drag-handle { display: flex; align-items: center; justify-content: center; padding: 0; width: 28px; cursor: grab; font-size: 20px; color: var(--label-tertiary); flex-shrink: 0; }
+        .drag-handle:active { cursor: grabbing; }
+        .place-body { flex: 1; min-width: 0; }
+        .place-body h3 { margin: 0 0 4px; font-size: var(--fs-callout); font-weight: 600; color: var(--label); }
+        .place-body p { margin: 0; font-size: var(--fs-footnote); color: var(--muted); }
+        .dates-badge { display: inline-block; background: var(--accent-soft); color: var(--accent); padding: 2px 9px; border-radius: 8px; font-weight: 600; font-size: 11px; letter-spacing: -0.1px; margin-bottom: 4px; }
+        .nights-row { display: flex; align-items: center; background: var(--bg-secondary); border-radius: var(--radius-sm); width: fit-content; margin-top: 8px; overflow: hidden; }
+        .nights-btn { background: none; border: none; width: 32px; height: 32px; cursor: pointer; font-weight: 600; font-size: 16px; color: var(--label); }
+        .nights-val { font-size: 12.5px; width: 34px; text-align: center; color: var(--label); font-variant-numeric: tabular-nums; }
+        .del-btn { background: var(--primary-soft); color: var(--primary); border: none; border-radius: 8px; width: 32px; height: 32px; cursor: pointer; font-size: 13px; margin-left: 8px; flex-shrink: 0; align-self: flex-start; }
+
+        .hotel-row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
+        .hotel-name { font-size: var(--fs-footnote); color: var(--muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .hotel-input-wrap { display: none; width: 100%; margin-top: 8px; }
+        .hotel-input-wrap.open { display: flex; gap: 6px; }
+        .hotel-input-wrap input { flex: 1; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-family: inherit; background: var(--bg-secondary); color: var(--label); }
+        .hotel-save-btn { background: var(--primary); color: white; border: none; border-radius: var(--radius-sm); padding: 8px 14px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+
+        /* Activity Cards */
+        .act-card { background: var(--bg-elevated); border-radius: var(--radius-lg); margin: 0 var(--sp-4) var(--sp-3); box-shadow: var(--shadow-sm); position: relative; overflow: hidden; }
+        .act-img { width: 100%; height: 160px; object-fit: cover; display: block; background: var(--bg-secondary); }
+        .act-img-placeholder { width: 100%; height: 110px; background: var(--img-placeholder); display: flex; align-items: center; justify-content: center; font-size: 38px; }
+        .act-body { padding: 14px; }
+        .act-type { font-size: var(--fs-caption); font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 5px; }
+        .act-title { margin: 0 0 6px; font-size: var(--fs-title3); font-weight: 600; letter-spacing: -0.3px; padding-right: 30px; color: var(--label); }
+        .act-desc { margin: 0 0 13px; font-size: var(--fs-subhead); color: var(--muted); line-height: 1.45; }
+        .act-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+        .act-del {
+            position: absolute; right: 10px; top: 10px; background: var(--scrim);
+            -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); color: var(--label);
+            border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer;
+            font-size: 13px; display: flex; align-items: center; justify-content: center;
+            transition: transform .1s var(--ease-out);
+        }
+        .act-del:active { transform: scale(.88); }
+
+        .filter-bar {
+            padding: var(--sp-3) var(--sp-4); background: var(--bg); display: flex; gap: var(--sp-2);
+            overflow-x: auto; overscroll-behavior-x: contain; flex-shrink: 0; min-height: 52px;
+            -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity;
+            scrollbar-width: none;
+            -webkit-mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 24px), transparent 100%);
+            mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 24px), transparent 100%);
+        }
+        .filter-bar::-webkit-scrollbar { display: none; }
+        .chip {
+            background: var(--bg-elevated); box-shadow: var(--shadow-sm); color: var(--label);
+            border: none; font-family: inherit;
+            padding: 9px 16px; min-height: 36px; border-radius: 20px; font-size: var(--fs-subhead); font-weight: 500;
+            white-space: nowrap; cursor: pointer; scroll-snap-align: start; flex-shrink: 0;
+            transition: transform .1s var(--ease-out), background .15s, color .15s;
+        }
+        .chip:active { transform: scale(.95); }
+        .chip.active { background: var(--primary); color: white; box-shadow: 0 2px 8px rgba(255,59,48,.35); }
+        .chip b { font-weight: 600; }
+        .type-filter-bar { padding-top: 0; min-height: 44px; }
+        .chip-sm { padding: 6px 13px; min-height: 30px; font-size: 12.5px; background: var(--bg-secondary); box-shadow: none; }
+        .chip-sm.active { background: var(--accent); box-shadow: 0 2px 8px rgba(0,122,255,.3); }
+
+        #view-activities { overflow: hidden; }
+        #activitiesList { flex: 1; overflow-y: auto !important; min-height: 0; padding-bottom: calc(90px + env(safe-area-inset-bottom)); padding-top: 2px; }
+
+        .empty-acts { padding: 60px 20px; text-align: center; color: var(--muted); font-size: var(--fs-callout); }
+
+        .maptype-switcher {
+            position: absolute; bottom: 16px; left: 12px; z-index: 1500;
+            background: var(--scrim); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+            border-radius: 14px; box-shadow: var(--shadow-md);
+            display: flex; overflow: hidden;
+        }
+        .maptype-btn { border: none; background: none; width: 44px; height: 44px; font-size: 18px; cursor: pointer; border-right: 1px solid var(--border); line-height: 1; color: var(--label); }
+        .maptype-btn:last-child { border-right: none; }
+        .maptype-btn.active { background: var(--primary-soft); }
+
+        .locate-btn {
+            position: absolute; bottom: 16px; right: 12px; z-index: 1500;
+            width: 44px; height: 44px; border: none; border-radius: 50%;
+            background: var(--scrim); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+            box-shadow: var(--shadow-md); font-size: 18px; cursor: pointer; color: var(--accent);
+            transition: transform .1s;
+        }
+        .locate-btn:active { transform: scale(.9); }
+        .locate-btn.loading { animation: locate-spin 1s linear infinite; }
+        @keyframes locate-spin { to { transform: rotate(360deg); } }
+
+        .fab {
+            position: absolute; bottom: calc(22px + env(safe-area-inset-bottom)); right: 22px;
+            width: 56px; height: 56px; background: var(--primary); color: white;
+            border: none; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 26px; font-family: inherit; line-height: 1; padding: 0;
+            box-shadow: 0 4px 16px rgba(255,59,48,.4); cursor: pointer; z-index: 100;
+            transition: transform .15s var(--ease-spring);
+        }
+        .fab:active { transform: scale(.9); }
+        .fab.spinning { animation: locate-spin 1s linear infinite; }
+
+        .drawer-overlay { position: absolute; inset: 0; background: var(--overlay); z-index: 3000; opacity: 0; pointer-events: none; transition: opacity .3s var(--ease-out); }
+        .drawer {
+            position: absolute; top: 0; bottom: 0; left: -84%; width: 78%; max-width: 320px;
+            background: var(--bg-elevated); z-index: 3100; box-shadow: 2px 0 24px rgba(0,0,0,.18);
+            transition: left .35s var(--ease-out); display: flex; flex-direction: column;
+        }
+        .menu-open .drawer-overlay { opacity: 1; pointer-events: auto; }
+        .menu-open .drawer { left: 0; }
+        .menu-header {
+            padding: var(--sp-6) var(--sp-5) var(--sp-5);
+            padding-top: calc(var(--sp-6) + env(safe-area-inset-top));
+            background: var(--primary); color: white;
+        }
+        .menu-list { padding: var(--sp-2) var(--sp-3); }
+        .menu-item {
+            padding: 10px 8px; font-size: var(--fs-callout); font-weight: 500; min-height: 48px;
+            display: flex; align-items: center; gap: 12px; cursor: pointer; border-radius: var(--radius-sm);
+            color: var(--label); transition: background .15s;
+        }
+        .menu-item:active { background: var(--bg-secondary); }
+        .menu-item.active { color: var(--primary); font-weight: 600; background: var(--primary-soft); }
+        .menu-icon {
+            width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; font-size: 15px;
+        }
+        .menu-icon.tint-red { background: #FF3B30; }
+        .menu-icon.tint-blue { background: #007AFF; }
+        .menu-icon.tint-orange { background: #FF9500; }
+        .menu-icon.tint-green { background: #34C759; }
+
+        /* Day Plan */
+        .dayplan-card { background: var(--bg-elevated); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 14px; margin-bottom: var(--sp-4); }
+        .dayplan-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+        .dayplan-header h3 { margin: 0; font-size: var(--fs-title3); font-weight: 700; letter-spacing: -0.3px; color: var(--label); }
+        .dayplan-count { font-size: var(--fs-footnote); color: var(--muted); }
+        .dayplan-items { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+        .dayplan-item { display: flex; align-items: center; gap: 10px; }
+        .dayplan-thumb { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; flex-shrink: 0; background: var(--bg-secondary); }
+        .dayplan-thumb-ph { display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .dayplan-item-text { min-width: 0; }
+        .dayplan-item-title { font-size: var(--fs-subhead); font-weight: 500; color: var(--label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .dayplan-item-type { font-size: 11px; color: var(--muted); }
+        .dayplan-card .btn[disabled] { opacity: .4; cursor: not-allowed; }
+        .theme-switcher { display: flex; gap: 2px; background: var(--bg-secondary); border-radius: 8px; padding: 2px; width: fit-content; margin: 0 auto 10px; }
+        .theme-btn { border: none; background: none; width: 30px; height: 24px; border-radius: 6px; font-size: 12px; line-height: 1; color: var(--muted); cursor: pointer; transition: background .15s, box-shadow .15s; }
+        .theme-btn.active { background: var(--bg-elevated); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+        .menu-footer { margin-top: auto; padding: 16px; font-size: 12px; color: var(--label-tertiary); border-top: 1px solid var(--border); text-align: center; }
+
+        #toast { position: absolute; bottom: calc(88px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); background: rgba(28,28,30,.92); color: white; padding: 9px 18px; border-radius: 20px; font-size: 13px; z-index: 9999; opacity: 0; pointer-events: none; transition: opacity .3s; white-space: nowrap; max-width: 90%; overflow: hidden; text-overflow: ellipsis; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+        #toast.show { opacity: 1; }
+
+        /* Install Banner */
+        #install-banner {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: var(--bg-elevated); border-top: 1px solid var(--border);
+            padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+            display: flex; align-items: center; gap: 12px;
+            box-shadow: 0 -4px 12px rgba(0,0,0,.1); z-index: 5000;
+            transform: translateY(100%); transition: transform .4s ease;
+            color: var(--label);
+        }
+        #install-banner.show { transform: translateY(0); }
+        #install-banner .banner-icon { font-size: 32px; flex-shrink: 0; }
+        #install-banner .banner-text { flex: 1; }
+        #install-banner .banner-text strong { display: block; font-size: 14px; }
+        #install-banner .banner-text span { font-size: 12px; color: var(--muted); }
+        #install-banner .banner-btns { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+        #install-banner .btn-install { background: var(--primary); color: white; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+        #install-banner .btn-dismiss { background: none; border: none; color: var(--muted); font-size: 12px; cursor: pointer; text-align: center; }
+
+        dialog { border: none; border-radius: 16px; padding: 20px; box-shadow: 0 4px 24px rgba(0,0,0,.25); width: 88%; max-width: 340px; max-height: 85vh; overflow-y: auto; background: var(--bg-elevated); color: var(--label); }
+        dialog::backdrop { background: var(--overlay); }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; margin-bottom: 4px; font-size: 13px; font-weight: 600; color: var(--label); }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 7px; font-family: inherit; font-size: 14px; background: var(--bg-elevated); color: var(--label); }
+        #searchResults { max-height: 140px; overflow-y: auto; background: var(--bg-secondary); border-radius: 6px; margin-top: 8px; }
+        .search-item { padding: 10px; border-bottom: 1px solid var(--border); font-size: 13px; cursor: pointer; color: var(--label); }
+        .search-item:active { background: var(--bg-secondary-press); }
+        .bs-act-img { width: 100%; height: 140px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; background: var(--bg-secondary); }
+        .bs-act-desc { margin: 0 0 14px; font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+        /* Offline indicator */
+        #offline-bar { display: none; background: #f57c00; color: white; text-align: center; font-size: 12px; padding: 6px; flex-shrink: 0; }
+        body.offline #offline-bar { display: block; }
+    </style>
+</head>
+<body>
+<div class="app-container" id="app">
+    <div id="offline-bar">📵 Offline – Karte und gespeicherte Daten verfügbar</div>
+    <div id="toast"></div>
+
+    <div class="app-header">
+        <div class="header-btn" onclick="toggleMenu()" role="button" aria-label="Menü öffnen">☰</div>
+        <h1 class="header-title" id="pageTitle">Reiseroute Karte</h1>
+        <div class="header-btn" onclick="appReset()" role="button" aria-label="Zurücksetzen" title="Reset">↺</div>
+    </div>
+
+    <!-- MAP -->
+    <div class="view active" id="view-map">
+        <div id="map"></div>
+        <div class="maptype-switcher" id="maptypeSwitcher">
+            <button class="maptype-btn active" data-type="standard" onclick="setMapType('standard')" title="Standard">🗺️</button>
+            <button class="maptype-btn" data-type="satellite" onclick="setMapType('satellite')" title="Satellit">🛰️</button>
+            <button class="maptype-btn" data-type="terrain" onclick="setMapType('terrain')" title="Gelände">🏔️</button>
+        </div>
+        <button class="locate-btn" id="locateBtn" onclick="refreshUserLocation()" aria-label="Standort aktualisieren" title="Standort aktualisieren">🎯</button>
+        <div class="bottom-sheet" id="bottomSheet">
+            <div class="sheet-handle"></div>
+            <div id="bs-place">
+                <div class="dates-badge" id="bs-dates">–</div>
+                <h3 id="bs-title" style="margin:8px 0 10px">–</h3>
+                <div style="font-size:13px;line-height:1.7">
+                    <strong>Unterkunft:</strong> <span id="bs-hotel">–</span><br>
+                    <strong>Anreise:</strong> <span id="bs-transport">–</span>
+                </div>
+                <button class="btn" onclick="jumpToActivities()">Aktivitäten anzeigen</button>
+            </div>
+            <div id="bs-act" style="display:none">
+                <img id="bs-act-img" alt="" class="bs-act-img" style="display:none">
+                <h3 id="bs-act-title" style="margin:0 0 8px">–</h3>
+                <p id="bs-act-desc" class="bs-act-desc"></p>
+                <button class="btn btn-accent" style="margin-top:0" onclick="openGoogleMapsRoute()">🧭 Route hierhin (Google Maps)</button>
+                <button class="btn btn-secondary" style="margin-top:8px" onclick="openActivityWeb()">🌐 Mehr erfahren (Browser)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PLACES -->
+    <div class="view" id="view-places">
+        <div class="scroll-content" id="placesList"></div>
+        <button class="fab" onclick="document.getElementById('modal-place').showModal()" aria-label="Station hinzufügen">+</button>
+    </div>
+
+    <!-- ACTIVITIES -->
+    <div class="view" id="view-activities">
+        <div class="filter-bar" id="activityFilters"></div>
+        <div class="filter-bar type-filter-bar" id="typeFilters"></div>
+        <div class="scroll-content" id="activitiesList" style="padding:0;padding-bottom:calc(90px + env(safe-area-inset-bottom));"></div>
+        <button class="fab" id="activitiesFab" onclick="refreshActivities()" aria-label="Aktivitäten neu laden">🔄</button>
+    </div>
+
+    <!-- DAY PLAN -->
+    <div class="view" id="view-dayplan">
+        <div class="scroll-content" id="dayPlanList"></div>
+    </div>
+
+    <!-- Drawer -->
+    <div class="drawer-overlay" onclick="toggleMenu()"></div>
+    <div class="drawer">
+        <div class="menu-header">
+            <h2 style="margin:0;font-size:20px">🗾 Japan 2026</h2>
+            <div style="margin-top:8px;font-size:13px;opacity:.9;cursor:pointer" onclick="document.getElementById('modal-settings').showModal()">
+                📅 <span id="drawer-dates">–</span><br>
+                🌙 <span id="drawer-nights">–</span>
+                <div style="text-decoration:underline;font-size:11px;margin-top:3px">(Ändern)</div>
+            </div>
+        </div>
+        <div class="menu-list">
+            <div class="menu-item active" id="menu-map" onclick="switchView('view-map','Reiseroute Karte')"><span class="menu-icon tint-red">📍</span> Karte & Route</div>
+            <div class="menu-item" id="menu-places" onclick="switchView('view-places','')"><span class="menu-icon tint-blue">📋</span> Route verwalten</div>
+            <div class="menu-item" id="menu-activities" onclick="switchView('view-activities','Aktivitäten')"><span class="menu-icon tint-orange">🍣</span> Aktivitäten & Essen</div>
+            <div class="menu-item" id="menu-dayplan" onclick="switchView('view-dayplan','Tagesplan')"><span class="menu-icon tint-green">🗓️</span> Tagesplan</div>
+        </div>
+        <div class="menu-footer">
+            <div class="theme-switcher" id="themeSwitcher">
+                <button class="theme-btn" data-theme="light" onclick="setTheme('light')" title="Hell">☀️</button>
+                <button class="theme-btn" data-theme="dark" onclick="setTheme('dark')" title="Dunkel">🌙</button>
+            </div>
+            Gespeichert im LocalStorage<br>
+            <span style="text-decoration:underline;cursor:pointer" onclick="appReset()">Alles zurücksetzen</span>
+        </div>
+    </div>
+
+    <!-- Install Banner -->
+    <div id="install-banner">
+        <div class="banner-icon">🗾</div>
+        <div class="banner-text">
+            <strong>Japan 2026 installieren</strong>
+            <span>Als App auf dem Homescreen speichern</span>
+        </div>
+        <div class="banner-btns">
+            <button class="btn-install" id="btn-install">Installieren</button>
+            <button class="btn-dismiss" id="btn-dismiss">Später</button>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <dialog id="modal-settings">
+        <h3 style="margin-top:0">Reise-Daten</h3>
+        <div class="form-group"><label>Startdatum</label><input type="date" id="s-startdate"></div>
+        <div class="form-group">
+            <label>OpenTripMap API-Key (optional)</label>
+            <input type="text" id="s-otmkey" placeholder="Für bessere Aktivitäten-Kategorien & Empfehlungen">
+        </div>
+        <button class="btn" onclick="saveSettings()">Speichern</button>
+        <button class="btn btn-secondary" style="margin-top:6px" onclick="this.closest('dialog').close()">Abbrechen</button>
+    </dialog>
+
+    <dialog id="modal-place">
+        <h3 style="margin-top:0">Neue Station</h3>
+        <div class="form-group">
+            <label>Ort suchen (OpenStreetMap)</label>
+            <div style="display:flex;gap:6px"><input type="text" id="p-search" placeholder="z.B. Osaka"><button class="btn" style="margin:0;width:auto;padding:0 14px" onclick="searchPlace()">🔍</button></div>
+            <div id="searchResults"></div>
+        </div>
+        <div class="form-group"><label>Name</label><input type="text" id="p-name"></div>
+        <div class="form-group"><label>Nächte</label><input type="number" id="p-nights" value="1" min="0"></div>
+        <input type="hidden" id="p-lat"><input type="hidden" id="p-lng">
+        <button class="btn" onclick="savePlace()">Hinzufügen</button>
+        <button class="btn btn-secondary" style="margin-top:6px" onclick="this.closest('dialog').close()">Abbrechen</button>
+    </dialog>
+
+    <dialog id="modal-activity">
+        <h3 style="margin-top:0">Aktivität manuell</h3>
+        <div class="form-group"><label>Ort</label><select id="a-city"></select></div>
+        <div class="form-group"><label>Art</label><select id="a-type"><option>🏯 Sehenswürdigkeit</option><option>🍣 Restaurant</option><option>🏔️ Ausflug</option><option>🛍️ Shopping</option></select></div>
+        <div class="form-group"><label>Titel</label><input type="text" id="a-title"></div>
+        <div class="form-group"><label>Beschreibung</label><input type="text" id="a-desc"></div>
+        <button class="btn" onclick="saveActivityManual()">Speichern</button>
+        <button class="btn btn-secondary" style="margin-top:6px" onclick="this.closest('dialog').close()">Abbrechen</button>
+    </dialog>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" crossorigin="anonymous"></script>
+<script>
+// ─── THEME (Light / Dark / System) ────────────────────────────────────────
+function applyTheme(t) {
+    if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+    else document.documentElement.removeAttribute('data-theme');
+    const isDark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === (isDark ? 'dark' : 'light')));
+    document.getElementById('metaThemeColor')?.setAttribute('content', isDark ? '#FF453A' : '#FF3B30');
+}
+function setTheme(t) {
+    localStorage.setItem('jp26_theme', t);
+    applyTheme(t);
+}
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if ((localStorage.getItem('jp26_theme') || 'system') === 'system') applyTheme('system');
+});
+
+// ─── PWA: Service Worker Registration ─────────────────────────────────────
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('SW registered:', reg.scope))
+            .catch(err => console.warn('SW registration failed:', err));
+    });
+}
+
+// ─── PWA: Install Prompt ───────────────────────────────────────────────────
+let deferredInstallPrompt = null;
+const installBanner = document.getElementById('install-banner');
+const btnInstall = document.getElementById('btn-install');
+const btnDismiss = document.getElementById('btn-dismiss');
+
+window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    // Show banner after 3 seconds if not dismissed before
+    if (!localStorage.getItem('pwa_dismissed')) {
+        setTimeout(() => installBanner.classList.add('show'), 3000);
+    }
+});
+
+btnInstall.addEventListener('click', async () => {
+    if (!deferredInstallPrompt) return;
+    installBanner.classList.remove('show');
+    deferredInstallPrompt.prompt();
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    if (outcome === 'accepted') showToast('✅ App wurde installiert!');
+});
+
+btnDismiss.addEventListener('click', () => {
+    installBanner.classList.remove('show');
+    localStorage.setItem('pwa_dismissed', '1');
+});
+
+window.addEventListener('appinstalled', () => {
+    installBanner.classList.remove('show');
+    showToast('🎉 Japan 2026 App wurde installiert!');
+});
+
+// ─── PWA: Online/Offline Indicator ────────────────────────────────────────
+function updateOnlineStatus() {
+    document.body.classList.toggle('offline', !navigator.onLine);
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
+
+// ─── INITIAL DATA ─────────────────────────────────────────────────────────
+const INITIAL_PLACES = [
+    { id:101, name:"Tokyo",          lat:35.6828, lng:139.759,  nights:2, hotel:"Hotel Met. Marunouchi",  hotelLat:35.6856, hotelLng:139.7641, transport:"✈ Flugzeug" },
+    { id:102, name:"Fukuoka",        lat:33.5902, lng:130.4017, nights:3, hotel:"Mitsui Garden Gion",     hotelLat:null,    hotelLng:null,     transport:"✈ Flugzeug" },
+    { id:103, name:"Kurokawa Onsen", lat:33.0786, lng:131.1444, nights:2, hotel:"Yamamizuki",             hotelLat:null,    hotelLng:null,     transport:"🚗 Auto" },
+    { id:104, name:"Miyazaki",       lat:31.9077, lng:131.4202, nights:2, hotel:"JR Kyushu Hotel",        hotelLat:null,    hotelLng:null,     transport:"🚗 Auto" },
+    { id:105, name:"Nagoya",         lat:35.1815, lng:136.9066, nights:3, hotel:"Nikko Style Nagoya",     hotelLat:null,    hotelLng:null,     transport:"✈ Flugzeug" },
+    { id:106, name:"Niigata",        lat:37.9162, lng:139.0364, nights:2, hotel:"JR-East Hotel Mets",     hotelLat:null,    hotelLng:null,     transport:"🚄 Zug" },
+    { id:107, name:"Aizu-Wakamatsu", lat:37.4950, lng:139.9298, nights:1, hotel:"Washington Hotel",       hotelLat:null,    hotelLng:null,     transport:"🚗 Auto" },
+    { id:108, name:"Ginzan Onsen",   lat:38.5707, lng:140.5317, nights:1, hotel:"Ginzanso",               hotelLat:null,    hotelLng:null,     transport:"🚗 Auto" },
+    { id:109, name:"Nyuto Onsen",    lat:39.8000, lng:140.7960, nights:1, hotel:"Tsurunoyu",              hotelLat:null,    hotelLng:null,     transport:"🚗 Auto" },
+    { id:110, name:"Akita",          lat:39.7200, lng:140.1026, nights:2, hotel:"ANA Crowne Plaza Akita", hotelLat:null,    hotelLng:null,     transport:"🚗 Auto" },
+    { id:111, name:"Sapporo",        lat:43.0618, lng:141.3545, nights:2, hotel:"Cross Hotel",            hotelLat:null,    hotelLng:null,     transport:"✈ Flugzeug" },
+    { id:112, name:"Asahikawa",      lat:43.7709, lng:142.3648, nights:2, hotel:"JR Inn Asahikawa",       hotelLat:null,    hotelLng:null,     transport:"🚄 Zug" },
+    { id:113, name:"Kushiro",        lat:42.9849, lng:144.3816, nights:2, hotel:"ANA Kushiro",            hotelLat:null,    hotelLng:null,     transport:"🚄 Zug + ✈ Flug" },
+    { id:114, name:"Tokyo",          lat:35.6828, lng:139.759,  nights:4, hotel:"Hotel Metropolitan",     hotelLat:null,    hotelLng:null,     transport:"✈ Flugzeug" }
+];
+
+// ─── STATE ────────────────────────────────────────────────────────────────
+let places = [], acts = [], startDate = "2026-11-17", computedData = [], currentFilter = "Alle", currentTypeFilter = "Alle";
+let otmKey = localStorage.getItem('jp26_otm_key') || '';
+let crawlerDone = false;
+const activityPageState = {};
+let activityLoadInProgress = false;
+let userLocation = null;
+let locationRequested = false;
+
+function loadState() {
+    try {
+        const p = JSON.parse(localStorage.getItem('jp26_places'));
+        places = (Array.isArray(p) && p.length) ? p : JSON.parse(JSON.stringify(INITIAL_PLACES));
+        const a = JSON.parse(localStorage.getItem('jp26_acts'));
+        acts = Array.isArray(a) ? a : [];
+        startDate = localStorage.getItem('jp26_start') || "2026-11-17";
+        crawlerDone = !!localStorage.getItem('jp26_crawled');
+    } catch(e) { places = JSON.parse(JSON.stringify(INITIAL_PLACES)); acts = []; }
+
+    // Einmalige Nachkorrektur: alte Aktivitäten hatten pauschal die Kategorie "Erkunden".
+    let migrated = false;
+    acts.forEach(a => {
+        if (a.type === '🏯 Erkunden') { a.type = categorize(a.title, a.desc); migrated = true; }
+    });
+    if (migrated) persist();
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────
+// Grobe Kategorisierung per Stichwort, da Wikipedia/Geosearch keine Kategorie liefert.
+const CATEGORY_KEYWORDS = [
+    { type: '🍣 Restaurant', words: ['restaurant','café','cafe','ramen','sushi','noodle','yatai','izakaya','streetfood','street food','küche','essen','markt','market','food','tonkotsu','kaiseki','teestube','bar '] },
+    { type: '🛍️ Shopping', words: ['shopping','mall','kaufhaus','arcade','department store','einkaufsstraße','einkaufszentrum','ladenzeile','boutique','souvenir'] },
+    { type: '🏔️ Ausflug', words: ['onsen','park','see ','lake','berg','mountain','wald','forest','gorge','schlucht','garten','garden','insel','island','wasserfall','falls','nationalpark','national park','zoo','aquarium','strand','beach','küste','coast','tal','valley','wanderung','hiking'] }
+];
+function categorize(title, desc) {
+    const text = `${title} ${desc||''}`.toLowerCase();
+    for (const cat of CATEGORY_KEYWORDS) {
+        if (cat.words.some(w => text.includes(w))) return cat.type;
+    }
+    return '🏯 Sehenswürdigkeit';
+}
+
+// ─── OPENTRIPMAP (echte kuratierte POIs + Kategorien, optionaler API-Key) ──
+function categorizeFromKinds(kinds) {
+    const k = kinds || '';
+    if (/foods|restaurants|cafes/.test(k)) return '🍣 Restaurant';
+    if (/shops|marketplaces/.test(k)) return '🛍️ Shopping';
+    if (/natural|beaches|water|geological|gardens_and_parks|nature_reserves/.test(k)) return '🏔️ Ausflug';
+    return '🏯 Sehenswürdigkeit';
+}
+async function fetchOpenTripMapPOIs(lat, lng, radius, limit) {
+    const url = `https://api.opentripmap.com/0.1/en/places/radius?radius=${radius}&lon=${lng}&lat=${lat}&limit=${limit}&rate=2&format=json&apikey=${encodeURIComponent(otmKey)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('OpenTripMap radius request failed: ' + res.status);
+    return await res.json();
+}
+async function fetchOpenTripMapDetails(xid) {
+    try {
+        const url = `https://api.opentripmap.com/0.1/en/places/xid/${encodeURIComponent(xid)}?apikey=${encodeURIComponent(otmKey)}`;
+        const res = await fetch(url);
+        if (!res.ok) return {};
+        const d = await res.json();
+        return { desc: d.wikipedia_extracts?.text || d.info?.descr || '', imgUrl: d.preview?.source || null };
+    } catch(e) { return {}; }
+}
+
+// ─── OPENSTREETMAP OVERPASS (kostenlos, kein Key, echte OSM-Kategorien) ────
+function categorizeFromOsmTags(tags) {
+    if (tags.amenity && /restaurant|cafe|fast_food|bar|marketplace|food_court/.test(tags.amenity)) return '🍣 Restaurant';
+    if (tags.shop) return '🛍️ Shopping';
+    if (tags.leisure && /park|garden|nature_reserve/.test(tags.leisure)) return '🏔️ Ausflug';
+    if (tags.natural) return '🏔️ Ausflug';
+    return '🏯 Sehenswürdigkeit';
+}
+async function fetchOverpassPOIs(lat, lng, radius, limit) {
+    const query = `[out:json][timeout:15];(
+        node["tourism"~"attraction|museum|viewpoint|gallery|zoo|artwork"](around:${radius},${lat},${lng});
+        node["amenity"~"restaurant|cafe|fast_food|bar|marketplace"](around:${radius},${lat},${lng});
+        node["shop"](around:${radius},${lat},${lng});
+        node["leisure"~"park|garden"](around:${radius},${lat},${lng});
+        node["historic"](around:${radius},${lat},${lng});
+    );out center ${limit};`;
+    const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query });
+    if (!res.ok) throw new Error('Overpass request failed: ' + res.status);
+    const data = await res.json();
+    return (data.elements || [])
+        .filter(el => el.tags?.name)
+        .map(el => ({ title: el.tags.name, lat: el.lat ?? el.center?.lat, lng: el.lon ?? el.center?.lon, type: categorizeFromOsmTags(el.tags) }));
+}
+
+// Fragt alle verfügbaren Quellen parallel ab (OpenTripMap, OSM/Overpass, Wikipedia),
+// merged sie und dedupliziert per Titel. Kein Key nötig – Overpass & Wikipedia laufen immer mit.
+async function fetchPOIs(root, radius, limit) {
+    const jobs = [];
+    if (otmKey) {
+        jobs.push(fetchOpenTripMapPOIs(root.lat, root.lng, radius, limit)
+            .then(list => list.filter(p => p.name).map(p => ({ title: p.name, lat: p.point.lat, lng: p.point.lon, xid: p.xid, kinds: p.kinds })))
+            .catch(e => { console.warn('OpenTripMap fehlgeschlagen:', e.message); return []; }));
+    }
+    jobs.push(fetchOverpassPOIs(root.lat, root.lng, radius, limit)
+        .catch(e => { console.warn('Overpass fehlgeschlagen:', e.message); return []; }));
+    jobs.push((async () => {
+        const geoUrl = `https://de.wikipedia.org/w/api.php?action=query&list=geosearch&gscoord=${root.lat}|${root.lng}&gsradius=${Math.min(radius,10000)}&gslimit=${limit}&format=json`;
+        const pois = (await jsonp(geoUrl))?.query?.geosearch || [];
+        return pois.map(p => ({ title: p.title, lat: p.lat, lng: p.lon }));
+    })().catch(e => { console.warn('Wikipedia-Geosuche fehlgeschlagen:', e.message); return []; }));
+
+    const results = await Promise.all(jobs);
+    const merged = [], seen = new Set();
+    for (const list of results) {
+        for (const poi of list) {
+            if (!poi.title || poi.lat == null || poi.lng == null) continue;
+            const key = poi.title.trim().toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            merged.push(poi);
+        }
+    }
+    return merged.slice(0, limit);
+}
+
+// Ergänzt Beschreibung, Bild und Kategorie zu einem POI aus fetchPOIs().
+async function fetchPOIDetails(poi, cityHint) {
+    if (poi.xid) {
+        const det = await fetchOpenTripMapDetails(poi.xid);
+        const desc = det.desc && det.desc.length > 20 ? det.desc.trim() : `Sehenswürdigkeit in der Region ${cityHint}.`;
+        const imgUrl = det.imgUrl || await fetchCommonsImage(poi.title, cityHint);
+        return { desc, imgUrl, type: categorizeFromKinds(poi.kinds) };
+    }
+    let desc = `Sehenswürdigkeit in der Region ${cityHint}.`, imgUrl = null;
+    try {
+        const wd = await fetchWikiDetails(poi.title);
+        if (wd.extract?.length > 20) desc = wd.extract.trim().replace(/\n/g,' ');
+        imgUrl = wd.imgUrl;
+    } catch(e) {}
+    if (!imgUrl) imgUrl = await fetchCommonsImage(poi.title, cityHint);
+    return { desc, imgUrl, type: poi.type || categorize(poi.title, desc) };
+}
+
+const clean = n => n.replace(/ \(Ankunft\)| \(Abreise\)/g, '');
+function displayName(n, i) {
+    const b = clean(n);
+    if (i === 0) return b + ' (Ankunft)';
+    if (i === places.length - 1) return b + ' (Abreise)';
+    return b;
+}
+function haptic(ms=10) { try { navigator.vibrate?.(ms); } catch(e) {} }
+
+let toastT;
+function showToast(msg, ms=3000) {
+    const t = document.getElementById('toast');
+    t.innerText = msg; t.classList.add('show');
+    clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+function distanceKm(fromLat, fromLng, toLat, toLng) {
+    const rad = deg => deg * Math.PI / 180;
+    const dLat = rad(toLat - fromLat), dLng = rad(toLng - fromLng);
+    const a = Math.sin(dLat/2)**2 + Math.cos(rad(fromLat))*Math.cos(rad(toLat))*Math.sin(dLng/2)**2;
+    return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+function formatDistance(km) {
+    return km < 1 ? `${Math.round(km*1000)} m entfernt` : `${km.toFixed(km<10?1:0).replace('.',',')} km entfernt`;
+}
+function requestUserLocation() {
+    if (locationRequested || !navigator.geolocation || !window.isSecureContext) return;
+    locationRequested = true;
+    navigator.geolocation.getCurrentPosition(
+        pos => {
+            userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            showToast('📍 Entfernungen vom aktuellen Standort aktualisiert');
+            renderActs(); drawMap();
+        },
+        () => { showToast('Standort nicht freigegeben – Entfernungen werden nicht angezeigt.'); },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+    );
+}
+
+function refreshUserLocation() {
+    if (!navigator.geolocation) { showToast('Standort wird von diesem Gerät nicht unterstützt.'); return; }
+    if (!window.isSecureContext) {
+        showToast('⚠️ Standort braucht HTTPS. Über http://IP:Port blockiert der Browser das (siehe Anleitung).', 6000);
+        return;
+    }
+    locationRequested = true;
+    const btn = document.getElementById('locateBtn');
+    btn?.classList.add('loading');
+    navigator.geolocation.getCurrentPosition(
+        pos => {
+            userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            btn?.classList.remove('loading');
+            haptic();
+            showToast('📍 Standort aktualisiert');
+            drawMap(); renderActs();
+        },
+        () => { btn?.classList.remove('loading'); showToast('Standort konnte nicht ermittelt werden.'); },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+}
+
+// ─── DATES ───────────────────────────────────────────────────────────────
+function calculateDates() {
+    let cur = startDate, total = 0; computedData = [];
+    places.forEach(p => {
+        const s = new Date(cur), e = new Date(cur);
+        e.setDate(e.getDate() + (parseInt(p.nights)||0));
+        const fmt = d => d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+        computedData.push({ strStart: fmt(s), strEnd: fmt(e) });
+        total += parseInt(p.nights)||0;
+        cur = e.toISOString().split('T')[0];
+    });
+    const end = new Date(startDate); end.setDate(end.getDate() + total);
+    const full = d => d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
+    document.getElementById('drawer-dates').innerText = `${full(new Date(startDate))} – ${full(end)}`;
+    document.getElementById('drawer-nights').innerText = `${total} Nächte gesamt`;
+    document.getElementById('s-startdate').value = startDate;
+    document.getElementById('s-otmkey').value = otmKey;
+}
+
+function persist() {
+    places.forEach(p => p.name = clean(p.name));
+    localStorage.setItem('jp26_places', JSON.stringify(places));
+    localStorage.setItem('jp26_acts', JSON.stringify(acts));
+    localStorage.setItem('jp26_start', startDate);
+}
+function saveData() { persist(); calculateDates(); renderPlaces(); renderActs(); drawMap(); }
+
+function appReset() {
+    if (!confirm('App zurücksetzen?')) return;
+    localStorage.clear();
+    if (otmKey) localStorage.setItem('jp26_otm_key', otmKey); // API-Key ist kein Reisedaten-Feld
+    places = JSON.parse(JSON.stringify(INITIAL_PLACES));
+    acts = []; startDate = "2026-11-17"; crawlerDone = false;
+    saveData();
+    setTimeout(runCrawler, 500);
+}
+function saveSettings() {
+    startDate = document.getElementById('s-startdate').value||"2026-11-17";
+    otmKey = document.getElementById('s-otmkey').value.trim();
+    localStorage.setItem('jp26_otm_key', otmKey);
+    saveData();
+    document.getElementById('modal-settings').close();
+}
+
+// ─── HOTEL GEO LOOKUP ────────────────────────────────────────────────────
+async function lookupHotelGeo(hotelName, cityName) {
+    const q = `${hotelName} ${cityName} Japan`;
+    try {
+        const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`);
+        const d = await r.json();
+        if (d.length) return { lat: parseFloat(d[0].lat), lng: parseFloat(d[0].lon) };
+    } catch(e) {}
+    return null;
+}
+
+async function saveHotel(placeId, newHotel) {
+    const idx = places.findIndex(p => p.id === placeId);
+    if (idx < 0) return;
+    places[idx].hotel = newHotel;
+    showToast(`🔍 Suche Geodaten für "${newHotel}"…`, 5000);
+    const geo = await lookupHotelGeo(newHotel, clean(places[idx].name));
+    if (geo) {
+        places[idx].hotelLat = geo.lat;
+        places[idx].hotelLng = geo.lng;
+        showToast('✅ Unterkunft-Marker aktualisiert!');
+    } else {
+        places[idx].hotelLat = null; places[idx].hotelLng = null;
+        showToast('⚠️ Kein Geodaten-Treffer – Marker bleibt am Stadtmittelpunkt.');
+    }
+    saveData();
+}
+
+// ─── NAV ──────────────────────────────────────────────────────────────────
+const app = document.getElementById('app'), bottomSheet = document.getElementById('bottomSheet');
+function toggleMenu() { app.classList.toggle('menu-open'); }
+function switchView(id, title) {
+    document.getElementById('pageTitle').innerText = title || `Stationen (${places.length})`;
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+    document.getElementById('menu-' + id.split('-')[1])?.classList.add('active');
+    bottomSheet.classList.remove('open'); app.classList.remove('menu-open');
+    if (id === 'view-map' && map) setTimeout(() => map.invalidateSize(), 60);
+}
+function jumpToActivities() {
+    const raw = document.getElementById('bs-title').innerText;
+    currentFilter = clean(raw.split('. ').slice(1).join('. ') || raw);
+    switchView('view-activities','Aktivitäten'); renderActs();
+}
+
+// ─── MAP ──────────────────────────────────────────────────────────────────
+let map, layerGroup, tempMarker;
+const BASE_LAYERS = {
+    standard: () => L.tileLayer('https://{s}.tile.openstreetmap.de/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap-Mitwirkende', maxZoom: 19, subdomains: 'abc'
+    }),
+    satellite: () => L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '&copy; Esri', maxZoom: 19
+    }),
+    terrain: () => L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenTopoMap (CC-BY-SA)', maxZoom: 17, subdomains: 'abc'
+    })
+};
+let currentBaseLayer = null, currentBaseType = 'standard';
+
+function setMapType(type) {
+    if (!BASE_LAYERS[type] || type === currentBaseType) return;
+    if (currentBaseLayer) map.removeLayer(currentBaseLayer);
+    currentBaseType = type;
+    currentBaseLayer = BASE_LAYERS[type]().addTo(map);
+    document.querySelectorAll('.maptype-btn').forEach(b => b.classList.toggle('active', b.dataset.type === type));
+}
+
+function initMap() {
+    map = L.map('map',{zoomControl:false}).setView([37.5,137.0],5);
+    L.control.zoom({position:'topright'}).addTo(map);
+    currentBaseLayer = BASE_LAYERS.standard().addTo(map);
+    layerGroup = L.layerGroup().addTo(map);
+    map.on('click', () => bottomSheet.classList.remove('open'));
+    calculateDates(); drawMap();
+}
+
+function drawMap() {
+    if (!layerGroup) return;
+    layerGroup.clearLayers();
+    const ll = [];
+    const hotelIcon = L.divIcon({className:'hotel-marker', html:'🏨', iconSize:[20,20], iconAnchor:[10,10]});
+
+    places.forEach((p, i) => {
+        const cd = computedData[i];
+        const cityIcon = L.divIcon({
+            className: '',
+            html: `<div style="background:#d32f2f;color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.4);border:2px solid white;">${i+1}</div>`,
+            iconSize: [28,28], iconAnchor: [14,14]
+        });
+        L.marker([p.lat, p.lng], {icon: cityIcon}).addTo(layerGroup).on('click', e => {
+            L.DomEvent.stopPropagation(e);
+            if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+            document.getElementById('bs-place').style.display = 'block';
+            document.getElementById('bs-act').style.display = 'none';
+            document.getElementById('bs-dates').innerText = `${cd.strStart} – ${cd.strEnd} (${p.nights} Nächte)`;
+            document.getElementById('bs-title').innerText = `${i+1}. ${displayName(p.name,i)}`;
+            document.getElementById('bs-hotel').innerText = p.hotel||'–';
+            document.getElementById('bs-transport').innerText = p.transport||'–';
+            bottomSheet.classList.add('open');
+            map.setView([p.lat, p.lng], 7, {animate:true});
+        });
+
+        if (p.hotelLat && p.hotelLng) {
+            L.marker([p.hotelLat, p.hotelLng], {icon: hotelIcon}).addTo(layerGroup)
+                .bindPopup(`<b>🏨 ${p.hotel}</b><br><small>${displayName(p.name,i)}</small>`);
+        }
+        ll.push([p.lat, p.lng]);
+    });
+    if (ll.length > 1) L.polyline(ll,{color:'#d32f2f',weight:3,opacity:.6,dashArray:'6,10'}).addTo(layerGroup);
+
+    const favoriteIcon = L.divIcon({
+        className: '',
+        html: '<div style="width:30px;height:30px;border-radius:50%;background:#fff;color:#d32f2f;border:2px solid #d32f2f;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 6px rgba(0,0,0,.35)">♥</div>',
+        iconSize: [30,30], iconAnchor: [15,15]
+    });
+    acts.filter(a => a.favorite && a.lat && a.lng).forEach(a => {
+        L.marker([a.lat, a.lng], { icon: favoriteIcon, zIndexOffset: 500 })
+            .addTo(layerGroup)
+            .on('click', () => showOnMap(a.lat, a.lng, a.title, a.desc));
+    });
+
+    if (userLocation) {
+        const meIcon = L.divIcon({
+            className: '',
+            html: '<div style="width:16px;height:16px;border-radius:50%;background:#4285F4;border:3px solid white;box-shadow:0 0 0 4px rgba(66,133,244,.35),0 2px 6px rgba(0,0,0,.35)"></div>',
+            iconSize: [16,16], iconAnchor: [8,8]
+        });
+        L.marker([userLocation.lat, userLocation.lng], { icon: meIcon, zIndexOffset: 1000 })
+            .addTo(layerGroup).bindPopup('📍 Dein Standort');
+    }
+
+    if (ll.length) map.fitBounds(L.polyline(ll).getBounds(),{padding:[30,30]});
+}
+
+let currentActLat = null, currentActLng = null, currentActTitle = '', currentActDesc = '';
+
+async function showOnMap(lat, lng, title, desc) {
+    switchView('view-map','Reiseroute Karte');
+    if (tempMarker) map.removeLayer(tempMarker);
+    const icon = L.divIcon({className:'custom-marker', html:'⭐', iconSize:[22,22], iconAnchor:[11,11]});
+    tempMarker = L.marker([lat,lng],{icon}).addTo(map).bindPopup(`<b>${title}</b>`,{autoClose:false}).openPopup();
+    map.flyTo([lat,lng],14,{duration:1.2});
+
+    currentActLat = lat; currentActLng = lng; currentActTitle = title; currentActDesc = desc || '';
+
+    document.getElementById('bs-place').style.display = 'none';
+    document.getElementById('bs-act').style.display = 'block';
+    document.getElementById('bs-act-title').innerText = title;
+    document.getElementById('bs-act-desc').innerText = desc || '';
+
+    const img = document.getElementById('bs-act-img');
+    img.style.display = 'none'; img.src = '';
+
+    const actData = acts.find(a => a.title === title);
+
+    function setImg(url) {
+        if (!url) return;
+        img.onload = () => { img.style.display = 'block'; };
+        img.onerror = () => { img.style.display = 'none'; };
+        img.src = url;
+    }
+
+    if (actData && actData.imgUrl) {
+        setImg(actData.imgUrl);
+    } else {
+        (async () => {
+            try {
+                const url = await fetchCommonsImage(title, actData?.topPlace);
+                if (url) {
+                    setImg(url);
+                    if (actData) { actData.imgUrl = url; persist(); }
+                }
+            } catch(e) {}
+        })();
+    }
+
+    bottomSheet.classList.add('open');
+}
+
+function openGoogleMapsRoute() {
+    if (currentActLat == null) return;
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${currentActLat},${currentActLng}&travelmode=transit`, '_blank');
+}
+function openActivityWeb() {
+    window.open(`https://www.google.de/search?q=${encodeURIComponent(currentActTitle + ' Japan')}`, '_blank');
+}
+
+// ─── PLACES ───────────────────────────────────────────────────────────────
+function renderPlaces() {
+    const list = document.getElementById('placesList'); list.innerHTML = '';
+    document.getElementById('menu-places').innerHTML = `<span class="menu-icon tint-blue">📋</span> Route verwalten (${places.length})`;
+    if (document.getElementById('view-places').classList.contains('active'))
+        document.getElementById('pageTitle').innerText = `Stationen (${places.length})`;
+
+    places.forEach((p, i) => {
+        const cd = computedData[i];
+        const card = document.createElement('div'); card.className = 'place-card'; card.draggable = true;
+        card.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', i); setTimeout(() => card.classList.add('dragging'), 40); });
+        card.addEventListener('dragend', () => card.classList.remove('dragging'));
+        card.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('drag-over'); });
+        card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+        card.addEventListener('drop', e => {
+            e.preventDefault(); card.classList.remove('drag-over');
+            const from = parseInt(e.dataTransfer.getData('text/plain'));
+            if (!isNaN(from) && from !== i) { const item = places.splice(from,1)[0]; places.splice(i,0,item); saveData(); }
+        });
+
+        const hotelGeoHint = p.hotelLat ? ' 🏨' : ' <span style="color:var(--label-tertiary);font-size:10px">(kein Marker)</span>';
+        const editId = `hotel-edit-${p.id}`;
+
+        card.innerHTML = `
+            <div class="drag-handle" aria-hidden="true">≡</div>
+            <div class="place-body">
+                <div class="dates-badge">${cd.strStart} – ${cd.strEnd}</div>
+                <h3>${i+1}. ${displayName(p.name,i)}</h3>
+                <div class="hotel-row">
+                    <span class="hotel-name">${p.hotel||'Unterkunft offen'}${hotelGeoHint}</span>
+                    <button class="edit-btn" onclick="toggleHotelEdit(${p.id})" aria-label="Unterkunft bearbeiten" title="Unterkunft bearbeiten">✏️</button>
+                </div>
+                <div class="hotel-input-wrap" id="${editId}">
+                    <input type="text" id="hi-${p.id}" value="${p.hotel||''}" placeholder="Unterkunft eingeben…">
+                    <button class="hotel-save-btn" onclick="saveHotelFromInput(${p.id})">OK</button>
+                </div>
+                <div class="nights-row">
+                    <button class="nights-btn" onclick="changeNights(${i},-1)" aria-label="Weniger Nächte">−</button>
+                    <div class="nights-val">${p.nights} N</div>
+                    <button class="nights-btn" onclick="changeNights(${i},1)" aria-label="Mehr Nächte">+</button>
+                </div>
+            </div>
+            <button class="del-btn" onclick="delPlace(${p.id})" aria-label="Station löschen">✕</button>`;
+        list.appendChild(card);
+    });
+}
+
+function toggleHotelEdit(placeId) {
+    const wrap = document.getElementById(`hotel-edit-${placeId}`);
+    wrap.classList.toggle('open');
+    if (wrap.classList.contains('open')) document.getElementById(`hi-${placeId}`).focus();
+}
+async function saveHotelFromInput(placeId) {
+    const val = document.getElementById(`hi-${placeId}`).value.trim();
+    if (!val) return;
+    document.getElementById(`hotel-edit-${placeId}`).classList.remove('open');
+    await saveHotel(placeId, val);
+}
+
+function changeNights(i,d) { places[i].nights = Math.max(0,(parseInt(places[i].nights)||0)+d); saveData(); }
+function delPlace(id) { haptic(); places = places.filter(p => p.id !== id); saveData(); }
+
+// ─── JSONP (works from file:// AND https://) ──────────────────────────────
+function jsonp(url, callbackParam = 'callback') {
+    return new Promise((resolve, reject) => {
+        const cbName = '_jp_' + Math.random().toString(36).slice(2);
+        const script = document.createElement('script');
+        const timer = setTimeout(() => {
+            delete window[cbName]; document.head.removeChild(script);
+            reject(new Error('timeout'));
+        }, 8000);
+        window[cbName] = data => {
+            clearTimeout(timer); delete window[cbName]; document.head.removeChild(script);
+            resolve(data);
+        };
+        script.src = url + (url.includes('?') ? '&' : '?') + callbackParam + '=' + cbName;
+        script.onerror = () => { clearTimeout(timer); reject(new Error('script error')); };
+        document.head.appendChild(script);
+    });
+}
+
+function fetchWithTimeout(url, ms=8000) {
+    return Promise.race([
+        fetch(url),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
+    ]);
+}
+
+async function fetchWikiDetails(title, lang='en') {
+    try {
+        const url = `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=extracts|pageimages&exintro=1&explaintext=1&exchars=240&pithumbsize=600&format=json`;
+        const d = await jsonp(url);
+        const page = Object.values(d?.query?.pages || {})[0];
+        if (page && page.missing === undefined) {
+            return { extract: page.extract || '', imgUrl: page.thumbnail?.source || null };
+        }
+    } catch(e) {}
+    if (lang === 'en') return fetchWikiDetails(title, 'de');
+    return { extract: '', imgUrl: null };
+}
+
+async function commonsFileSearch(q) {
+    try {
+        const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrnamespace=6&gsrlimit=1&prop=imageinfo&iiprop=url&iiurlwidth=600&format=json`;
+        const d = await jsonp(url);
+        const page = Object.values(d?.query?.pages || {})[0];
+        return page?.imageinfo?.[0]?.thumburl || page?.imageinfo?.[0]?.url || null;
+    } catch(e) { return null; }
+}
+async function wikiThumbSearch(lang, q) {
+    try {
+        const url = `https://${lang}.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrlimit=1&prop=pageimages&pithumbsize=600&format=json`;
+        const d = await jsonp(url);
+        const page = Object.values(d?.query?.pages || {})[0];
+        return page?.thumbnail?.source || null;
+    } catch(e) { return null; }
+}
+// Tries several increasingly loose queries so nearly every activity ends up with a photo.
+async function fetchCommonsImage(title, cityHint) {
+    const q = title.replace(/\(.*?\)/g, '').trim();
+    return (await commonsFileSearch(q))
+        || (cityHint && await commonsFileSearch(`${q} ${cityHint}`))
+        || (await wikiThumbSearch('de', q))
+        || (await wikiThumbSearch('en', q))
+        || (cityHint && await wikiThumbSearch('de', cityHint))
+        || null;
+}
+
+// ─── HARDCODED FALLBACKS ──────────────────────────────────────────────────
+const FALLBACKS = {
+    'Kushiro': [
+        { title:'Akan-Mashu-Nationalpark', desc:'Einer der schönsten Nationalparks Japans mit drei Caldera-Seen, heißen Quellen und dem seltenen Marimo-Moos.', lat:43.4500, lng:144.3700 },
+        { title:'Tsurui-Crane Sanctuary', desc:'Das weltberühmte Schutzgebiet der Japanischen Kraniche (Tancho). Morgens im Winter unvergesslich.', lat:43.2200, lng:144.3200 },
+        { title:'Kushiro Feuchtgebiet', desc:'Größtes Feuchtgebiet Japans – Kanufahrten durch Schilflandschaft werden angeboten.', lat:43.0700, lng:144.4000 },
+        { title:'Hamanaka (Hokkaido)', desc:'Kleines Küstendorf mit Ausblick auf den Pazifik und frischen Seeigeln direkt vom Boot.', lat:43.0900, lng:144.7000 },
+        { title:'Lake Mashu', desc:'Einer der klarsten Seen der Welt, oft im Nebel gehüllt. Aussichtsplattformen über dem Kratersee.', lat:43.5700, lng:144.5400 }
+    ],
+    'Nyuto Onsen': [
+        { title:'Tsurunoyu Onsen', desc:'Das älteste und berühmteste Ryokan im Tal, bekannt für milchiges Heilwasser und rustikale Atmosphäre.', lat:39.7850, lng:140.7580 },
+        { title:'Kuroyu Onsen', desc:'Dunkles, schwefeliges Wasser tief im Bergwald. Sehr ursprünglich und abgelegen.', lat:39.7820, lng:140.7620 },
+        { title:'Magoroku Onsen', desc:'Waldreiches Onsen-Ryokan mit eigenem Naturbach. Perfekt für Winterspaziergänge.', lat:39.7900, lng:140.7700 },
+        { title:'Ganiba Onsen', desc:'Kleines Onsen mit Krabbenmotiv, bekannt für eisenhaltiges rötliches Wasser.', lat:39.7860, lng:140.7640 },
+        { title:'Tamagawa Onsen (Akita)', desc:'Stärkstes saures Heilwasser Japans, ca. 40km entfernt, Tagesausflug lohnt sich.', lat:39.9600, lng:140.6800 }
+    ],
+    'Ginzan Onsen': [
+        { title:'Ginzan Onsen (Dorf)', desc:'Märchenhaftes Taisho-Dorf mit Gasbeleuchtung und dampfenden Gassen – Vorlage für Spirited Away.', lat:38.5707, lng:140.5317 },
+        { title:'Fujiya Ryokan', desc:'Berühmtestes Ryokan im Dorf, prächtige Holzfassade direkt am Fluss.', lat:38.5710, lng:140.5310 },
+        { title:'Shirogane Falls Ginzan', desc:'Kleiner Wasserfall am Dorfeingang, besonders schön bei Schnee.', lat:38.5680, lng:140.5290 },
+        { title:'Ginzan Onsen Foot Bath', desc:'Kostenloser öffentlicher Fußbad direkt im Dorf – perfekt für eine kurze Pause.', lat:38.5715, lng:140.5320 },
+        { title:'Obanazawa City', desc:'Nächstgelegene Stadt mit Haiku-Museum und Basho-Ausstellung (30 min entfernt).', lat:38.6000, lng:140.4000 }
+    ],
+    'Kurokawa Onsen': [
+        { title:'Rotemburo Meguri', desc:'Mit dem Holz-Nyutougata-Pass drei verschiedene Außen-Onsen im Wald ausprobieren.', lat:33.0786, lng:131.1444 },
+        { title:'Yamamizuki Ryokan', desc:'Eines der schönsten Ryokan im Tal mit mehreren Privatbädern und exzellenter Kaiseki-Küche.', lat:33.0790, lng:131.1450 },
+        { title:'Kurokawa Onsen Dorf', desc:'Charmantes Onsen-Dorf zum Schlendern – viele kleine Läden und kostenlose Fußbäder.', lat:33.0780, lng:131.1440 },
+        { title:'Kurokawa Inari Schrein', desc:'Kleiner rot-orangener Schrein am Flussufer, kurzer Spaziergang vom Dorfzentrum.', lat:33.0775, lng:131.1460 },
+        { title:'Takachiho Gorge (Ausflug)', desc:'45 Minuten Fahrt entfernt: atemberaubende Schlucht mit Bootsverleih unter Wasserfällen.', lat:32.7060, lng:131.3010 }
+    ]
+};
+
+const GENERIC_FALLBACKS = {
+    'Tokyo': [
+        { title:'Tsukiji Outer Market', desc:'Frisches Sushi, Tamagoyaki und Streetfood auf dem lebhaftesten Markt Tokyos.', lat:35.6654, lng:139.7707 },
+        { title:'Senso-ji Tempel Asakusa', desc:'Tokyos ältester Tempel mit prächtigem Tor, Räucherwerk und Handwerksmärkten.', lat:35.7148, lng:139.7967 },
+        { title:'Shibuya Crossing', desc:'Die bekannteste Fußgängerampel der Welt – am besten abends von oben beobachten.', lat:35.6595, lng:139.7004 },
+        { title:'Shinjuku Gyoen', desc:'Wunderschöner Stadtpark – ideal für einen ruhigen Morgen nach dem Jetlag.', lat:35.6852, lng:139.7100 },
+        { title:'TeamLab Planets', desc:'Immersives digitales Kunstmuseum – am besten Tickets weit im Voraus buchen.', lat:35.6469, lng:139.7859 }
+    ],
+    'Fukuoka': [
+        { title:'Yatai Straßenstände (Nakasu)', desc:'Fukuokas berühmteste Tradition: Abends an provisorischen Ständen Tonkotsu Ramen essen.', lat:33.5902, lng:130.4017 },
+        { title:'Ohori Park', desc:'Großer Teichpark im Zentrum – Bootsfahrten und Café am Wasser.', lat:33.5850, lng:130.3800 },
+        { title:'Dazaifu Tenmangu', desc:'Wichtiger Schrein 30 Min. von Fukuoka, berühmt für Pflaumenbäume und Umeboshi.', lat:33.5122, lng:130.5328 },
+        { title:'Canal City Hakata', desc:'Einzigartiges Shopping-Center mit Kanal mitten hindurch – auch abends schön.', lat:33.5889, lng:130.4119 },
+        { title:'Hakata Ramen Street', desc:'Acht Ramen-Läden nebeneinander im Bahnhof – idealer Vergleichstest.', lat:33.5897, lng:130.4207 }
+    ],
+    'Nagoya': [
+        { title:'Burg Nagoya', desc:'Prächtige Burganlage mit goldenen Shachihoko-Fischen auf dem Dach.', lat:35.1852, lng:136.8990 },
+        { title:'Atsuta Jingu', desc:'Einer der wichtigsten Schreine Japans, Heimat des legendären Schwerts Kusanagi.', lat:35.1278, lng:136.9084 },
+        { title:'Nagoya-meshi Mittagessen', desc:'Probiere Miso Katsu, Hitsumabushi Aal oder Kishimen Nudeln – lokale Spezialitäten.', lat:35.1715, lng:136.8816 },
+        { title:'Toyota Museum', desc:'Weltklasse-Automobilmuseum mit historischen Fahrzeugen und interaktiven Exponaten.', lat:35.0872, lng:137.1564 },
+        { title:'Osu Shopping District', desc:'Lebhaftes Viertel mit Vintage-Läden, Streetfood und kleinen Tempeln.', lat:35.1589, lng:136.9047 }
+    ],
+    'Niigata': [
+        { title:'Ponshukan Sake-Automat', desc:'Im Bahnhof: Kleines Sake-Museum mit Automaten für 500 Yen – viele lokale Sorten probieren.', lat:37.9117, lng:139.0606 },
+        { title:'Hakusan Park', desc:'Schöner Stadtpark mit japanischem Garten und Teich.', lat:37.9245, lng:139.0480 },
+        { title:'Sasagawa Nagare Küste', desc:'Malerische Felsküste, 1 Std. nördlich – einer der schönsten Küstenabschnitte Japans.', lat:38.2800, lng:139.4300 },
+        { title:'Niigata City History Museum', desc:'Einblick in die Geschichte der Stadt als bedeutender Hafen und Reisregion.', lat:37.9200, lng:139.0380 },
+        { title:'Bandai Market', desc:'Überdachter Markt mit frischen Meeresfrüchten und lokalen Reissnacks.', lat:37.9180, lng:139.0520 }
+    ],
+    'Aizu-Wakamatsu': [
+        { title:'Tsuruga-jo Burg', desc:'Restaurierte Burg aus der Samurai-Ära mit Museum über die Boshin-Kriegsgeschichte.', lat:37.4930, lng:139.9279 },
+        { title:'Ouchi-juku', desc:'Historisches Postdorf aus der Edo-Zeit, 45 Min. entfernt – wie ein lebendes Museum.', lat:37.3167, lng:139.8167 },
+        { title:'Iimori-yama Hügel', desc:'Gedenkstätte der Byakkotai-Jugendsoldaten mit schönem Blick über die Stadt.', lat:37.4897, lng:139.9409 },
+        { title:'Nanokamachi Street', desc:'Traditionelle Straße mit Sake-Brauereien, Ladenzeilen und Koi-Teichen.', lat:37.4967, lng:139.9240 },
+        { title:'Higashiyama Onsen', desc:'Kleines Onsen-Viertel am Stadtrand – ideal für einen entspannten Abend.', lat:37.4800, lng:139.9567 }
+    ],
+    'Akita': [
+        { title:'Akita Museum of Art', desc:'Preisgekrönte Architektur von Tadao Ando mit großen Fujita-Gemälden.', lat:39.7189, lng:140.1025 },
+        { title:'Senshu Park', desc:'Parkanlage auf dem Gelände der ehemaligen Burg mit Kirschblüten und Herbstlaub.', lat:39.7226, lng:140.1040 },
+        { title:'Kanto-Matsuri Museum', desc:'Lernt das berühmte Laternenfest kennen – mit Mitmachangeboten.', lat:39.7200, lng:140.1030 },
+        { title:'Kawabata Shopping Arcade', desc:'Überdachte Einkaufsstraße mit lokalen Produkten, Kiritanpo-Stäbchen und Sake.', lat:39.7180, lng:140.1055 },
+        { title:'Nyuto Onsen Tagesausflug', desc:'Von Akita aus in 1 Std. erreichbar: das bekannteste Onsen-Tal der Tohoku-Region.', lat:39.8000, lng:140.7960 }
+    ],
+    'Sapporo': [
+        { title:'Odori Park', desc:'Breiter Stadtpark im Zentrum – im Winter Eisplastiken beim Schneefestival.', lat:43.0595, lng:141.3535 },
+        { title:'Hokkaido Jingu Schrein', desc:'Ruhiger Shinto-Schrein mitten im Maruyama-Park, 15 Min. vom Zentrum.', lat:43.0563, lng:141.3197 },
+        { title:'Sapporo Biermuseum', desc:'Historisches Brauerei-Gelände mit Biergeschichte und Verkostung.', lat:43.0730, lng:141.3620 },
+        { title:'Nijo Market', desc:'Frische Meeresfrüchte, Krabben und Seeigel – authentischer als der Touristenmarkt.', lat:43.0620, lng:141.3580 },
+        { title:'Niseko Tagesausflug', desc:'1,5 Std. von Sapporo: Onsen mit Blick auf den Mt. Yotei und Winterlandschaft.', lat:42.8167, lng:140.6833 }
+    ],
+    'Asahikawa': [
+        { title:'Asahiyama Zoo', desc:'Japans bekanntester Zoo mit innovativen Gehegen – besonders die Pinguinparade im Winter.', lat:43.7710, lng:142.4710 },
+        { title:'Aoiike (Blauer Teich Biei)', desc:'20 Min. südlich: leuchtend blauer Teich durch Mineralien, im Winter illuminiert.', lat:43.6010, lng:142.5280 },
+        { title:'Shirahige Falls Biei', desc:'Einzigartiger Wasserfall direkt aus dem Flussufer – blaues Wasser durch Thermalquellen.', lat:43.5920, lng:142.5100 },
+        { title:'Patchwork Road Biei', desc:'Sanfte Hügellandschaft mit Feldern im Schachbrettmuster – per Fahrrad erkundbar.', lat:43.5900, lng:142.4600 },
+        { title:'Asahikawa Ramen', desc:'Eigenständiger Ramen-Stil: würzige Sojasauce mit Fett-Schicht gegen die Kälte.', lat:43.7710, lng:142.3650 }
+    ]
+};
+
+// ─── CRAWLER ──────────────────────────────────────────────────────────────
+async function runCrawler() {
+    if (crawlerDone) return;
+    const cities = [...new Set(places.map(p => clean(p.name)))];
+
+    for (const city of cities) {
+        const have = acts.filter(a => a.topPlace === city).length;
+        if (have >= 5) continue;
+        showToast(`🔍 ${city}…`, 4000);
+        const root = places.find(p => clean(p.name) === city);
+        if (!root) continue;
+
+        let added = 0;
+        try {
+            const pois = await fetchPOIs(root, 10000, 8);
+
+            for (const poi of pois) {
+                if (have + added >= 5) break;
+                if (acts.some(a => a.topPlace === city && a.title === poi.title)) continue;
+                const { desc, imgUrl, type } = await fetchPOIDetails(poi, city);
+                acts.push({ id: Date.now()+Math.random(), topPlace: city, type, title: poi.title, desc, imgUrl, lat: poi.lat, lng: poi.lng });
+                added++;
+                persist(); renderActs();
+                await new Promise(r => setTimeout(r, 150));
+            }
+        } catch(e) { console.warn('Geo-search failed for', city, e.message); }
+
+        const fallbacks = FALLBACKS[city] || [];
+        for (const fb of fallbacks) {
+            if (acts.filter(a => a.topPlace === city).length >= 5) break;
+            if (acts.some(a => a.topPlace === city && a.title === fb.title)) continue;
+            acts.push({ id: Date.now()+Math.random(), topPlace: city, type: categorize(fb.title, fb.desc), title: fb.title, desc: fb.desc, imgUrl: null, lat: fb.lat, lng: fb.lng });
+            persist(); renderActs();
+            await new Promise(r => setTimeout(r, 50));
+        }
+
+        if (acts.filter(a => a.topPlace === city).length === 0) {
+            const generic = GENERIC_FALLBACKS[city];
+            if (generic) {
+                for (const fb of generic.slice(0,5)) {
+                    acts.push({ id: Date.now()+Math.random(), topPlace: city, type: categorize(fb.title, fb.desc), title: fb.title, desc: fb.desc, imgUrl: null, lat: fb.lat, lng: fb.lng });
+                }
+            } else {
+                acts.push({ id: Date.now()+Math.random(), topPlace: city, type: '🏯 Sehenswürdigkeit', title: `Stadtzentrum ${city}`, desc: `Das Zentrum von ${city} zu Fuß erkunden – Märkte, Tempel und lokale Küche.`, imgUrl: null, lat: root.lat, lng: root.lng });
+            }
+            persist(); renderActs();
+        }
+    }
+
+    crawlerDone = true;
+    localStorage.setItem('jp26_crawled', '1');
+    showToast('✅ Alle Aktivitäten geladen!');
+    persist(); renderActs();
+}
+
+// ─── ACTIVITIES ───────────────────────────────────────────────────────────
+function renderActs() {
+    renderDayPlan();
+    const fBar = document.getElementById('activityFilters');
+    const cities = [...new Set(places.map(p => clean(p.name)))];
+    const favCount = acts.filter(a => a.favorite).length;
+    fBar.innerHTML = `<button class="chip ${currentFilter==='Alle'?'active':''}" aria-pressed="${currentFilter==='Alle'}" onclick="setFilter('Alle')">Alle</button>`;
+    fBar.innerHTML += `<button class="chip ${currentFilter==='__favs__'?'active':''}" aria-pressed="${currentFilter==='__favs__'}" onclick="setFilter('__favs__')">♥ Favoriten${favCount ? ` <b style="opacity:.6">${favCount}</b>` : ''}</button>`;
+    cities.forEach(c => {
+        const cnt = acts.filter(a => a.topPlace === c).length;
+        fBar.innerHTML += `<button class="chip ${currentFilter===c?'active':''}" aria-pressed="${currentFilter===c}" onclick="setFilter('${c}')">${c}${cnt ? ` <b style="opacity:.6">${cnt}</b>` : ''}</button>`;
+    });
+
+    const list = document.getElementById('activitiesList'); list.innerHTML = '';
+    let filtered = currentFilter === 'Alle' ? acts
+        : currentFilter === '__favs__' ? acts.filter(a => a.favorite)
+        : acts.filter(a => a.topPlace === currentFilter);
+
+    const tBar = document.getElementById('typeFilters');
+    const types = [...new Set(acts.map(a => a.type).filter(Boolean))];
+    if (types.length > 1) {
+        tBar.style.display = 'flex';
+        tBar.innerHTML = `<button class="chip chip-sm ${currentTypeFilter==='Alle'?'active':''}" aria-pressed="${currentTypeFilter==='Alle'}" onclick="setTypeFilter('Alle')">Alle Arten</button>`;
+        types.forEach(t => {
+            tBar.innerHTML += `<button class="chip chip-sm ${currentTypeFilter===t?'active':''}" aria-pressed="${currentTypeFilter===t}" onclick="setTypeFilter('${t.replace(/'/g,"\\'")}')">${t}</button>`;
+        });
+    } else {
+        tBar.style.display = 'none';
+        tBar.innerHTML = '';
+    }
+    if (currentTypeFilter !== 'Alle') filtered = filtered.filter(a => a.type === currentTypeFilter);
+
+    if (!filtered.length) {
+        const msg = currentFilter === '__favs__' ? '♡ Noch keine Favoriten markiert.' : (crawlerDone ? 'Keine Aktivitäten gefunden.' : 'Wird geladen…');
+        list.innerHTML = `<div class="empty-acts">${msg}</div>`;
+        return;
+    }
+
+    filtered.forEach(a => {
+        const q = encodeURIComponent(`${a.title} ${a.topPlace} Japan`);
+        const liveDistance = (userLocation && a.lat && a.lng)
+            ? formatDistance(distanceKm(userLocation.lat, userLocation.lng, a.lat, a.lng))
+            : '';
+        const div = document.createElement('div');
+        div.className = 'act-card';
+        div.innerHTML = `
+            <div class="act-img-slot"></div>
+            <div class="act-body">
+                <div class="act-type">${a.type} • ${a.topPlace}${liveDistance ? ` • 📍 ${liveDistance}` : ''}</div>
+                <h3 class="act-title">${a.title}</h3>
+                <p class="act-desc">${a.desc}</p>
+                <div class="act-btns">
+                    ${(a.lat && a.lng) ? `<button class="btn-icon btn-map-act">🗺️ Karte</button>` : ''}
+                    <button class="btn-icon btn-web-act">🌐 Web</button>
+                    <button class="btn-icon btn-favorite-act" aria-pressed="${!!a.favorite}" style="${a.favorite ? 'color:var(--primary);background:var(--primary-soft)' : ''}">${a.favorite ? '♥ Favorit' : '♡ Favorit'}</button>
+                </div>
+            </div>
+            <button class="act-del" aria-label="Aktivität löschen">✕</button>`;
+
+        div.querySelector('.act-del').addEventListener('click', () => delAct(a.id));
+        div.querySelector('.btn-web-act').addEventListener('click', () => window.open(`https://www.google.de/search?q=${q}`, '_blank'));
+        div.querySelector('.btn-favorite-act').addEventListener('click', () => toggleFavorite(a.id));
+        if (a.lat && a.lng) {
+            div.querySelector('.btn-map-act').addEventListener('click', () => showOnMap(a.lat, a.lng, a.title, a.desc));
+        }
+
+        list.appendChild(div);
+
+        const slot = div.querySelector('.act-img-slot');
+        renderActImage(slot, a);
+    });
+
+    if (currentFilter !== 'Alle' && currentFilter !== '__favs__') {
+        const footer = document.createElement('div');
+        footer.style.cssText = 'padding:8px 12px 16px;text-align:center;';
+        footer.innerHTML = '<button class="btn-icon load-more-footer">🔄 Weitere Aktivitäten laden</button>';
+        footer.querySelector('.load-more-footer').addEventListener('click', () => loadMoreActs(currentFilter));
+        list.appendChild(footer);
+    } else if (currentFilter === 'Alle') {
+        const notice = document.createElement('div');
+        notice.style.cssText = 'padding:8px 24px 18px;text-align:center;font-size:12px;color:var(--muted);';
+        notice.innerText = 'Wähle einen Ort aus, um beim Scrollen automatisch weitere Aktivitäten zu laden.';
+        list.appendChild(notice);
+    }
+}
+
+function renderActImage(container, activity) {
+    const img = document.createElement('img');
+    img.className = 'act-img';
+    img.loading = 'lazy';
+    img.alt = activity.title || '';
+
+    function showPlaceholder() {
+        container.innerHTML = '<div class="act-img-placeholder">🏯</div>';
+    }
+
+    if (activity.imgUrl) {
+        img.src = activity.imgUrl;
+        img.onerror = async () => {
+            const commonsUrl = await fetchCommonsImage(activity.title, activity.topPlace);
+            if (commonsUrl && commonsUrl !== activity.imgUrl) {
+                img.onerror = showPlaceholder;
+                img.src = commonsUrl;
+            } else {
+                showPlaceholder();
+            }
+        };
+        container.innerHTML = '';
+        container.appendChild(img);
+    } else {
+        showPlaceholder();
+        fetchCommonsImage(activity.title, activity.topPlace).then(url => {
+            if (url) {
+                activity.imgUrl = url;
+                persist();
+                const testImg = new Image();
+                testImg.onload = () => { container.innerHTML = ''; testImg.className = 'act-img'; testImg.alt = activity.title||''; container.appendChild(testImg); };
+                testImg.onerror = () => {};
+                testImg.src = url;
+            }
+        });
+    }
+}
+
+// ─── DAY PLAN (Favoriten pro Ort + optimierte Google-Maps-Route) ──────────
+function renderDayPlan() {
+    const list = document.getElementById('dayPlanList');
+    if (!list) return;
+
+    const cities = [...new Set(places.map(p => clean(p.name)))];
+    const groups = cities
+        .map(city => ({ city, favs: acts.filter(a => a.topPlace === city && a.favorite) }))
+        .filter(g => g.favs.length);
+
+    if (!groups.length) {
+        list.innerHTML = `<div class="empty-acts">♡ Noch keine Favoriten.<br>Markiere Aktivitäten in „Aktivitäten & Essen" mit ♡ – sie erscheinen hier gruppiert nach Ort, mit einer vorsortierten Route für Google Maps.</div>`;
+        return;
+    }
+
+    list.innerHTML = '';
+    groups.forEach(g => {
+        const withGeo = g.favs.filter(a => a.lat && a.lng).length;
+        const card = document.createElement('div');
+        card.className = 'dayplan-card';
+        card.innerHTML = `
+            <div class="dayplan-header">
+                <h3>${g.city}</h3>
+                <span class="dayplan-count">${g.favs.length} Favorit${g.favs.length === 1 ? '' : 'en'}</span>
+            </div>
+            <div class="dayplan-items">
+                ${g.favs.map(a => `
+                    <div class="dayplan-item">
+                        ${a.imgUrl
+                            ? `<img src="${a.imgUrl}" class="dayplan-thumb" alt="">`
+                            : `<div class="dayplan-thumb dayplan-thumb-ph">${(a.type||'🏯').split(' ')[0]}</div>`}
+                        <div class="dayplan-item-text">
+                            <div class="dayplan-item-title">${a.title}</div>
+                            <div class="dayplan-item-type">${a.type||''}</div>
+                        </div>
+                    </div>`).join('')}
+            </div>
+            <button class="btn btn-accent" ${withGeo < 1 ? 'disabled' : ''}>🧭 Route planen (${withGeo} Stopp${withGeo === 1 ? '' : 's'})</button>`;
+        card.querySelector('button.btn-accent').addEventListener('click', () => planDayRoute(g.city));
+        list.appendChild(card);
+    });
+}
+
+// Nearest-neighbor Heuristik: baut ab `start` die kürzeste Kette durch alle `points`,
+// damit Google Maps beim Öffnen keine unnötig langen Umwege zwischen den Stopps nimmt.
+function nearestNeighborOrder(start, points) {
+    const remaining = points.slice();
+    const ordered = [];
+    let cur = start;
+    while (remaining.length) {
+        let bestIdx = 0, bestDist = Infinity;
+        remaining.forEach((p, i) => {
+            const d = distanceKm(cur.lat, cur.lng, p.lat, p.lng);
+            if (d < bestDist) { bestDist = d; bestIdx = i; }
+        });
+        cur = remaining.splice(bestIdx, 1)[0];
+        ordered.push(cur);
+    }
+    return ordered;
+}
+
+function planDayRoute(city) {
+    const root = places.find(p => clean(p.name) === city);
+    let favs = acts.filter(a => a.topPlace === city && a.favorite && a.lat && a.lng);
+    if (!favs.length) { showToast(`Keine Favoriten mit Standort für ${city}`); return; }
+
+    let origin;
+    if (root && root.hotelLat && root.hotelLng) origin = { lat: root.hotelLat, lng: root.hotelLng };
+    else if (root) origin = { lat: root.lat, lng: root.lng };
+    else { origin = { lat: favs[0].lat, lng: favs[0].lng }; favs = favs.slice(1); }
+
+    if (!favs.length) { showToast('Nur ein Favorit vorhanden.'); return; }
+
+    haptic();
+    const ordered = nearestNeighborOrder(origin, favs);
+    const destination = ordered[ordered.length - 1];
+    const waypoints = ordered.slice(0, -1);
+
+    let url = `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&travelmode=transit`;
+    if (waypoints.length) url += `&waypoints=${waypoints.map(p => `${p.lat},${p.lng}`).join('|')}`;
+    window.open(url, '_blank');
+}
+
+async function loadMoreActs(city, silent = false) {
+    if (!city || city === 'Alle' || activityLoadInProgress) return 0;
+    const root = places.find(p => clean(p.name) === city);
+    if (!root) return 0;
+
+    activityLoadInProgress = true;
+    if (!silent) showToast(`🔍 Weitere Aktivitäten für ${city} werden geladen…`, 4500);
+
+    const state = activityPageState[city] || { page: 0 };
+    let added = 0;
+    try {
+        // gsradius is capped at 10000m by the Wikipedia API; widen the result limit on later pages instead.
+        const limit = Math.min(500, 50 + state.page * 50);
+        const pois = await fetchPOIs(root, 10000, limit);
+
+        for (const poi of pois) {
+            if (added >= 5) break;
+            if (acts.some(a => a.topPlace === city && a.title === poi.title)) continue;
+            const { desc, imgUrl, type } = await fetchPOIDetails(poi, city);
+            acts.push({ id: Date.now()+Math.random(), topPlace:city, type, title: poi.title, desc, imgUrl, lat: poi.lat, lng: poi.lng });
+            added++;
+            persist();
+            await new Promise(r => setTimeout(r, 100));
+        }
+
+        state.page++;
+        activityPageState[city] = state;
+    } catch(e) {
+        if (!silent) showToast('Internetverbindung prüfen – beim nächsten Scrollen erneut versuchen.');
+    } finally {
+        activityLoadInProgress = false;
+        persist();
+        renderActs();
+        if (!silent) {
+            if (added) showToast(`✅ ${added} neue Aktivitäten für ${city}`);
+            else showToast('🔍 Suche wird mit weiteren Quellen fortgesetzt…');
+        }
+    }
+    return added;
+}
+
+// Lädt/aktualisiert Aktivitäten im Hintergrund über alle Quellen – für die aktuelle
+// Ortsauswahl, oder für alle Orte, wenn "Alle"/"Favoriten" aktiv ist.
+async function refreshActivities() {
+    if (activityLoadInProgress) return;
+    const btn = document.getElementById('activitiesFab');
+    btn?.classList.add('spinning');
+    haptic();
+    const cities = (currentFilter === 'Alle' || currentFilter === '__favs__')
+        ? [...new Set(places.map(p => clean(p.name)))]
+        : [currentFilter];
+
+    let total = 0;
+    for (const city of cities) {
+        total += await loadMoreActs(city, true);
+    }
+    btn?.classList.remove('spinning');
+    showToast(total ? `✅ ${total} neue Aktivitäten gefunden` : '🔍 Keine weiteren neuen Aktivitäten gefunden');
+}
+
+function setFilter(c) { currentFilter = c; renderActs(); }
+function setTypeFilter(t) { currentTypeFilter = t; renderActs(); }
+function toggleFavorite(id) {
+    const activity = acts.find(a => a.id === id);
+    if (!activity) return;
+    haptic();
+    activity.favorite = !activity.favorite;
+    persist(); renderActs(); drawMap();
+    showToast(activity.favorite ? `♥ ${activity.title} als Favorit gespeichert` : `${activity.title} aus Favoriten entfernt`);
+}
+function delAct(id) { haptic(); acts = acts.filter(a => a.id !== id); persist(); renderActs(); drawMap(); }
+function openAddActivity() {
+    const sel = document.getElementById('a-city'); sel.innerHTML = '';
+    [...new Set(places.map(p => clean(p.name)))].forEach(n => sel.innerHTML += `<option>${n}</option>`);
+    if (currentFilter !== 'Alle' && currentFilter !== '__favs__') sel.value = currentFilter;
+    document.getElementById('modal-activity').showModal();
+}
+function saveActivityManual() {
+    const city = document.getElementById('a-city').value;
+    const rp = places.find(p => clean(p.name) === city);
+    acts.push({ id: Date.now(), topPlace: city, type: document.getElementById('a-type').value, title: document.getElementById('a-title').value, desc: document.getElementById('a-desc').value, imgUrl: null, lat: rp?.lat||null, lng: rp?.lng||null });
+    persist(); renderActs();
+    document.getElementById('modal-activity').close();
+    document.getElementById('a-title').value = ''; document.getElementById('a-desc').value = '';
+}
+
+// ─── PLACE SEARCH ─────────────────────────────────────────────────────────
+async function searchPlace() {
+    const q = document.getElementById('p-search').value; if(!q) return;
+    const box = document.getElementById('searchResults'); box.innerHTML = 'Sucht…';
+    try {
+        const d = await (await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=jp`)).json();
+        box.innerHTML = '';
+        if (!d.length) { box.innerHTML = '<p style="padding:8px">Nichts gefunden.</p>'; return; }
+        d.slice(0,4).forEach(item => {
+            const div = document.createElement('div'); div.className = 'search-item'; div.innerText = item.display_name;
+            div.onclick = () => { document.getElementById('p-name').value = item.name||item.display_name.split(',')[0]; document.getElementById('p-lat').value = item.lat; document.getElementById('p-lng').value = item.lon; box.innerHTML = '<span style="color:green;font-weight:bold;padding:8px;display:block">✓ Übernommen</span>'; };
+            box.appendChild(div);
+        });
+    } catch(e) { box.innerHTML = '<p style="color:red;padding:8px">Netzwerkfehler</p>'; }
+}
+function savePlace() {
+    const n=document.getElementById('p-name').value, la=parseFloat(document.getElementById('p-lat').value), lg=parseFloat(document.getElementById('p-lng').value), nt=parseInt(document.getElementById('p-nights').value);
+    if (!n||isNaN(la)) { alert('Bitte erst Ort suchen und auswählen.'); return; }
+    places.push({id:Date.now(), name:n, lat:la, lng:lg, nights:nt||1, hotel:'', hotelLat:null, hotelLng:null, transport:'Ausstehend'});
+    saveData(); document.getElementById('modal-place').close(); document.getElementById('p-name').value=''; document.getElementById('searchResults').innerHTML='';
+    crawlerDone = false; localStorage.removeItem('jp26_crawled'); setTimeout(runCrawler, 400);
+}
+
+// ─── INFINITE SCROLL ──────────────────────────────────────────────────────
+function setupActivityInfiniteScroll() {
+    const list = document.getElementById('activitiesList');
+    let scrollTimer;
+    list.addEventListener('scroll', () => {
+        clearTimeout(scrollTimer);
+        scrollTimer = setTimeout(() => {
+            const nearEnd = list.scrollTop + list.clientHeight >= list.scrollHeight - 220;
+            if (nearEnd && currentFilter !== 'Alle' && currentFilter !== '__favs__' && !activityLoadInProgress) {
+                loadMoreActs(currentFilter);
+            }
+        }, 100);
+    }, { passive: true });
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    applyTheme(localStorage.getItem('jp26_theme') || 'system');
+    loadState(); initMap(); renderPlaces(); renderActs();
+    setupActivityInfiniteScroll();
+    requestUserLocation();
+    if (!crawlerDone) setTimeout(runCrawler, 1000);
+});
+</script>
+</body>
+</html>

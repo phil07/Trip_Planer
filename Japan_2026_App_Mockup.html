@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Japan 2026 App - Design Konzept</title>
+    <style>
+        :root {
+            --primary: #d32f2f; /* Japan Rot */
+            --primary-dark: #9a0007;
+            --bg-color: #f5f5f5;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-muted: #757575;
+            --border: #e0e0e0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #e0e0e0;
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 40px;
+            justify-content: center;
+            color: var(--text-main);
+        }
+
+        .phone-mockup {
+            width: 375px;
+            height: 812px; /* iPhone X dimensions */
+            background: var(--bg-color);
+            border-radius: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+            position: relative;
+            border: 8px solid #333;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* App Header / Navbar */
+        .app-header {
+            background: var(--primary);
+            color: white;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        .app-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .hamburger {
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        /* Content Area */
+        .app-content {
+            flex: 1;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        /* Screen 1: Map View */
+        .map-bg {
+            background: #aad3df;
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+        .map-marker {
+            position: absolute;
+            font-size: 30px;
+            color: var(--primary);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .bottom-sheet {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 20px 20px 0 0;
+            padding: 20px;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.1);
+            transform: translateY(0); /* Visible state */
+        }
+
+        .sheet-handle {
+            width: 40px;
+            height: 5px;
+            background: #ccc;
+            border-radius: 3px;
+            margin: 0 auto 15px auto;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: 600;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        /* Screen 2: Places List */
+        .list-container {
+            padding: 15px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .place-info h3 {
+            margin: 0 0 4px 0;
+            font-size: 16px;
+        }
+
+        .place-info p {
+            margin: 0;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .drag-icon {
+            color: #ccc;
+            font-size: 20px;
+        }
+
+        .fab {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 4px 10px rgba(211, 47, 47, 0.4);
+        }
+
+        /* Screen 3: Activities */
+        .filter-bar {
+            padding: 10px 15px;
+            background: white;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+        }
+
+        .chip {
+            background: #eee;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+        .chip.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .activity-card {
+            background: white;
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .activity-type {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--primary);
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        /* Drawer Overlay Simulation */
+        .drawer {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: 75%;
+            background: white;
+            z-index: 20;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+            padding: 20px 0;
+            display: none; /* hidden for screens not showing it */
+        }
+
+        .drawer-visible .drawer {
+            display: block;
+        }
+
+        .drawer-overlay {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 15;
+            display: none;
+        }
+
+        .drawer-visible .drawer-overlay {
+            display: block;
+        }
+
+        .menu-item {
+            padding: 15px 20px;
+            font-size: 16px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .menu-item.active {
+            color: var(--primary);
+            font-weight: 600;
+            background: #fff5f5;
+        }
+
+        h2.screen-title {
+            text-align: center;
+            width: 100%;
+            margin-bottom: -15px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Ansicht 1: Interaktive Karte -->
+    <div>
+        <h2 class="screen-title">1. Karte & Drawer</h2>
+        <br>
+        <div class="phone-mockup drawer-visible">
+            <div class="app-header">
+                <div class="hamburger">☰</div>
+                <h1 class="app-title">Japan 2026</h1>
+                <div>🔍</div>
+            </div>
+
+            <div class="app-content map-bg">
+                <!-- Fake Map Elements -->
+                <div class="map-marker" style="top: 30%; left: 40%;">📍</div>
+                <div class="map-marker" style="top: 50%; left: 60%;">📍</div>
+                <div class="map-marker" style="top: 70%; left: 30%;">📍</div>
+
+                <!-- Bottom Sheet (Popup) -->
+                <div class="bottom-sheet">
+                    <div class="sheet-handle"></div>
+                    <h3 style="margin: 0 0 5px 0;">3. Kurokawa Onsen</h3>
+                    <p style="color: #666; font-size: 13px; margin: 0 0 15px 0;">2 Nächte • Auto (Mietwagen)</p>
+
+                    <div style="font-size: 14px; margin-bottom: 10px;">
+                        <strong>Unterkunft:</strong> Yamamizuki<br>
+                        <strong>Highlights:</strong> Rotemburo Hopping
+                    </div>
+
+                    <button class="btn">Aktivitäten anzeigen</button>
+                </div>
+            </div>
+
+            <!-- Hamburger Menu (Simuliert offen) -->
+            <div class="drawer-overlay"></div>
+            <div class="drawer">
+                <div style="padding: 0 20px 20px 20px; border-bottom: 1px solid #eee;">
+                    <h2 style="margin: 0; color: var(--primary);">Menü</h2>
+                </div>
+                <div class="menu-item active">📍 Interaktive Karte</div>
+                <div class="menu-item">📋 Orte verwalten</div>
+                <div class="menu-item">🍣 Aktivitäten & Essen</div>
+                <div class="menu-item">⚙️ Einstellungen</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ansicht 2: Orte Liste -->
+    <div>
+        <h2 class="screen-title">2. Orte (Sortierbar)</h2>
+        <br>
+        <div class="phone-mockup">
+            <div class="app-header">
+                <div class="hamburger">☰</div>
+                <h1 class="app-title">Route (14 Orte)</h1>
+                <div>✏️</div>
+            </div>
+
+            <div class="app-content list-container">
+                <div class="card">
+                    <div class="place-info">
+                        <h3>1. Tokyo (Ankunft)</h3>
+                        <p>2 Nächte • Hotel Met. Marunouchi</p>
+                    </div>
+                    <div class="drag-icon">≡</div>
+                </div>
+                <div class="card">
+                    <div class="place-info">
+                        <h3>2. Fukuoka</h3>
+                        <p>3 Nächte • Mitsui Garden Gion</p>
+                    </div>
+                    <div class="drag-icon">≡</div>
+                </div>
+                <div class="card" style="border-left: 4px solid var(--primary);">
+                    <div class="place-info">
+                        <h3>3. Kurokawa Onsen</h3>
+                        <p>2 Nächte • Yamamizuki</p>
+                    </div>
+                    <div class="drag-icon">≡</div>
+                </div>
+                <div class="card">
+                    <div class="place-info">
+                        <h3>4. Miyazaki</h3>
+                        <p>2 Nächte • JR Kyushu Hotel</p>
+                    </div>
+                    <div class="drag-icon">≡</div>
+                </div>
+                 <div class="card">
+                    <div class="place-info">
+                        <h3>5. Nagoya</h3>
+                        <p>3 Nächte • Nikko Style</p>
+                    </div>
+                    <div class="drag-icon">≡</div>
+                </div>
+            </div>
+
+            <div class="fab">+</div>
+        </div>
+    </div>
+
+    <!-- Ansicht 3: Aktivitäten -->
+    <div>
+        <h2 class="screen-title">3. Aktivitäten & Essen</h2>
+        <br>
+        <div class="phone-mockup">
+            <div class="app-header">
+                <div class="hamburger">☰</div>
+                <h1 class="app-title">Empfehlungen</h1>
+                <div>🔍</div>
+            </div>
+
+            <!-- Filters -->
+            <div class="filter-bar">
+                <div class="chip active">Alle Orte</div>
+                <div class="chip">Tokyo</div>
+                <div class="chip">Fukuoka</div>
+                <div class="chip">Sapporo</div>
+            </div>
+
+            <div class="app-content">
+                <div class="activity-card">
+                    <div class="activity-type">🍜 Restaurant • Fukuoka</div>
+                    <h3 style="margin: 0 0 5px 0;">Yatai (Straßenstände)</h3>
+                    <p style="margin: 0; font-size: 14px; color: #555;">Typisch für Fukuoka (Hakata Ramen) am Fluss Nakasu.</p>
+                </div>
+
+                <div class="activity-card">
+                    <div class="activity-type">🏔️ Aktivität • Kurzstopp</div>
+                    <h3 style="margin: 0 0 5px 0;">Takachiho-Schlucht</h3>
+                    <p style="margin: 0; font-size: 14px; color: #555;">Tagesausflug auf dem Weg nach Miyazaki. Bootstour vorab buchen!</p>
+                </div>
+
+                <div class="activity-card">
+                    <div class="activity-type">♨️ Aktivität • Sapporo (Tagesausflug)</div>
+                    <h3 style="margin: 0 0 5px 0;">Niseko</h3>
+                    <p style="margin: 0; font-size: 14px; color: #555;">Schnee-Feelling, Onsen und Ausblick auf den Mt. Yotei.</p>
+                </div>
+            </div>
+
+            <div class="fab">+</div>
+        </div>
+    </div>
+
+</body>
+</html>

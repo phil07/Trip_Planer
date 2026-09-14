@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Japan 2026 - App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" crossorigin="anonymous" />
+    <style>
+        :root { --primary: #d32f2f; --bg: #f5f5f5; --border: #e0e0e0; --muted: #757575; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg); margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; color: #333; }
+        .app-container { width: 100%; height: 100%; background: white; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+        @media (min-width: 600px) { .app-container { width: 390px; height: 844px; max-height: 95vh; border-radius: 40px; border: 12px solid #222; } }
+
+        .app-header { background: var(--primary); color: white; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; z-index: 1000; flex-shrink: 0; }
+        .header-title { font-size: 17px; font-weight: 600; margin: 0; }
+        .header-btn { font-size: 22px; cursor: pointer; width: 30px; text-align: center; }
+
+        .view { display: none; flex: 1; flex-direction: column; overflow: hidden; position: relative; min-height: 0; }
+        .view.active { display: flex; }
+
+        #map { flex: 1; width: 100%; min-height: 0; background: #e5e3df; z-index: 1; }
+        .custom-marker { text-align: center; font-size: 24px; text-shadow: 0 2px 4px rgba(0,0,0,.3); margin: -12px 0 0 -12px; }
+        .hotel-marker { text-align: center; font-size: 20px; margin: -10px 0 0 -10px; }
+
+        .bottom-sheet { position: absolute; bottom: 0; left: 0; right: 0; background: white; border-radius: 20px 20px 0 0; padding: 20px; box-shadow: 0 -10px 25px rgba(0,0,0,.2); transform: translateY(120%); transition: transform .35s ease; z-index: 2000; }
+        .bottom-sheet.open { transform: translateY(0); }
+        .sheet-handle { width: 40px; height: 5px; background: #ccc; border-radius: 3px; margin: 0 auto 14px; }
+
+        .btn { background: var(--primary); color: white; border: none; padding: 10px 15px; border-radius: 8px; font-weight: 600; width: 100%; margin-top: 12px; cursor: pointer; font-size: 14px; }
+        .btn-secondary { background: #eee; color: #333; }
+        .btn-icon { background: #f0f0f0; border: 1px solid #ddd; border-radius: 6px; padding: 7px 12px; font-size: 12px; font-weight: 600; cursor: pointer; color: #333; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+        .btn-icon:hover { background: #e4e4e4; }
+        .edit-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 5px; color: #888; }
+        .edit-btn:hover { color: var(--primary); }
+
+        .scroll-content { flex: 1; overflow-y: auto; padding: 12px; padding-bottom: 90px; min-height: 0; }
+
+        /* Place Cards */
+        .place-card { background: white; border-radius: 12px; padding: 12px; margin-bottom: 10px; border: 1px solid var(--border); display: flex; align-items: stretch; }
+        .place-card.dragging { opacity: .4; border: 2px dashed var(--primary); }
+        .place-card.drag-over { border-top: 3px solid var(--primary); }
+        .drag-handle { display: flex; align-items: center; padding: 0 10px 0 2px; cursor: grab; font-size: 22px; color: #ccc; flex-shrink: 0; }
+        .drag-handle:active { cursor: grabbing; }
+        .place-body { flex: 1; min-width: 0; }
+        .place-body h3 { margin: 0 0 4px; font-size: 15px; }
+        .place-body p { margin: 0; font-size: 12px; color: var(--muted); }
+        .dates-badge { display: inline-block; background: #e8f4f8; color: #0277bd; padding: 2px 8px; border-radius: 12px; font-weight: 600; font-size: 11px; margin-bottom: 4px; border: 1px solid #b3e5fc; }
+        .nights-row { display: flex; align-items: center; background: #eee; border-radius: 6px; width: fit-content; margin-top: 6px; overflow: hidden; }
+        .nights-btn { background: none; border: none; padding: 3px 9px; cursor: pointer; font-weight: bold; font-size: 15px; }
+        .nights-val { font-size: 12px; width: 36px; text-align: center; }
+        .del-btn { background: #ffebee; color: var(--primary); border: none; border-radius: 5px; padding: 4px 8px; cursor: pointer; font-size: 13px; margin-left: 8px; flex-shrink: 0; align-self: flex-start; }
+
+        /* Hotel inline edit */
+        .hotel-row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
+        .hotel-name { font-size: 12px; color: var(--muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .hotel-input-wrap { display: none; width: 100%; margin-top: 6px; }
+        .hotel-input-wrap.open { display: flex; gap: 6px; }
+        .hotel-input-wrap input { flex: 1; padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: inherit; }
+        .hotel-save-btn { background: var(--primary); color: white; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+
+        /* Activity Cards */
+        .act-card { background: white; border-bottom: 1px solid var(--border); position: relative; }
+        .act-img { width: 100%; height: 150px; object-fit: cover; display: block; background: #eee; }
+        .act-img-placeholder { width: 100%; height: 100px; background: linear-gradient(135deg,#e8eaf6,#fce4ec); display: flex; align-items: center; justify-content: center; font-size: 38px; }
+        .act-body { padding: 13px 13px 12px; }
+        .act-type { font-size: 11px; font-weight: 700; color: var(--primary); text-transform: uppercase; margin-bottom: 5px; }
+        .act-title { margin: 0 0 6px; font-size: 15px; font-weight: 600; padding-right: 28px; }
+        .act-desc { margin: 0 0 12px; font-size: 13px; color: #555; line-height: 1.5; }
+        .act-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+        .act-del { position: absolute; right: 11px; top: 11px; background: rgba(255,255,255,.9); color: var(--primary); border: none; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+
+        .filter-bar { padding: 8px 12px; background: white; border-bottom: 1px solid var(--border); display: flex; gap: 8px; overflow-x: auto; flex-shrink: 0; scrollbar-width: none; min-height: 46px; }
+        .filter-bar::-webkit-scrollbar { display: none; }
+        .chip { background: #eee; padding: 6px 14px; border-radius: 20px; font-size: 13px; white-space: nowrap; cursor: pointer; }
+        .chip.active { background: var(--primary); color: white; }
+
+        /* Activities view: filter bar fixed at top, list scrolls below */
+        #view-activities { overflow: hidden; }
+        #activitiesList { flex: 1; overflow-y: auto !important; min-height: 0; padding-bottom: 90px; }
+
+        .empty-acts { padding: 40px 20px; text-align: center; color: #aaa; font-size: 14px; }
+
+        .fab { position: absolute; bottom: 22px; right: 22px; width: 52px; height: 52px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; box-shadow: 0 4px 12px rgba(211,47,47,.4); cursor: pointer; z-index: 100; }
+
+        .drawer-overlay { position: absolute; inset: 0; background: rgba(0,0,0,.5); z-index: 3000; opacity: 0; pointer-events: none; transition: opacity .3s; }
+        .drawer { position: absolute; top: 0; bottom: 0; left: -80%; width: 74%; background: white; z-index: 3100; box-shadow: 2px 0 12px rgba(0,0,0,.2); transition: left .3s ease; display: flex; flex-direction: column; }
+        .menu-open .drawer-overlay { opacity: 1; pointer-events: auto; }
+        .menu-open .drawer { left: 0; }
+        .menu-header { padding: 24px 20px 18px; background: var(--primary); color: white; }
+        .menu-item { padding: 15px 20px; font-size: 15px; display: flex; align-items: center; gap: 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+        .menu-item.active { color: var(--primary); font-weight: 600; background: #fff5f5; }
+        .menu-footer { margin-top: auto; padding: 16px; font-size: 12px; color: #aaa; border-top: 1px solid #eee; text-align: center; }
+
+        #toast { position: absolute; bottom: 88px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.75); color: white; padding: 9px 18px; border-radius: 20px; font-size: 13px; z-index: 9999; opacity: 0; pointer-events: none; transition: opacity .3s; white-space: nowrap; max-width: 90%; overflow: hidden; text-overflow: ellipsis; }
+        #toast.show { opacity: 1; }
+
+        dialog { border: none; border-radius: 14px; padding: 20px; box-shadow: 0 4px 24px rgba(0,0,0,.25); width: 88%; max-width: 340px; max-height: 85vh; overflow-y: auto; }
+        dialog::backdrop { background: rgba(0,0,0,.5); }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; margin-bottom: 4px; font-size: 13px; font-weight: 600; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 7px; font-family: inherit; font-size: 14px; }
+        #searchResults { max-height: 140px; overflow-y: auto; background: #f9f9f9; border-radius: 6px; margin-top: 8px; }
+        .search-item { padding: 10px; border-bottom: 1px solid #eee; font-size: 13px; cursor: pointer; }
+        .search-item:hover { background: #eee; }
+    </style>
+</head>
+<body>
+<div class="app-container" id="app">
+    <div id="toast"></div>
+
+    <div class="app-header">
+        <div class="header-btn" onclick="toggleMenu()">☰</div>
+        <h1 class="header-title" id="pageTitle">Reiseroute Karte</h1>
+        <div class="header-btn" onclick="appReset()" title="Reset">↺</div>
+    </div>
+
+    <!-- MAP -->
+    <div class="view active" id="view-map">
+        <div id="map"></div>
+        <div class="bottom-sheet" id="bottomSheet">
+            <div class="sheet-handle"></div>
+            <!-- Place mode -->
+            <div id="bs-place">
+                <div class="dates-badge" id="bs-dates">–</div>
+                <h3 id="bs-title" style="margin:8px 0 10px">–</h3>
+                <div style="font-size:13px;line-height:1.7">
+                    <strong>Unterkunft:</strong> <span id="bs-hotel">–</span><br>
+                    <strong>Anreise:</strong> <span id="bs-transport">–</span>
+                </div>
+                <button class="btn" onclick="jumpToActivities()">Aktivitäten anzeigen</button>
+            </div>
+            <!-- Activity mode -->
+            <div id="bs-act" style="display:none">
+                <img id="bs-act-img" alt="" style="width:100%;height:140px;object-fit:cover;border-radius:10px;margin-bottom:10px;display:none;background:#eee">
+                <h3 id="bs-act-title" style="margin:0 0 8px">–</h3>
+                <p id="bs-act-desc" style="margin:0 0 14px;font-size:13px;color:#555;line-height:1.5"></p>
+                <button class="btn" style="background:#0277bd;margin-top:0" onclick="openGoogleMapsRoute()">🧭 Route hierhin (Google Maps)</button>
+                <button class="btn btn-secondary" style="margin-top:8px" onclick="openActivityWeb()">🌐 Mehr erfahren (Browser)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PLACES -->
+    <div class="view" id="view-places">
+        <div class="scroll-content" id="placesList"></div>
+        <div class="fab" onclick="document.getElementById('modal-place').showModal()">+</div>
+    </div>
+
+    <!-- ACTIVITIES -->
+    <div class="view" id="view-activities">
+        <div class="filter-bar" id="activityFilters"></div>
+        <div class="scroll-content" id="activitiesList" style="padding:0;padding-bottom:90px;"></div>
+        <div class="fab" onclick="openAddActivity()">+</div>
+    </div>
+
+    <!-- Drawer -->
+    <div class="drawer-overlay" onclick="toggleMenu()"></div>
+    <div class="drawer">
+        <div class="menu-header">
+            <h2 style="margin:0;font-size:20px">Japan 2026</h2>
+            <div style="margin-top:8px;font-size:13px;opacity:.9;cursor:pointer" onclick="document.getElementById('modal-settings').showModal()">
+                📅 <span id="drawer-dates">–</span><br>
+                🌙 <span id="drawer-nights">–</span>
+                <div style="text-decoration:underline;font-size:11px;margin-top:3px">(Ändern)</div>
+            </div>
+        </div>
+        <div class="menu-item active" id="menu-map" onclick="switchView('view-map','Reiseroute Karte')">📍 Karte & Route</div>
+        <div class="menu-item" id="menu-places" onclick="switchView('view-places','')">📋 Route verwalten</div>
+        <div class="menu-item" id="menu-activities" onclick="switchView('view-activities','Aktivitäten')">🍣 Aktivitäten & Essen</div>
+        <div class="menu-footer">
+            Gespeichert im LocalStorage<br>
+            <span style="text-decoration:underline;cursor:pointer" onclick="appReset()">Alles zurücksetzen</span>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <dialog id="modal-settings">
+        <h3 style="margin-top:0">Reise-Daten</h3>
+        <div class="form-group"><label>Startdatum</label><input type="date" id="s-startdate"></div>
+        <button class="btn" onclick="saveSettings()">Speichern</button>
+        <button class="btn btn-secondary" style="margin-top:6px" onclick="this.closest('dialog').close()">Abbrechen</button>
+    </dialog>
+
+    <dialog id="modal-place">
+        <h3 style="margin-top:0">Neue Station</h3>
+        <div class="form-group">
+            <label>Ort suchen (OpenStreetMap)</label>
+            <div style="display:flex;gap:6px"><input type="text" id="p-search" placeholder="z.B. Osaka"><button class="btn" style="margin:0;width:auto;padding:0 14px" onclick="searchPlace()">🔍</button></div>
+            <div id="searchResults"></div>
+        </div>
+        <div class="form-group"><label>Name</label><input type="text" id="p-name"></div>
+        <div class="form-group"><label>Nächte</label><input type="number" id="p-nights" value="1" min="0"></div>
+        <input type="hidden" id="p-lat"><input type="hidden" id="p-lng">
+        <button class="btn" onclick="savePlace()">Hinzufügen</button>
+        <button class="btn btn-secondary" style="margin-top:6px" onclick="this.closest('dialog').close()">Abbrechen</button>
+    </dialog>
+
+    <dialog id="modal-activity">
+        <h3 style="margin-top:0">Aktivität manuell</h3>
+        <div class="form-group"><label>Ort</label><select id="a-city"></select></div>
+        <div class="form-group"><label>Art</label><select id="a-type"><option>🏯 Sehenswürdigkeit</option><option>🍣 Restaurant</option><option>🏔️ Ausflug</option><option>🛍️ Shopping</option></select></div>
+        <div class="form-group"><label>Titel</label><input type="text" id="a-title"></div>
+        <div class="form-group"><label>Beschreibung</label><input type="text" id="a-desc"></div>
+        <button class="btn" onclick="saveActivityManual()">Speichern</button>
+        <button class="btn btn-secondary" style="margin-top:6px" onclick="this.closest('dialog').close()">Abbrechen</button>
+    </dialog>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" crossorigin="anonymous"></script>
+<script>
+// ─── INITIAL DATA ─────────────────────────────────────────────────────────
+const INITIAL_PLACES = [
+    { id:101, name:"Tokyo",          lat:35.6828, lng:139.759,  nights:2, hotel:"Hotel Met. Marunouchi",  hotelLat:35.6856, hotelLng:139.7641, transport:"✈ Flugzeug" },
+    { id:102, name:"Fukuoka",        lat:33.5902, lng:130.4017, nights:3, hotel:"Mitsui Garden Gion",     hotelLat:null,    hotelLng:null,     transport:"✈ Flugzeug" },
+    { id:103, name:"Kurokawa Onsen", lat:33.0786, lng:131.1444, nights:2, hotel:"Yamamizuki",             hotelLat:null,    hotelLng:null,     transport:"🚗 Auto" },
+    { id:104, name:"Miyazaki",       lat:31.9077, lng:131.4202, nights:2, hotel:"JR Kyushu Hotel",        hotelLat:null,    hotelLng:null,     transport:"🚗 Auto" },
+    { id:105, name:"Nagoya",         lat:35.1815, lng:136.9066, nights:3, hotel:"Nikko Style Nagoya",     hotelLat:null,    hotelLng:null,     transport:"✈ Flugzeug" },
+    { id:106, name:"Niigata",        lat:37.9162, lng:139.0364, nights:2, hotel:"JR-East Hotel Mets",     hotelLat:null,    hotelLng:null,     transport:"🚄 Zug" },
+    { id:107, name:"Aizu-Wakamatsu", lat:37.4950, lng:139.9298, nights:1, hotel:"Washington Hotel",       hotelLat:null,    hotelLng:null,     transport:"🚗 Auto" },
+    { id:108, name:"Ginzan Onsen",   lat:38.5707, lng:140.5317, nights:1, hotel:"Ginzanso",               hotelLat:null,    hotelLng:null,     transport:"🚗 Auto" },
+    { id:109, name:"Nyuto Onsen",    lat:39.8000, lng:140.7960, nights:1, hotel:"Tsurunoyu",              hotelLat:null,    hotelLng:null,     transport:"🚗 Auto" },
+    { id:110, name:"Akita",          lat:39.7200, lng:140.1026, nights:2, hotel:"ANA Crowne Plaza Akita", hotelLat:null,    hotelLng:null,     transport:"🚗 Auto" },
+    { id:111, name:"Sapporo",        lat:43.0618, lng:141.3545, nights:2, hotel:"Cross Hotel",            hotelLat:null,    hotelLng:null,     transport:"✈ Flugzeug" },
+    { id:112, name:"Asahikawa",      lat:43.7709, lng:142.3648, nights:2, hotel:"JR Inn Asahikawa",       hotelLat:null,    hotelLng:null,     transport:"🚄 Zug" },
+    { id:113, name:"Kushiro",        lat:42.9849, lng:144.3816, nights:2, hotel:"ANA Kushiro",            hotelLat:null,    hotelLng:null,     transport:"🚄 Zug + ✈ Flug" },
+    { id:114, name:"Tokyo",          lat:35.6828, lng:139.759,  nights:4, hotel:"Hotel Metropolitan",     hotelLat:null,    hotelLng:null,     transport:"✈ Flugzeug" }
+];
+
+// ─── STATE ────────────────────────────────────────────────────────────────
+let places = [], acts = [], startDate = "2026-11-17", computedData = [], currentFilter = "Alle";
+let crawlerDone = false;  // initial background fill completed
+// Per-place pagination state. Searches expand forever in 10-km rings.
+const activityPageState = {};
+let activityLoadInProgress = false;
+// Browser-provided current position (kept only in memory; never stored).
+let userLocation = null;
+let locationRequested = false;
+
+function loadState() {
+    try {
+        const p = JSON.parse(localStorage.getItem('jp26_places'));
+        places = (Array.isArray(p) && p.length) ? p : JSON.parse(JSON.stringify(INITIAL_PLACES));
+        const a = JSON.parse(localStorage.getItem('jp26_acts'));
+        acts = Array.isArray(a) ? a : [];
+        startDate = localStorage.getItem('jp26_start') || "2026-11-17";
+        crawlerDone = !!localStorage.getItem('jp26_crawled');
+    } catch(e) { places = JSON.parse(JSON.stringify(INITIAL_PLACES)); acts = []; }
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────
+const clean = n => n.replace(/ \(Ankunft\)| \(Abreise\)/g, '');
+function displayName(n, i) {
+    const b = clean(n);
+    if (i === 0) return b + ' (Ankunft)';
+    if (i === places.length - 1) return b + ' (Abreise)';
+    return b;
+}
+let toastT;
+function showToast(msg, ms=3000) {
+    const t = document.getElementById('toast');
+    t.innerText = msg; t.classList.add('show');
+    clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+// Great-circle distance in kilometres (Haversine formula)
+function distanceKm(fromLat, fromLng, toLat, toLng) {
+    const rad = deg => deg * Math.PI / 180;
+    const earthRadius = 6371;
+    const dLat = rad(toLat - fromLat), dLng = rad(toLng - fromLng);
+    const a = Math.sin(dLat/2) ** 2 + Math.cos(rad(fromLat)) * Math.cos(rad(toLat)) * Math.sin(dLng/2) ** 2;
+    return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+function formatDistance(km) {
+    return km < 1 ? `${Math.round(km * 1000)} m entfernt` : `${km.toFixed(km < 10 ? 1 : 0).replace('.', ',')} km entfernt`;
+}
+function requestUserLocation() {
+    if (locationRequested || !navigator.geolocation) return;
+    locationRequested = true;
+    navigator.geolocation.getCurrentPosition(
+        pos => {
+            userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            showToast('📍 Entfernungen vom aktuellen Standort aktualisiert');
+            renderActs();
+        },
+        () => {
+            // Permission denied/unavailable: keep app functional, simply omit live distance.
+            showToast('Standort nicht freigegeben – Entfernungen werden nicht angezeigt.');
+        },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+    );
+}
+
+// ─── DATES ───────────────────────────────────────────────────────────────
+function calculateDates() {
+    let cur = startDate, total = 0; computedData = [];
+    places.forEach(p => {
+        const s = new Date(cur), e = new Date(cur);
+        e.setDate(e.getDate() + (parseInt(p.nights)||0));
+        const fmt = d => d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+        computedData.push({ strStart: fmt(s), strEnd: fmt(e) });
+        total += parseInt(p.nights)||0;
+        cur = e.toISOString().split('T')[0];
+    });
+    const end = new Date(startDate); end.setDate(end.getDate() + total);
+    const full = d => d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
+    document.getElementById('drawer-dates').innerText = `${full(new Date(startDate))} – ${full(end)}`;
+    document.getElementById('drawer-nights').innerText = `${total} Nächte gesamt`;
+    document.getElementById('s-startdate').value = startDate;
+}
+
+// persist without re-triggering crawler
+function persist() {
+    places.forEach(p => p.name = clean(p.name));
+    localStorage.setItem('jp26_places', JSON.stringify(places));
+    localStorage.setItem('jp26_acts', JSON.stringify(acts));
+    localStorage.setItem('jp26_start', startDate);
+}
+function saveData() { persist(); calculateDates(); renderPlaces(); renderActs(); drawMap(); }
+
+function appReset() {
+    if (!confirm('App zurücksetzen?')) return;
+    localStorage.clear();
+    places = JSON.parse(JSON.stringify(INITIAL_PLACES));
+    acts = []; startDate = "2026-11-17"; crawlerDone = false;
+    saveData();
+    setTimeout(runCrawler, 500);
+}
+function saveSettings() { startDate = document.getElementById('s-startdate').value||"2026-11-17"; saveData(); document.getElementById('modal-settings').close(); }
+
+// ─── HOTEL GEO LOOKUP ────────────────────────────────────────────────────
+async function lookupHotelGeo(hotelName, cityName) {
+    const q = `${hotelName} ${cityName} Japan`;
+    try {
+        const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`);
+        const d = await r.json();
+        if (d.length) return { lat: parseFloat(d[0].lat), lng: parseFloat(d[0].lon) };
+    } catch(e) {}
+    return null;
+}
+
+async function saveHotel(placeId, newHotel) {
+    const idx = places.findIndex(p => p.id === placeId);
+    if (idx < 0) return;
+    places[idx].hotel = newHotel;
+    showToast(`🔍 Suche Geodaten für "${newHotel}"…`, 5000);
+    const geo = await lookupHotelGeo(newHotel, clean(places[idx].name));
+    if (geo) {
+        places[idx].hotelLat = geo.lat;
+        places[idx].hotelLng = geo.lng;
+        showToast('✅ Unterkunft-Marker aktualisiert!');
+    } else {
+        places[idx].hotelLat = null; places[idx].hotelLng = null;
+        showToast('⚠️ Kein Geodaten-Treffer – Marker bleibt am Stadtmittelpunkt.');
+    }
+    saveData();
+}
+
+// ─── NAV ──────────────────────────────────────────────────────────────────
+const app = document.getElementById('app'), bottomSheet = document.getElementById('bottomSheet');
+function toggleMenu() { app.classList.toggle('menu-open'); }
+function switchView(id, title) {
+    document.getElementById('pageTitle').innerText = title || `Stationen (${places.length})`;
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+    document.getElementById('menu-' + id.split('-')[1])?.classList.add('active');
+    bottomSheet.classList.remove('open'); app.classList.remove('menu-open');
+    if (id === 'view-map' && map) setTimeout(() => map.invalidateSize(), 60);
+}
+function jumpToActivities() {
+    const raw = document.getElementById('bs-title').innerText;
+    currentFilter = clean(raw.split('. ').slice(1).join('. ') || raw);
+    switchView('view-activities','Aktivitäten'); renderActs();
+}
+
+// ─── MAP ──────────────────────────────────────────────────────────────────
+let map, layerGroup, tempMarker;
+function initMap() {
+    map = L.map('map',{zoomControl:false}).setView([37.5,137.0],5);
+    L.control.zoom({position:'topright'}).addTo(map);
+    L.tileLayer('https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png',{attribution:'&copy; OSM'}).addTo(map);
+    layerGroup = L.layerGroup().addTo(map);
+    map.on('click', () => bottomSheet.classList.remove('open'));
+    calculateDates(); drawMap();
+}
+
+function drawMap() {
+    if (!layerGroup) return;
+    layerGroup.clearLayers();
+    const ll = [];
+    const hotelIcon = L.divIcon({className:'hotel-marker', html:'🏨', iconSize:[20,20], iconAnchor:[10,10]});
+
+    places.forEach((p, i) => {
+        const cd = computedData[i];
+        // Numbered city marker
+        const cityIcon = L.divIcon({
+            className: '',
+            html: `<div style="background:#d32f2f;color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.4);border:2px solid white;">${i+1}</div>`,
+            iconSize: [28,28],
+            iconAnchor: [14,14]
+        });
+        // City marker
+        L.marker([p.lat, p.lng], {icon: cityIcon}).addTo(layerGroup).on('click', e => {
+            L.DomEvent.stopPropagation(e);
+            if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+            // Show place mode
+            document.getElementById('bs-place').style.display = 'block';
+            document.getElementById('bs-act').style.display = 'none';
+            document.getElementById('bs-dates').innerText = `${cd.strStart} – ${cd.strEnd} (${p.nights} Nächte)`;
+            document.getElementById('bs-title').innerText = `${i+1}. ${displayName(p.name,i)}`;
+            document.getElementById('bs-hotel').innerText = p.hotel||'–';
+            document.getElementById('bs-transport').innerText = p.transport||'–';
+            bottomSheet.classList.add('open');
+            map.setView([p.lat, p.lng], 7, {animate:true});
+        });
+
+        // Hotel marker (🏨) if we have geo
+        if (p.hotelLat && p.hotelLng) {
+            L.marker([p.hotelLat, p.hotelLng], {icon: hotelIcon}).addTo(layerGroup)
+                .bindPopup(`<b>🏨 ${p.hotel}</b><br><small>${displayName(p.name,i)}</small>`);
+        }
+
+        ll.push([p.lat, p.lng]);
+    });
+    if (ll.length > 1) L.polyline(ll,{color:'#d32f2f',weight:3,opacity:.6,dashArray:'6,10'}).addTo(layerGroup);
+
+    // Favorite activities remain visible on the map at all times.
+    const favoriteIcon = L.divIcon({
+        className: '',
+        html: '<div style="width:30px;height:30px;border-radius:50%;background:#fff;color:#d32f2f;border:2px solid #d32f2f;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 6px rgba(0,0,0,.35)">♥</div>',
+        iconSize: [30,30], iconAnchor: [15,15]
+    });
+    acts.filter(a => a.favorite && a.lat && a.lng).forEach(a => {
+        L.marker([a.lat, a.lng], { icon: favoriteIcon, zIndexOffset: 500 })
+            .addTo(layerGroup)
+            .on('click', () => showOnMap(a.lat, a.lng, a.title, a.desc));
+    });
+
+    if (ll.length) map.fitBounds(L.polyline(ll).getBounds(),{padding:[30,30]});
+}
+
+let currentActLat = null, currentActLng = null, currentActTitle = '', currentActDesc = '';
+
+async function showOnMap(lat, lng, title, desc) {
+    switchView('view-map','Reiseroute Karte');
+    if (tempMarker) map.removeLayer(tempMarker);
+    const icon = L.divIcon({className:'custom-marker', html:'⭐', iconSize:[22,22], iconAnchor:[11,11]});
+    tempMarker = L.marker([lat,lng],{icon}).addTo(map).bindPopup(`<b>${title}</b>`,{autoClose:false}).openPopup();
+    map.flyTo([lat,lng],14,{duration:1.2});
+
+    currentActLat = lat; currentActLng = lng; currentActTitle = title; currentActDesc = desc || '';
+
+    // Switch to activity mode
+    document.getElementById('bs-place').style.display = 'none';
+    document.getElementById('bs-act').style.display = 'block';
+    document.getElementById('bs-act-title').innerText = title;
+    document.getElementById('bs-act-desc').innerText = desc || '';
+
+    // Load image for activity bottom sheet
+    const img = document.getElementById('bs-act-img');
+    img.style.display = 'none'; img.src = '';
+
+    const actData = acts.find(a => a.title === title);
+
+    function setImg(url) {
+        if (!url) return;
+        img.onload = () => { img.style.display = 'block'; };
+        img.onerror = () => { img.style.display = 'none'; };
+        img.src = url;
+    }
+
+    if (actData && actData.imgUrl) {
+        setImg(actData.imgUrl);
+    } else {
+        // Live fetch image via Action API (works from file:// via JSONP)
+        (async () => {
+            try {
+                const det = await fetchWikiDetails(title);
+                if (det.imgUrl) {
+                    setImg(det.imgUrl);
+                    if (actData) { actData.imgUrl = det.imgUrl; persist(); }
+                }
+            } catch(e) {}
+        })();
+    }
+
+    // Open the bottom sheet AFTER switchView closed it
+    bottomSheet.classList.add('open');
+}
+
+function openGoogleMapsRoute() {
+    if (currentActLat == null) return;
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${currentActLat},${currentActLng}&travelmode=transit`;
+    window.open(url, '_blank');
+}
+
+function openActivityWeb() {
+    const q = encodeURIComponent(currentActTitle + ' Japan');
+    window.open(`https://www.google.de/search?q=${q}`, '_blank');
+}
+
+// ─── PLACES ───────────────────────────────────────────────────────────────
+function renderPlaces() {
+    const list = document.getElementById('placesList'); list.innerHTML = '';
+    document.getElementById('menu-places').innerText = `📋 Route verwalten (${places.length})`;
+    if (document.getElementById('view-places').classList.contains('active'))
+        document.getElementById('pageTitle').innerText = `Stationen (${places.length})`;
+
+    places.forEach((p, i) => {
+        const cd = computedData[i];
+        const card = document.createElement('div'); card.className = 'place-card'; card.draggable = true;
+        card.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', i); setTimeout(() => card.classList.add('dragging'), 40); });
+        card.addEventListener('dragend', () => card.classList.remove('dragging'));
+        card.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('drag-over'); });
+        card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+        card.addEventListener('drop', e => {
+            e.preventDefault(); card.classList.remove('drag-over');
+            const from = parseInt(e.dataTransfer.getData('text/plain'));
+            if (!isNaN(from) && from !== i) { const item = places.splice(from,1)[0]; places.splice(i,0,item); saveData(); }
+        });
+
+        const hotelGeoHint = p.hotelLat ? ' 🏨' : ' <span style="color:#ccc;font-size:10px">(kein Marker)</span>';
+        const editId = `hotel-edit-${p.id}`;
+
+        card.innerHTML = `
+            <div class="drag-handle">≡</div>
+            <div class="place-body">
+                <div class="dates-badge">${cd.strStart} – ${cd.strEnd}</div>
+                <h3>${i+1}. ${displayName(p.name,i)}</h3>
+                <div class="hotel-row">
+                    <span class="hotel-name">${p.hotel||'Unterkunft offen'}${hotelGeoHint}</span>
+                    <button class="edit-btn" onclick="toggleHotelEdit(${p.id})" title="Unterkunft bearbeiten">✏️</button>
+                </div>
+                <div class="hotel-input-wrap" id="${editId}">
+                    <input type="text" id="hi-${p.id}" value="${p.hotel||''}" placeholder="Unterkunft eingeben…">
+                    <button class="hotel-save-btn" onclick="saveHotelFromInput(${p.id})">OK</button>
+                </div>
+                <div class="nights-row">
+                    <button class="nights-btn" onclick="changeNights(${i},-1)">−</button>
+                    <div class="nights-val">${p.nights} N</div>
+                    <button class="nights-btn" onclick="changeNights(${i},1)">+</button>
+                </div>
+            </div>
+            <button class="del-btn" onclick="delPlace(${p.id})">✕</button>`;
+        list.appendChild(card);
+    });
+}
+
+function toggleHotelEdit(placeId) {
+    const wrap = document.getElementById(`hotel-edit-${placeId}`);
+    wrap.classList.toggle('open');
+    if (wrap.classList.contains('open')) document.getElementById(`hi-${placeId}`).focus();
+}
+async function saveHotelFromInput(placeId) {
+    const val = document.getElementById(`hi-${placeId}`).value.trim();
+    if (!val) return;
+    document.getElementById(`hotel-edit-${placeId}`).classList.remove('open');
+    await saveHotel(placeId, val);
+}
+
+function changeNights(i,d) { places[i].nights = Math.max(0,(parseInt(places[i].nights)||0)+d); saveData(); }
+function delPlace(id) { places = places.filter(p => p.id !== id); saveData(); }
+
+// ─── CRAWLER (runs once per session, no render loop) ──────────────────────
+// JSONP helper — the only way to call external APIs from a file:// origin
+function jsonp(url, callbackParam = 'callback') {
+    return new Promise((resolve, reject) => {
+        const cbName = '_jp_' + Math.random().toString(36).slice(2);
+        const script = document.createElement('script');
+        const timer = setTimeout(() => {
+            delete window[cbName]; document.head.removeChild(script);
+            reject(new Error('timeout'));
+        }, 8000);
+        window[cbName] = data => {
+            clearTimeout(timer); delete window[cbName]; document.head.removeChild(script);
+            resolve(data);
+        };
+        script.src = url + (url.includes('?') ? '&' : '?') + callbackParam + '=' + cbName;
+        script.onerror = () => { clearTimeout(timer); reject(new Error('script error')); };
+        document.head.appendChild(script);
+    }
+    );
+}
+
+// fetchWithTimeout is now only for Nominatim (which supports CORS)
+function fetchWithTimeout(url, ms=8000) {
+    return Promise.race([
+        fetch(url),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
+    ]);
+}
+
+async function fetchWikiDetails(title, lang='en') {
+    try {
+        // JSONP works from file:// — format=json&callback= is supported by MediaWiki
+        const url = `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=extracts|pageimages&exintro=1&explaintext=1&exchars=240&pithumbsize=600&format=json`;
+        const d = await jsonp(url);
+        const page = Object.values(d?.query?.pages || {})[0];
+        if (page && page.missing === undefined) {
+            return { extract: page.extract || '', imgUrl: page.thumbnail?.source || null };
+        }
+    } catch(e) {}
+    if (lang === 'en') return fetchWikiDetails(title, 'de');
+    return { extract: '', imgUrl: null };
+}
+
+async function fetchCommonsImage(title) {
+    try {
+        const q = title.replace(/\(.*?\)/g, '').trim();
+        const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrlimit=1&prop=imageinfo&iiprop=url&iiurlwidth=600&format=json`;
+        const d = await jsonp(url);
+        const pages = d?.query?.pages;
+        if (!pages) return null;
+        const page = Object.values(pages)[0];
+        return page?.imageinfo?.[0]?.thumburl || page?.imageinfo?.[0]?.url || null;
+    } catch(e) { return null; }
+}
+
+// Hardcoded fallbacks for remote/rural spots with thin Wikipedia coverage
+const FALLBACKS = {
+    'Kushiro': [
+        { title:'Akan-Mashu-Nationalpark', desc:'Einer der schönsten Nationalparks Japans mit drei Caldera-Seen, heißen Quellen und dem seltenen Marimo-Moos.', lat:43.4500, lng:144.3700 },
+        { title:'Tsurui-Crane Sanctuary', desc:'Das weltberühmte Schutzgebiet der Japanischen Kraniche (Tancho). Morgens im Winter unvergesslich.', lat:43.2200, lng:144.3200 },
+        { title:'Kushiro Feuchtgebiet', desc:'Größtes Feuchtgebiet Japans – Kanufahrten durch Schilflandschaft werden angeboten.', lat:43.0700, lng:144.4000 },
+        { title:'Hamanaka (Hokkaido)', desc:'Kleines Küstendorf mit Ausblick auf den Pazifik und frischen Seeigeln direkt vom Boot.', lat:43.0900, lng:144.7000 },
+        { title:'Lake Mashu', desc:'Einer der klarsten Seen der Welt, oft im Nebel gehüllt. Aussichtsplattformen über dem Kratersee.', lat:43.5700, lng:144.5400 }
+    ],
+    'Nyuto Onsen': [
+        { title:'Tsurunoyu Onsen', desc:'Das älteste und berühmteste Ryokan im Tal, bekannt für milchiges Heilwasser und rustikale Atmosphäre.', lat:39.7850, lng:140.7580 },
+        { title:'Kuroyu Onsen', desc:'Dunkles, schwefeliges Wasser tief im Bergwald. Sehr ursprünglich und abgelegen.', lat:39.7820, lng:140.7620 },
+        { title:'Magoroku Onsen', desc:'Waldreiches Onsen-Ryokan mit eigenem Naturbach. Perfekt für Winterspaziergänge.', lat:39.7900, lng:140.7700 },
+        { title:'Ganiba Onsen', desc:'Kleines Onsen mit Krabbenmotiv, bekannt für eisenhaltiges rötliches Wasser.', lat:39.7860, lng:140.7640 },
+        { title:'Tamagawa Onsen (Akita)', desc:'Stärkstes saures Heilwasser Japans, ca. 40km entfernt, Tagesausflug lohnt sich.', lat:39.9600, lng:140.6800 }
+    ],
+    'Ginzan Onsen': [
+        { title:'Ginzan Onsen (Dorf)', desc:'Märchenhaftes Taisho-Dorf mit Gasbeleuchtung und dampfenden Gassen – Vorlage für Spirited Away.', lat:38.5707, lng:140.5317 },
+        { title:'Fujiya Ryokan', desc:'Berühmtestes Ryokan im Dorf, prächtige Holzfassade direkt am Fluss.', lat:38.5710, lng:140.5310 },
+        { title:'Shirogane Falls Ginzan', desc:'Kleiner Wasserfall am Dorfeingang, besonders schön bei Schnee.', lat:38.5680, lng:140.5290 },
+        { title:'Ginzan Onsen Foot Bath', desc:'Kostenloser öffentlicher Fußbad direkt im Dorf – perfekt für eine kurze Pause.', lat:38.5715, lng:140.5320 },
+        { title:'Obanazawa City', desc:'Nächstgelegene Stadt mit Haiku-Museum und Basho-Ausstellung (30 min entfernt).', lat:38.6000, lng:140.4000 }
+    ],
+    'Kurokawa Onsen': [
+        { title:'Rotemburo Meguri', desc:'Mit dem Holz-Nyutougata-Pass drei verschiedene Außen-Onsen im Wald ausprobieren.', lat:33.0786, lng:131.1444 },
+        { title:'Yamamizuki Ryokan', desc:'Eines der schönsten Ryokan im Tal mit mehreren Privatbädern und exzellenter Kaiseki-Küche.', lat:33.0790, lng:131.1450 },
+        { title:'Kurokawa Onsen Dorf', desc:'Charmantes Onsen-Dorf zum Schlendern – viele kleine Läden und kostenlose Fußbäder.', lat:33.0780, lng:131.1440 },
+        { title:'Kurokawa Inari Schrein', desc:'Kleiner rot-orangener Schrein am Flussufer, kurzer Spaziergang vom Dorfzentrum.', lat:33.0775, lng:131.1460 },
+        { title:'Takachiho Gorge (Ausflug)', desc:'45 Minuten Fahrt entfernt: atemberaubende Schlucht mit Bootsverleih unter Wasserfällen.', lat:32.7060, lng:131.3010 }
+    ]
+};
+
+async function runCrawler() {
+    if (crawlerDone) return;
+    const cities = [...new Set(places.map(p => clean(p.name)))];
+
+    for (const city of cities) {
+        const have = acts.filter(a => a.topPlace === city).length;
+        if (have >= 5) continue;
+        showToast(`🔍 ${city}…`, 4000);
+        const root = places.find(p => clean(p.name) === city);
+        if (!root) continue;
+
+        // 1. Try Wikipedia (DE first, large radius)
+        let added = 0;
+        try {
+            // Try DE with 50km radius
+            const geoUrl = `https://de.wikipedia.org/w/api.php?action=query&list=geosearch&gscoord=${root.lat}|${root.lng}&gsradius=50000&gslimit=8&format=json`;
+            const pois = (await jsonp(geoUrl))?.query?.geosearch || [];
+
+            for (const poi of pois) {
+                if (have + added >= 5) break;
+                if (acts.some(a => a.topPlace === city && a.title === poi.title)) continue;
+                let desc = `Sehenswürdigkeit in der Region ${city}, ca. ${poi.dist}m entfernt.`;
+                let imgUrl = null;
+                try {
+                    const det = await fetchWikiDetails(poi.title);
+                    if (det.extract && det.extract.length > 20) desc = det.extract.trim().replace(/\n/g,' ');
+                    imgUrl = det.imgUrl;
+                } catch(e) {}
+                acts.push({ id: Date.now()+Math.random(), topPlace: city, type:'🏯 Erkunden', title: poi.title, desc, imgUrl, lat: poi.lat, lng: poi.lon });
+                added++;
+                persist(); renderActs();
+                await new Promise(r => setTimeout(r, 150));
+            }
+        } catch(e) { console.warn('Geo-search failed for', city, e.message); }
+
+        // 2. Fill remaining slots from hardcoded fallbacks (for rural spots)
+        const fallbacks = FALLBACKS[city] || [];
+        for (const fb of fallbacks) {
+            if (acts.filter(a => a.topPlace === city).length >= 5) break;
+            if (acts.some(a => a.topPlace === city && a.title === fb.title)) continue;
+            acts.push({ id: Date.now()+Math.random(), topPlace: city, type:'🏯 Erkunden', title: fb.title, desc: fb.desc, imgUrl: null, lat: fb.lat, lng: fb.lng });
+            persist(); renderActs();
+            await new Promise(r => setTimeout(r, 50));
+        }
+
+        // 3. Last resort: generic fallbacks per city (no "erkunden" placeholders)
+        if (acts.filter(a => a.topPlace === city).length === 0) {
+            const generic = GENERIC_FALLBACKS[city];
+            if (generic) {
+                for (const fb of generic.slice(0,5)) {
+                    acts.push({ id: Date.now()+Math.random(), topPlace: city, type:'🏯 Erkunden', title: fb.title, desc: fb.desc, imgUrl: null, lat: fb.lat, lng: fb.lng });
+                }
+            } else {
+                // absolute last resort - at least use city name meaningfully
+                acts.push({ id: Date.now()+Math.random(), topPlace: city, type:'🏯 Erkunden', title: `Stadtzentrum ${city}`, desc: `Das Zentrum von ${city} zu Fuß erkunden – Märkte, Tempel und lokale Küche.`, imgUrl: null, lat: root.lat, lng: root.lng });
+            }
+            persist(); renderActs();
+        }
+    }
+
+    crawlerDone = true;
+    localStorage.setItem('jp26_crawled', '1');
+    showToast('✅ Alle Aktivitäten geladen!');
+    persist(); renderActs();
+}
+
+// Generic fallbacks for all cities (no empty/placeholder entries)
+const GENERIC_FALLBACKS = {
+    'Tokyo': [
+        { title:'Tsukiji Outer Market', desc:'Frisches Sushi, Tamagoyaki und Streetfood auf dem lebhaftesten Markt Tokyos.', lat:35.6654, lng:139.7707 },
+        { title:'Senso-ji Tempel Asakusa', desc:'Tokyos ältester Tempel mit prächtigem Tor, Räucherwerk und Handwerksmärkten.', lat:35.7148, lng:139.7967 },
+        { title:'Shibuya Crossing', desc:'Die bekannteste Fußgängerampel der Welt – am besten abends von oben beobachten.', lat:35.6595, lng:139.7004 },
+        { title:'Shinjuku Gyoen', desc:'Wunderschöner Stadtpark – ideal für einen ruhigen Morgen nach dem Jetlag.', lat:35.6852, lng:139.7100 },
+        { title:'TeamLab Planets', desc:'Immersives digitales Kunstmuseum – am besten Tickets weit im Voraus buchen.', lat:35.6469, lng:139.7859 }
+    ],
+    'Fukuoka': [
+        { title:'Yatai Straßenstände (Nakasu)', desc:'Fukuokas berühmteste Tradition: Abends an provisorischen Ständen Tonkotsu Ramen essen.', lat:33.5902, lng:130.4017 },
+        { title:'Ohori Park', desc:'Großer Teichpark im Zentrum – Bootsfahrten und Café am Wasser.', lat:33.5850, lng:130.3800 },
+        { title:'Dazaifu Tenmangu', desc:'Wichtiger Schrein 30 Min. von Fukuoka, berühmt für Pflaumenbäume und Umeboshi.', lat:33.5122, lng:130.5328 },
+        { title:'Canal City Hakata', desc:'Einzigartiges Shopping-Center mit Kanal mitten hindurch – auch abends schön.', lat:33.5889, lng:130.4119 },
+        { title:'Hakata Ramen Street', desc:'Acht Ramen-Läden nebeneinander im Bahnhof – idealer Vergleichstest.', lat:33.5897, lng:130.4207 }
+    ],
+    'Nagoya': [
+        { title:'Burg Nagoya', desc:'Prächtige Burganlage mit goldenen Shachihoko-Fischen auf dem Dach.', lat:35.1852, lng:136.8990 },
+        { title:'Atsuta Jingu', desc:'Einer der wichtigsten Schreine Japans, Heimat des legendären Schwerts Kusanagi.', lat:35.1278, lng:136.9084 },
+        { title:'Nagoya-meshi Mittagessen', desc:'Probiere Miso Katsu, Hitsumabushi Aal oder Kishimen Nudeln – lokale Spezialitäten.', lat:35.1715, lng:136.8816 },
+        { title:'Toyota Museum', desc:'Weltklasse-Automobilmuseum mit historischen Fahrzeugen und interaktiven Exponaten.', lat:35.0872, lng:137.1564 },
+        { title:'Osu Shopping District', desc:'Lebhaftes Viertel mit Vintage-Läden, Streetfood und kleinen Tempeln.', lat:35.1589, lng:136.9047 }
+    ],
+    'Niigata': [
+        { title:'Ponshukan Sake-Automat', desc:'Im Bahnhof: Kleines Sake-Museum mit Automaten für 500 Yen – viele lokale Sorten probieren.', lat:37.9117, lng:139.0606 },
+        { title:'Hakusan Park', desc:'Schöner Stadtpark mit japanischem Garten und Teich.', lat:37.9245, lng:139.0480 },
+        { title:'Sasagawa Nagare Küste', desc:'Malerische Felsküste, 1 Std. nördlich – einer der schönsten Küstenabschnitte Japans.', lat:38.2800, lng:139.4300 },
+        { title:'Niigata City History Museum', desc:'Einblick in die Geschichte der Stadt als bedeutender Hafen und Reisregion.', lat:37.9200, lng:139.0380 },
+        { title:'Bandai Market', desc:'Überdachter Markt mit frischen Meeresfrüchten und lokalen Reissnacks.', lat:37.9180, lng:139.0520 }
+    ],
+    'Aizu-Wakamatsu': [
+        { title:'Tsuruga-jo Burg', desc:'Restaurierte Burg aus der Samurai-Ära mit Museum über die Boshin-Kriegsgeschichte.', lat:37.4930, lng:139.9279 },
+        { title:'Ouchi-juku', desc:'Historisches Postdorf aus der Edo-Zeit, 45 Min. entfernt – wie ein lebendes Museum.', lat:37.3167, lng:139.8167 },
+        { title:'Iimori-yama Hügel', desc:'Gedenkstätte der Byakkotai-Jugendsoldaten mit schönem Blick über die Stadt.', lat:37.4897, lng:139.9409 },
+        { title:'Nanokamachi Street', desc:'Traditionelle Straße mit Sake-Brauereien, Ladenzeilen und Koi-Teichen.', lat:37.4967, lng:139.9240 },
+        { title:'Higashiyama Onsen', desc:'Kleines Onsen-Viertel am Stadtrand – ideal für einen entspannten Abend.', lat:37.4800, lng:139.9567 }
+    ],
+    'Akita': [
+        { title:'Akita Museum of Art', desc:'Preisgekrönte Architektur von Tadao Ando mit großen Fujita-Gemälden.', lat:39.7189, lng:140.1025 },
+        { title:'Senshu Park', desc:'Parkanlage auf dem Gelände der ehemaligen Burg mit Kirschblüten und Herbstlaub.', lat:39.7226, lng:140.1040 },
+        { title:'Kanto-Matsuri Museum', desc:'Lernt das berühmte Laternenfest kennen – mit Mitmachangeboten.', lat:39.7200, lng:140.1030 },
+        { title:'Kawabata Shopping Arcade', desc:'Überdachte Einkaufsstraße mit lokalen Produkten, Kiritanpo-Stäbchen und Sake.', lat:39.7180, lng:140.1055 },
+        { title:'Nyuto Onsen Tagesausflug', desc:'Von Akita aus in 1 Std. erreichbar: das bekannteste Onsen-Tal der Tohoku-Region.', lat:39.8000, lng:140.7960 }
+    ],
+    'Sapporo': [
+        { title:'Odori Park', desc:'Breiter Stadtpark im Zentrum – im Winter Eisplastiken beim Schneefestival.', lat:43.0595, lng:141.3535 },
+        { title:'Hokkaido Jingu Schrein', desc:'Ruhiger Shinto-Schrein mitten im Maruyama-Park, 15 Min. vom Zentrum.', lat:43.0563, lng:141.3197 },
+        { title:'Sapporo Biermuseum', desc:'Historisches Brauerei-Gelände mit Biergeschichte und Verkostung.', lat:43.0730, lng:141.3620 },
+        { title:'Nijo Market', desc:'Frische Meeresfrüchte, Krabben und Seeigel – authentischer als der Touristenmarkt.', lat:43.0620, lng:141.3580 },
+        { title:'Niseko Tagesausflug', desc:'1,5 Std. von Sapporo: Onsen mit Blick auf den Mt. Yotei und Winterlandschaft.', lat:42.8167, lng:140.6833 }
+    ],
+    'Asahikawa': [
+        { title:'Asahiyama Zoo', desc:'Japans bekanntester Zoo mit innovativen Gehegen – besonders die Pinguinparade im Winter.', lat:43.7710, lng:142.4710 },
+        { title:'Aoiike (Blauer Teich Biei)', desc:'20 Min. südlich: leuchtend blauer Teich durch Mineralien, im Winter illuminiert.', lat:43.6010, lng:142.5280 },
+        { title:'Shirahige Falls Biei', desc:'Einzigartiger Wasserfall direkt aus dem Flussufer – blaues Wasser durch Thermalquellen.', lat:43.5920, lng:142.5100 },
+        { title:'Patchwork Road Biei', desc:'Sanfte Hügellandschaft mit Feldern im Schachbrettmuster – per Fahrrad erkundbar.', lat:43.5900, lng:142.4600 },
+        { title:'Asahikawa Ramen', desc:'Eigenständiger Ramen-Stil: würzige Sojasauce mit Fett-Schicht gegen die Kälte.', lat:43.7710, lng:142.3650 }
+    ]
+};
+
+// ─── ACTIVITIES ───────────────────────────────────────────────────────────
+function renderActs() {
+    const fBar = document.getElementById('activityFilters');
+    const cities = [...new Set(places.map(p => clean(p.name)))];
+    fBar.innerHTML = `<div class="chip ${currentFilter==='Alle'?'active':''}" onclick="setFilter('Alle')">Alle</div>`;
+    cities.forEach(c => {
+        const cnt = acts.filter(a => a.topPlace === c).length;
+        fBar.innerHTML += `<div class="chip ${currentFilter===c?'active':''}" onclick="setFilter('${c}')">${c}${cnt ? ` <b style="opacity:.5">${cnt}</b>` : ''}</div>`;
+    });
+
+    const list = document.getElementById('activitiesList'); list.innerHTML = '';
+    const filtered = currentFilter === 'Alle' ? acts : acts.filter(a => a.topPlace === currentFilter);
+
+    if (!filtered.length) {
+        list.innerHTML = `<div class="empty-acts">${crawlerDone ? 'Keine Aktivitäten gefunden.' : 'Wird geladen…'}</div>`;
+        return;
+    }
+
+    filtered.forEach(a => {
+        const q = encodeURIComponent(`${a.title} ${a.topPlace} Japan`);
+
+        const liveDistance = (userLocation && a.lat && a.lng)
+            ? formatDistance(distanceKm(userLocation.lat, userLocation.lng, a.lat, a.lng))
+            : '';
+        const div = document.createElement('div');
+        div.className = 'act-card';
+        div.innerHTML = `
+            <div class="act-img-slot"></div>
+            <div class="act-body">
+                <div class="act-type">${a.type} • ${a.topPlace}${liveDistance ? ` • 📍 ${liveDistance}` : ''}</div>
+                <h3 class="act-title">${a.title}</h3>
+                <p class="act-desc">${a.desc}</p>
+                <div class="act-btns">
+                    ${(a.lat && a.lng) ? `<button class="btn-icon btn-map-act">🗺️ Karte</button>` : ''}
+                    <button class="btn-icon btn-web-act">🌐 Web</button>
+                    <button class="btn-icon btn-favorite-act" style="${a.favorite ? 'color:#d32f2f;border-color:#d32f2f;background:#fff5f5' : ''}">${a.favorite ? '♥ Favorit' : '♡ Favorit'}</button>
+                </div>
+            </div>
+            <button class="act-del">✕</button>`;
+
+        // Attach event listeners safely — no string escaping needed
+        div.querySelector('.act-del').addEventListener('click', () => delAct(a.id));
+        div.querySelector('.btn-web-act').addEventListener('click', () => window.open(`https://www.google.de/search?q=${q}`, '_blank'));
+        div.querySelector('.btn-favorite-act').addEventListener('click', () => toggleFavorite(a.id));
+        if (a.lat && a.lng) {
+            div.querySelector('.btn-map-act').addEventListener('click', () => showOnMap(a.lat, a.lng, a.title, a.desc));
+        }
+
+        list.appendChild(div);
+
+        // Attach image safely via JS
+        const slot = div.querySelector('.act-img-slot');
+        renderActImage(slot, a);
+    });
+
+    // Visible manual control remains available, while the same loader is triggered at scroll end.
+    if (currentFilter !== 'Alle') {
+        const footer = document.createElement('div');
+        footer.style.cssText = 'padding:16px;text-align:center;background:#fff;';
+        footer.innerHTML = '<button class="btn-icon load-more-footer">🔄 Weitere Aktivitäten laden</button>';
+        const button = footer.querySelector('.load-more-footer');
+        if (button) button.addEventListener('click', () => loadMoreActs(currentFilter));
+        list.appendChild(footer);
+    } else {
+        const notice = document.createElement('div');
+        notice.style.cssText = 'padding:18px;text-align:center;font-size:12px;color:#888;background:#fff;';
+        notice.innerText = 'Wähle einen Ort aus, um beim Scrollen automatisch weitere Aktivitäten zu laden.';
+        list.appendChild(notice);
+    }
+}
+
+// Renders an activity image with graceful fallback: stored imgUrl -> Commons search -> placeholder icon
+function renderActImage(container, activity) {
+    const img = document.createElement('img');
+    img.className = 'act-img';
+    img.loading = 'lazy';
+    img.alt = activity.title || '';
+
+    function showPlaceholder() {
+        container.innerHTML = '<div class="act-img-placeholder">🏯</div>';
+    }
+
+    if (activity.imgUrl) {
+        img.src = activity.imgUrl;
+        img.onerror = async () => {
+            // Try Commons search once as a live fallback, then give up gracefully
+            const commonsUrl = await fetchCommonsImage(activity.title);
+            if (commonsUrl && commonsUrl !== activity.imgUrl) {
+                img.onerror = showPlaceholder;
+                img.src = commonsUrl;
+            } else {
+                showPlaceholder();
+            }
+        };
+        container.innerHTML = '';
+        container.appendChild(img);
+    } else {
+        showPlaceholder();
+        // Try to lazily fetch an image in the background and update once found
+        fetchCommonsImage(activity.title).then(url => {
+            if (url) {
+                activity.imgUrl = url;
+                persist();
+                const testImg = new Image();
+                testImg.onload = () => { container.innerHTML = ''; testImg.className = 'act-img'; testImg.alt = activity.title||''; container.appendChild(testImg); };
+                testImg.onerror = () => {};
+                testImg.src = url;
+            }
+        });
+    }
+}
+
+// Load the next page of activities for one place. Called by the button and automatically at scroll end.
+async function loadMoreActs(city) {
+    if (!city || city === 'Alle' || activityLoadInProgress) return;
+    const root = places.find(p => clean(p.name) === city);
+    if (!root) return;
+
+    activityLoadInProgress = true;
+    showToast(`🔍 Weitere Aktivitäten für ${city} werden geladen…`, 4500);
+
+    const state = activityPageState[city] || { page: 0 };
+    let added = 0;
+    try {
+        // Geo-based search: expands in rings of 15km per page — always on-topic
+        const radius = 15000 + state.page * 15000;
+        const geoUrl = `https://de.wikipedia.org/w/api.php?action=query&list=geosearch&gscoord=${root.lat}|${root.lng}&gsradius=${radius}&gslimit=50&format=json`;
+        const pois = (await jsonp(geoUrl))?.query?.geosearch || [];
+
+        for (const poi of pois) {
+            if (added >= 5) break;
+            if (acts.some(a => a.topPlace === city && a.title === poi.title)) continue;
+            let desc = `Sehenswürdigkeit in der Region ${city}, ca. ${Math.round(poi.dist)}m vom Ortszentrum entfernt.`;
+            let imgUrl = null;
+            try {
+                const det = await fetchWikiDetails(poi.title);
+                if (det.extract?.length > 20) desc = det.extract.trim().replace(/\n/g,' ');
+                imgUrl = det.imgUrl;
+            } catch(e) {}
+            acts.push({
+                id: Date.now()+Math.random(), topPlace:city, type:'🏯 Erkunden',
+                title: poi.title, desc, imgUrl,
+                lat: poi.lat, lng: poi.lon   // always has coordinates from geosearch
+            });
+            added++;
+            persist();
+            await new Promise(r => setTimeout(r, 100));
+        }
+
+        state.page++;
+        activityPageState[city] = state;
+    } catch(e) {
+        showToast('Internetverbindung prüfen – beim nächsten Scrollen erneut versuchen.');
+    } finally {
+        activityLoadInProgress = false;
+        persist();
+        renderActs();
+        if (added) showToast(`✅ ${added} neue Aktivitäten für ${city}`);
+        else showToast('🔍 Suche wird mit weiteren Quellen fortgesetzt…');
+    }
+}
+
+function setFilter(c) { currentFilter = c; renderActs(); }
+function toggleFavorite(id) {
+    const activity = acts.find(a => a.id === id);
+    if (!activity) return;
+    activity.favorite = !activity.favorite;
+    persist();
+    renderActs();
+    drawMap();
+    showToast(activity.favorite ? `♥ ${activity.title} als Favorit gespeichert` : `${activity.title} aus Favoriten entfernt`);
+}
+function delAct(id) { acts = acts.filter(a => a.id !== id); persist(); renderActs(); drawMap(); }
+function openAddActivity() {
+    const sel = document.getElementById('a-city'); sel.innerHTML = '';
+    [...new Set(places.map(p => clean(p.name)))].forEach(n => sel.innerHTML += `<option>${n}</option>`);
+    if (currentFilter !== 'Alle') sel.value = currentFilter;
+    document.getElementById('modal-activity').showModal();
+}
+function saveActivityManual() {
+    const city = document.getElementById('a-city').value;
+    const rp = places.find(p => clean(p.name) === city);
+    acts.push({ id: Date.now(), topPlace: city, type: document.getElementById('a-type').value, title: document.getElementById('a-title').value, desc: document.getElementById('a-desc').value, imgUrl: null, lat: rp?.lat||null, lng: rp?.lng||null });
+    persist(); renderActs();
+    document.getElementById('modal-activity').close();
+    document.getElementById('a-title').value = ''; document.getElementById('a-desc').value = '';
+}
+
+// ─── PLACE SEARCH ─────────────────────────────────────────────────────────
+async function searchPlace() {
+    const q = document.getElementById('p-search').value; if(!q) return;
+    const box = document.getElementById('searchResults'); box.innerHTML = 'Sucht…';
+    try {
+        const d = await (await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=jp`)).json();
+        box.innerHTML = '';
+        if (!d.length) { box.innerHTML = '<p style="padding:8px">Nichts gefunden.</p>'; return; }
+        d.slice(0,4).forEach(item => {
+            const div = document.createElement('div'); div.className = 'search-item'; div.innerText = item.display_name;
+            div.onclick = () => { document.getElementById('p-name').value = item.name||item.display_name.split(',')[0]; document.getElementById('p-lat').value = item.lat; document.getElementById('p-lng').value = item.lon; box.innerHTML = '<span style="color:green;font-weight:bold;padding:8px;display:block">✓ Übernommen</span>'; };
+            box.appendChild(div);
+        });
+    } catch(e) { box.innerHTML = '<p style="color:red;padding:8px">Netzwerkfehler</p>'; }
+}
+function savePlace() {
+    const n=document.getElementById('p-name').value, la=parseFloat(document.getElementById('p-lat').value), lg=parseFloat(document.getElementById('p-lng').value), nt=parseInt(document.getElementById('p-nights').value);
+    if (!n||isNaN(la)) { alert('Bitte erst Ort suchen und auswählen.'); return; }
+    places.push({id:Date.now(), name:n, lat:la, lng:lg, nights:nt||1, hotel:'', hotelLat:null, hotelLng:null, transport:'Ausstehend'});
+    saveData(); document.getElementById('modal-place').close(); document.getElementById('p-name').value=''; document.getElementById('searchResults').innerHTML='';
+    crawlerDone = false; localStorage.removeItem('jp26_crawled'); setTimeout(runCrawler, 400);
+}
+
+// ─── INFINITE SCROLL ──────────────────────────────────────────────────────
+function setupActivityInfiniteScroll() {
+    const list = document.getElementById('activitiesList');
+    let scrollTimer;
+    list.addEventListener('scroll', () => {
+        clearTimeout(scrollTimer);
+        scrollTimer = setTimeout(() => {
+            // Starts loading before the actual end, so the experience remains seamless.
+            const nearEnd = list.scrollTop + list.clientHeight >= list.scrollHeight - 220;
+            if (nearEnd && currentFilter !== 'Alle' && !activityLoadInProgress) {
+                loadMoreActs(currentFilter);
+            }
+        }, 100);
+    }, { passive: true });
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    loadState(); initMap(); renderPlaces(); renderActs();
+    setupActivityInfiniteScroll();
+    // The browser asks permission only on this explicit app interaction/session.
+    requestUserLocation();
+    if (!crawlerDone) setTimeout(runCrawler, 1000);
+});
+</script>
+</body>
+</html>

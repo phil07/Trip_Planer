@@ -1,0 +1,9 @@
+# GitNexus index & caches (regenerate on demand)
+.gitnexus/
+
+# Local Claude settings (per-user, contains permissions)
+.claude/settings.local.json
+
+# Windows
+Thumbs.db
+Desktop.ini
