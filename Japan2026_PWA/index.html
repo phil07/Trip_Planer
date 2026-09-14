@@ -37,7 +37,7 @@
             --accent: #007AFF; --accent-soft: rgba(0,122,255,.12);
             --bg: #F2F2F7; --bg-elevated: #FFFFFF; --bg-secondary: #EFEFF4; --bg-secondary-press: #E3E3E9;
             --border: #E5E5EA; --handle: #D1D1D6; --scrim: rgba(255,255,255,.85);
-            --label: #1C1C1E; --muted: #8E8E93; --label-tertiary: #A0A0A5;
+            --label: #1C1C1E; --muted: #6E6E73; --label-tertiary: #909095;
             --overlay: rgba(0,0,0,.45);
             --shadow-sm: 0 1px 2px rgba(0,0,0,.05), 0 1px 6px rgba(0,0,0,.05);
             --shadow-md: 0 2px 10px rgba(0,0,0,.08), 0 8px 24px rgba(0,0,0,.08);
@@ -288,6 +288,7 @@
         .menu-icon.tint-blue { background: #007AFF; }
         .menu-icon.tint-orange { background: #FF9500; }
         .menu-icon.tint-green { background: #34C759; }
+        .menu-icon.tint-purple { background: #AF52DE; }
 
         /* Day Plan */
         .dayplan-card { background: var(--bg-elevated); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 14px; margin-bottom: var(--sp-4); }
@@ -404,7 +405,8 @@
         :root:not([data-theme="light"]) .header-btn { background: rgba(46,44,54,.5); border-color: rgba(255,255,255,.08); }
         .header-btn:active { transform: scale(.9); }
 
-        /* 3) Hero-Countdown – das eine markante Element (über der Karte) */
+        /* 3) Hero-Countdown – auf dem neuen Home-Dashboard statt auf der Karte */
+        .hero-card.home { position: static; pointer-events: auto; width: 100%; margin-bottom: var(--sp-4); }
         .hero-card {
             position: absolute; top: 12px; left: 14px; right: 14px; z-index: 20; pointer-events: none;
             padding: 16px 18px 15px; border-radius: 26px;
@@ -431,6 +433,30 @@
         :root:not([data-theme="light"]) .hero-progress { background: rgba(255,255,255,.14); }
         .hero-progress-fill { height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, var(--primary), #E8A33D); transition: width .6s var(--ease-out); }
         .hero-route { font-size: 13px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Home-Dashboard: Statistik-Grid, nächste Station, Schnellaktionen */
+        .home-scroll { display: flex; flex-direction: column; gap: var(--sp-4); }
+        .home-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-2); }
+        .stat-card {
+            background: var(--bg-elevated); border-radius: var(--radius-md);
+            border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+            padding: 12px 8px 10px; text-align: center;
+            -webkit-backdrop-filter: saturate(180%) blur(18px); backdrop-filter: saturate(180%) blur(18px);
+        }
+        .stat-ico { font-size: 18px; line-height: 1; }
+        .stat-num { font-size: 24px; font-weight: 700; letter-spacing: -0.03em; margin: 4px 0 1px; color: var(--label); }
+        .stat-lbl { font-size: 10.5px; font-weight: 600; color: var(--muted); }
+        .home-next, .home-actions, .home-section {
+            background: var(--bg-elevated); border-radius: var(--radius-lg);
+            border: 1px solid var(--border); box-shadow: var(--shadow-sm); padding: 14px;
+            -webkit-backdrop-filter: saturate(180%) blur(18px); backdrop-filter: saturate(180%) blur(18px);
+        }
+        .home-next h3, .home-section h3 { margin: 0 0 10px; font-size: var(--fs-subhead); font-weight: 700; color: var(--label); }
+        .home-card-title { font-size: var(--fs-callout); font-weight: 650; color: var(--label); margin: 2px 0 3px; }
+        .home-card-meta { font-size: var(--fs-footnote); color: var(--muted); line-height: 1.5; }
+        .home-card-meta b { color: var(--label); font-weight: 650; }
+        .home-actions { display: flex; flex-direction: column; gap: var(--sp-2); }
+        .home-actions .btn { margin-top: 0; }
 
         /* 4) Glas-Surfaces: Karten, Chips, Drawer, Dialoge, Inputs, Buttons */
         body .act-card, body .place-card, body .chip, body .chip-sm, body .filter-bar,
@@ -475,9 +501,20 @@
         body .btn { border-radius: 18px; min-height: 50px; }
         body dialog { border-radius: 24px; }
 
-        /* Aktive Chips: Primär-Gradient statt flacher Farbe */
-        body .chip.active { background: linear-gradient(135deg, var(--primary), #ff6a3d); border-color: transparent; }
-        body .chip-sm.active { background: linear-gradient(135deg, var(--primary), #ff6a3d); border-color: transparent; }
+        /* Aktive Chips: Primär-Gradient statt flacher Farbe – gleiche Spezifität wie
+           die Theme-Glas-Overrides, damit die Auswahl auch im Dark Mode sichtbar ist. */
+        body .chip.active, :root:not([data-theme="light"]) body .chip.active, :root[data-theme="dark"] body .chip.active {
+            background: linear-gradient(135deg, var(--primary), #ff6a3d);
+            border-color: transparent;
+            box-shadow: 0 2px 12px rgba(227,62,46,.45), inset 0 0 0 .5px rgba(255,255,255,.3);
+            color: #fff;
+        }
+        body .chip-sm.active, :root:not([data-theme="light"]) body .chip-sm.active, :root[data-theme="dark"] body .chip-sm.active {
+            background: linear-gradient(135deg, var(--primary), #ff6a3d);
+            border-color: transparent;
+            box-shadow: 0 2px 10px rgba(227,62,46,.4), inset 0 0 0 .5px rgba(255,255,255,.25);
+            color: #fff;
+        }
 
         /* Card-Lift am Desktop – leicht, ruhig, nur unter Hover */
         @media (hover: hover) {
@@ -492,6 +529,25 @@
             border: none; color: #fff;
         }
         .fab:active { transform: scale(.88); }
+
+        /* Refresh-FAB (Aktivitäten): dezente Glass-Scheibe statt lauter Primär-Kugel –
+           passt zu den Glas-Controls (locate-btn/maptype), Icon dreht sich beim Laden. */
+        body .fab.fab-refresh {
+            width: 52px; height: 52px; font-size: 0;
+            background: var(--scrim);
+            -webkit-backdrop-filter: saturate(180%) blur(18px); backdrop-filter: saturate(180%) blur(18px);
+            border: 1px solid rgba(255,255,255,.42);
+            box-shadow: 0 6px 24px rgba(20,10,5,.12), inset 0 0 0 .5px rgba(255,255,255,.3);
+            color: var(--accent);
+        }
+        :root:not([data-theme="light"]) body .fab.fab-refresh, :root[data-theme="dark"] body .fab.fab-refresh {
+            background: rgba(28,26,33,.72);
+            border: 1px solid rgba(255,255,255,.12);
+            box-shadow: 0 6px 24px rgba(0,0,0,.4), inset 0 0 0 .5px rgba(255,255,255,.06);
+        }
+        .fab.fab-refresh svg { width: 22px; height: 22px; }
+        .fab.fab-refresh.spinning { animation: none; }
+        .fab.fab-refresh.spinning svg { animation: locate-spin 1s linear infinite; }
 
         /* Drawer-Menü: Items mit Icon-Pille + aktiver Tönung */
         body .menu-item { border-radius: 14px; margin: 2px 12px; transition: background .18s; }
@@ -550,22 +606,29 @@
 
     <div class="app-header">
         <div class="header-btn" onclick="toggleMenu()" role="button" aria-label="Menü öffnen">☰</div>
-        <h1 class="header-title" id="pageTitle">Reiseroute Karte</h1>
+        <h1 class="header-title" id="pageTitle">Start</h1>
         <div style="width:44px"></div>
     </div>
 
-    <!-- MAP -->
-    <div class="view active" id="view-map">
-        <div id="map"></div>
-
-        <!-- Hero-Countdown (markantes Element auf der Karte) -->
-        <div class="hero-card" id="heroCard">
-            <div class="hero-eyebrow">Deine Reise</div>
-            <div class="hero-num" id="hero-num">–</div>
-            <div class="hero-sub" id="hero-sub">–</div>
-            <div class="hero-progress"><div class="hero-progress-fill" id="hero-progress-fill"></div></div>
-            <div class="hero-route" id="hero-route">–</div>
+    <!-- HOME (Dashboard) -->
+    <div class="view active" id="view-home">
+        <div class="scroll-content home-scroll">
+            <div class="hero-card home" id="heroCard">
+                <div class="hero-eyebrow">Deine Reise</div>
+                <div class="hero-num" id="hero-num">–</div>
+                <div class="hero-sub" id="hero-sub">–</div>
+                <div class="hero-progress"><div class="hero-progress-fill" id="hero-progress-fill"></div></div>
+                <div class="hero-route" id="hero-route">–</div>
+            </div>
+            <div class="home-stats" id="homeStats"></div>
+            <div class="home-next" id="homeNext"></div>
+            <div class="home-actions" id="homeActions"></div>
         </div>
+    </div>
+
+    <!-- MAP -->
+    <div class="view" id="view-map">
+        <div id="map"></div>
 
         <div class="maptype-switcher" id="maptypeSwitcher">
             <button class="maptype-btn active" data-type="standard" onclick="setMapType('standard')" title="Standard">🗺️</button>
@@ -605,7 +668,7 @@
         <div class="filter-bar" id="activityFilters"></div>
         <div class="filter-bar type-filter-bar" id="typeFilters"></div>
         <div class="scroll-content" id="activitiesList" style="padding:0;padding-bottom:calc(90px + env(safe-area-inset-bottom));"></div>
-        <button class="fab" id="activitiesFab" onclick="refreshActivities()" aria-label="Aktivitäten neu laden">🔄</button>
+        <button class="fab fab-refresh" id="activitiesFab" onclick="refreshActivities()" aria-label="Aktivitäten neu laden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></button>
     </div>
 
     <!-- DAY PLAN -->
@@ -625,7 +688,8 @@
             </div>
         </div>
         <div class="menu-list">
-            <div class="menu-item active" id="menu-map" onclick="switchView('view-map','Reiseroute Karte')"><span class="menu-icon tint-red">📍</span> Karte & Route</div>
+            <div class="menu-item active" id="menu-home" onclick="switchView('view-home','Start')"><span class="menu-icon tint-purple">🏠</span> Start</div>
+            <div class="menu-item" id="menu-map" onclick="switchView('view-map','Reiseroute Karte')"><span class="menu-icon tint-red">📍</span> Karte & Route</div>
             <div class="menu-item" id="menu-places" onclick="switchView('view-places','')"><span class="menu-icon tint-blue">📋</span> Route verwalten</div>
             <div class="menu-item" id="menu-activities" onclick="switchView('view-activities','Aktivitäten')"><span class="menu-icon tint-orange">🍣</span> Aktivitäten & Essen</div>
             <div class="menu-item" id="menu-dayplan" onclick="switchView('view-dayplan','Tagesplan')"><span class="menu-icon tint-green">🗓️</span> Tagesplan</div>
@@ -807,6 +871,20 @@ function loadState() {
         if (a.type === '🏯 Erkunden') { a.type = categorize(a.title, a.desc); migrated = true; }
     });
     if (migrated) persist();
+    migrateDescs();
+}
+
+// Bereits gespeicherte Beschreibungen: nicht-deutsche Texte einmalig im Hintergrund
+// auf Deutsch übersetzen (Cache macht Wiederholungen harmlos).
+function migrateDescs() {
+    for (const a of acts) {
+        if (a.desc && a.desc.length > 15 && !isProbablyGerman(a.desc)) {
+            const current = a.desc;
+            toGerman(current, current).then(g => {
+                if (g && g !== current) { a.desc = g; persist(); }
+            });
+        }
+    }
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────
@@ -924,18 +1002,50 @@ async function fetchPOIs(root, radius, limit) {
     return merged.slice(0, limit);
 }
 
+// Beschreibungen IMMER auf Deutsch: DE-Wikipedia zuerst, sonst Englisch/Andere
+// per keylosem Google-Übersetzungs-Endpunkt nach Deutsch übersetzen (mit Cache).
+const transCache = new Map();
+function isProbablyGerman(t) {
+    if (/[äöüß]/.test(t)) return true;
+    const G = (t.toLowerCase().match(/\b(der|die|das|den|dem|und|ein|eine|für|auf|mit|nach|im|am|ist|nicht|von|zur|zum|diese|auch|bei)\b/g) || []).length;
+    return G >= 2;
+}
+async function toGerman(text, fallback) {
+    const t = (text || '').trim();
+    if (!t) return fallback || '';
+    if (transCache.has(t)) return transCache.get(t);
+    const skey = 'jp26_de_' + encodeURIComponent(t).slice(0, 110);
+    try { const c = localStorage.getItem(skey); if (c) { transCache.set(t, c); return c; } } catch (e) {}
+    try {
+        const res = await fetchWithTimeout(
+            `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=de&dt=t&q=${encodeURIComponent(t.slice(0, 1200))}`, 6000);
+        const d = await res.json();
+        const out = (d?.[0] || []).map(x => x[0]).join('').trim() || t;
+        transCache.set(t, out);
+        try { localStorage.setItem(skey, out); } catch (e) {}
+        return out;
+    } catch (e) { transCache.set(t, t); return t; }
+}
+
 // Ergänzt Beschreibung, Bild und Kategorie zu einem POI aus fetchPOIs().
-async function fetchPOIDetails(poi, cityHint) {
+// `cat` liefert kategorie-spezifische deutsche Fallback-Texte (z. B. Restaurants).
+async function fetchPOIDetails(poi, cityHint, cat) {
+    const isResto = cat?.t === '🍣 Restaurant';
+    const fallbackDesc = isResto ? `Restaurant in ${cityHint}.` : `Sehenswürdigkeit in der Region ${cityHint}.`;
     if (poi.xid) {
         const det = await fetchOpenTripMapDetails(poi.xid);
-        const desc = det.desc && det.desc.length > 20 ? det.desc.trim() : `Sehenswürdigkeit in der Region ${cityHint}.`;
+        const detDesc = det.desc && det.desc.length > 20 ? det.desc.trim() : fallbackDesc;
+        const desc = isProbablyGerman(detDesc) ? detDesc : await toGerman(detDesc, fallbackDesc);
         const imgUrl = det.imgUrl || await fetchCommonsImage(poi.title, cityHint);
         return { desc, imgUrl, type: categorizeFromKinds(poi.kinds), otmDetail: det };
     }
-    let desc = `Sehenswürdigkeit in der Region ${cityHint}.`, imgUrl = null;
+    let desc = fallbackDesc, imgUrl = null;
     try {
-        const wd = await fetchWikiDetails(poi.title);
-        if (wd.extract?.length > 20) desc = wd.extract.trim().replace(/\n/g,' ');
+        const wd = await fetchWikiDetails(poi.title, 'de'); // DE zuerst, EN erst als Fallback
+        if (wd.extract?.length > 20) {
+            const raw = wd.extract.trim().replace(/\n/g, ' ');
+            desc = isProbablyGerman(raw) ? raw : await toGerman(raw, fallbackDesc);
+        }
         imgUrl = wd.imgUrl;
     } catch(e) {}
     if (!imgUrl) imgUrl = await fetchCommonsImage(poi.title, cityHint);
@@ -966,17 +1076,21 @@ async function mapPool(arr, n, fn) {
 }
 
 async function overpassCatQuery(lat, lng, radius, cat) {
-    const q = `[out:json][timeout:15];(${cat.osm});out center 40;`;
+    const isResto = cat.t === '🍣 Restaurant';
+    const q = `[out:json][timeout:20];(${cat.osm});out center ${isResto ? 80 : 40};`;
     const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: q, headers: { 'User-Agent': 'Japan2026TravelApp/1.0' } });
     if (!res.ok) throw new Error('overpass ' + res.status);
     return ((await res.json()).elements || []).map(el => {
         const r = parseFloat(el.tags?.stars || el.tags?.rating || '');
         return {
-            title: el.tags?.['name:en'] || el.tags?.['name:de'] || el.tags?.int_name || (isLatinTitle(el.tags?.name) ? el.tags.name : null),
+            title: el.tags?.['name:en'] || el.tags?.['name:de'] || el.tags?.['name:ja-Latn'] || el.tags?.int_name || el.tags?.name || null,
             lat: el.lat ?? el.center?.lat, lng: el.lon ?? el.center?.lon,
             osmr: (r > 0 && r <= 5) ? Math.round(r * 2) / 2 : null
         };
-    }).filter(p => p.title && p.lat != null && p.lng != null);
+        // Restaurants behalten auch ihre japanischen Echtnamen – man navigiert ja zum
+        // tatsächlichen Lokal. Für alle anderen Kategorien weiterhin nur lateinisch (EN/DE).
+    }).filter(p => p.title && p.lat != null && p.lng != null)
+      .filter(p => isResto || isLatinTitle(p.title));
 }
 async function otmCatQuery(lat, lng, radius, cat) {
     if (!otmKey) return [];
@@ -1041,7 +1155,7 @@ async function loadCategory(cityKey, cat, silent = false) {
             if (!picks.length) return 0;
             const rows = await mapPool(picks, 4, async p => {
                 if (p.fallback) return { title: p.title, lat: null, lng: null, rating: null, desc: `${cat.t} – Tipp für ${cityKey}.`, imgUrl: null };
-                const det = await fetchPOIDetails(p, cityKey);
+                const det = await fetchPOIDetails(p, cityKey, cat);
                 return { title: p.title, lat: p.lat, lng: p.lng, rating: await fetchRating(p, det, cat), desc: det.desc, imgUrl: det.imgUrl };
             });
             for (const poi of rows) {
@@ -1082,8 +1196,8 @@ function ratingHtmlFor(a) {
     if (a.type !== '🍣 Restaurant') return '';
     const q = encodeURIComponent(`${a.title} ${a.topPlace} Japan`);
     if (a.rating?.stars)
-        return `<div class="act-rating">${starsHtml(a.rating.stars)} <b style="color:var(--label)">${a.rating.stars.toFixed(1)}</b>${a.rating.source === 'Google' && a.rating.count ? ` <span style="opacity:.7">(${a.rating.count})</span>` : ''} <span style="opacity:.6;font-size:11px">Bewertung von ${a.rating.source}</span></div>`;
-    return `<div class="act-rating">${starsHtml(0)} <span style="opacity:.6;font-size:11px">Keine Bewertung – </span><a target="_blank" rel="noopener" href="https://www.google.de/maps/search/${q}">Google</a> · <a target="_blank" rel="noopener" href="https://www.tripadvisor.de/Search?q=${q}">TripAdvisor</a> · <a target="_blank" rel="noopener" href="https://tabelog.com/rst_list/?sw=${q}">Tabelog</a></div>`;
+        return `<div class="act-rating">${starsHtml(a.rating.stars)} <b style="color:var(--label)">${a.rating.stars.toFixed(1)}</b>${a.rating.source === 'Google' && a.rating.count ? ` <span style="opacity:.8">(${a.rating.count})</span>` : ''} <span style="opacity:.75;font-size:11px">Bewertung von ${a.rating.source}</span></div>`;
+    return `<div class="act-rating">${starsHtml(0)} <span style="opacity:.75;font-size:11px">Keine Bewertung – </span><a target="_blank" rel="noopener" href="https://www.google.de/maps/search/${q}">Google</a> · <a target="_blank" rel="noopener" href="https://www.tripadvisor.de/Search?q=${q}">TripAdvisor</a> · <a target="_blank" rel="noopener" href="https://tabelog.com/rst_list/?sw=${q}">Tabelog</a></div>`;
 }
 // Garantierte Mindestanzahl: wenn echte Quellen unter 5 Treffer liefern, ergänzen
 // wir generische Kategorie-Tipps (ohne Fake-Daten/Bewertungen).
@@ -1191,6 +1305,42 @@ function calculateDates() {
     document.getElementById('hero-route').innerText = route;
     document.getElementById('s-otmkey').value = otmKey;
     document.getElementById('s-googlekey').value = googleKey;
+    renderHome();
+}
+
+// ─── HOME DASHBOARD ─────────────────────────────────────────────────────
+// Statistik-Grid, nächste Station und Schnellaktionen – kein Zusatz-Fetchen,
+// alles lebt aus Place/Act-State.
+function renderHome() {
+    const statsBox = document.getElementById('homeStats');
+    if (!statsBox) return;
+    const totalNights = places.reduce((s, p) => s + (parseInt(p.nights) || 0), 0);
+    const favCount = acts.filter(a => a.favorite).length;
+    statsBox.innerHTML = [
+        ['📍', places.length, 'Orte'],
+        ['🗓️', totalNights, 'Nächte'],
+        ['🍣', acts.length, 'Aktivitäten'],
+        ['♥', favCount, 'Favoriten']
+    ].map(([ico, num, lbl]) =>
+        `<div class="stat-card"><div class="stat-ico">${ico}</div><div class="stat-num">${num}</div><div class="stat-lbl">${lbl}</div></div>`
+    ).join('');
+
+    const next = document.getElementById('homeNext');
+    if (next && places.length) {
+        const p = places[0];
+        const cd = computedData[0] || { strStart: '–', strEnd: '–' };
+        next.innerHTML = `<div class="dates-badge" style="display:inline-block">Als Nächstes</div>
+            <div class="home-card-title">${displayName(p.name, 0)}</div>
+            <div class="home-card-meta">📅 <b>${p.nights} Nächte</b> · ${cd.strStart} – ${cd.strEnd}${p.transport ? `<br>${p.transport}` : ''}<br>🏨 <b>${p.hotel || 'Unterkunft offen'}</b></div>`;
+    }
+
+    const actsBox = document.getElementById('homeActions');
+    if (actsBox) {
+        actsBox.innerHTML = `
+            <button class="btn" onclick="switchView('view-map','Reiseroute Karte')">📍 Route auf der Karte zeigen</button>
+            <button class="btn btn-secondary" onclick="switchView('view-activities','Aktivitäten')">🍣 Aktivitäten & Essen</button>
+            <button class="btn btn-secondary" onclick="switchView('view-places','')">📋 Route verwalten</button>`;
+    }
 }
 
 function persist() {
@@ -1498,7 +1648,7 @@ function fetchWithTimeout(url, ms=8000) {
     ]);
 }
 
-async function fetchWikiDetails(title, lang='en') {
+async function fetchWikiDetails(title, lang='de') {
     try {
         const url = `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=extracts|pageimages&exintro=1&explaintext=1&exchars=240&pithumbsize=600&format=json`;
         const d = await jsonp(url);
@@ -1507,7 +1657,7 @@ async function fetchWikiDetails(title, lang='en') {
             return { extract: page.extract || '', imgUrl: page.thumbnail?.source || null };
         }
     } catch(e) {}
-    if (lang === 'en') return fetchWikiDetails(title, 'de');
+    if (lang === 'de') return fetchWikiDetails(title, 'en'); // DE zuerst, EN als Fallback
     return { extract: '', imgUrl: null };
 }
 
@@ -1686,15 +1836,15 @@ async function runCrawler() {
 
 // ─── ACTIVITIES ───────────────────────────────────────────────────────────
 function renderActs() {
-    renderDayPlan();
+    renderHome(); renderDayPlan();
     const fBar = document.getElementById('activityFilters');
     const cities = [...new Set(places.map(p => clean(p.name)))];
     const favCount = acts.filter(a => a.favorite).length;
     fBar.innerHTML = `<button class="chip ${currentFilter==='Alle'?'active':''}" aria-pressed="${currentFilter==='Alle'}" onclick="setFilter('Alle')">Alle</button>`;
-    fBar.innerHTML += `<button class="chip ${currentFilter==='__favs__'?'active':''}" aria-pressed="${currentFilter==='__favs__'}" onclick="setFilter('__favs__')">♥ Favoriten${favCount ? ` <b style="opacity:.6">${favCount}</b>` : ''}</button>`;
+    fBar.innerHTML += `<button class="chip ${currentFilter==='__favs__'?'active':''}" aria-pressed="${currentFilter==='__favs__'}" onclick="setFilter('__favs__')">♥ Favoriten${favCount ? ` <b style="opacity:.8">${favCount}</b>` : ''}</button>`;
     cities.forEach(c => {
         const cnt = acts.filter(a => a.topPlace === c).length;
-        fBar.innerHTML += `<button class="chip ${currentFilter===c?'active':''}" aria-pressed="${currentFilter===c}" onclick="setFilter('${c}')">${c}${cnt ? ` <b style="opacity:.6">${cnt}</b>` : ''}</button>`;
+        fBar.innerHTML += `<button class="chip ${currentFilter===c?'active':''}" aria-pressed="${currentFilter===c}" onclick="setFilter('${c}')">${c}${cnt ? ` <b style="opacity:.8">${cnt}</b>` : ''}</button>`;
     });
 
     const list = document.getElementById('activitiesList'); list.innerHTML = '';
@@ -1714,7 +1864,7 @@ function renderActs() {
         if (busy) catBusyAny = true;
         const cnt = catBase ? acts.filter(a => a.topPlace === catBase && a.type === cat.t).length
                             : acts.filter(a => a.type === cat.t).length;
-        tBar.innerHTML += `<button class="chip chip-sm ${currentTypeFilter===cat.t?'active':''}" aria-pressed="${currentTypeFilter===cat.t}" onclick="useType('${cat.t.replace(/'/g,"\\'")}')">${cat.t}${busy ? ` <b class="chip-busy">…</b>` : (cnt ? ` <b style="opacity:.6">${cnt}</b>` : '')}</button>`;
+        tBar.innerHTML += `<button class="chip chip-sm ${currentTypeFilter===cat.t?'active':''}" aria-pressed="${currentTypeFilter===cat.t}" onclick="useType('${cat.t.replace(/'/g,"\\'")}')">${cat.t}${busy ? ` <b class="chip-busy">…</b>` : (cnt ? ` <b style="opacity:.8">${cnt}</b>` : '')}</button>`;
     }
     tBar.setAttribute('aria-busy', catBusyAny ? 'true' : 'false');
     // Beim Öffnen eines Ortes: alle Kategorien für genau diesen Ort im Hintergrund füllen.
@@ -1750,6 +1900,7 @@ function renderActs() {
                 ${ratingHtmlFor(a)}
                 <div class="act-btns">
                     ${(a.lat && a.lng) ? `<button class="btn-icon btn-map-act">🗺️ Karte</button>` : ''}
+                    ${(a.lat && a.lng) ? `<button class="btn-icon btn-nav-act">🧭 Route</button>` : ''}
                     <button class="btn-icon btn-web-act">🌐 Web</button>
                     <button class="btn-icon btn-favorite-act" aria-pressed="${!!a.favorite}" style="${a.favorite ? 'color:var(--primary);background:var(--primary-soft)' : ''}">${a.favorite ? '♥ Favorit' : '♡ Favorit'}</button>
                 </div>
@@ -1761,6 +1912,8 @@ function renderActs() {
         div.querySelector('.btn-favorite-act').addEventListener('click', () => toggleFavorite(a.id));
         if (a.lat && a.lng) {
             div.querySelector('.btn-map-act').addEventListener('click', () => showOnMap(a.lat, a.lng, a.title, a.desc));
+            div.querySelector('.btn-nav-act').addEventListener('click', () =>
+                window.open(`https://www.google.com/maps/dir/?api=1&destination=${a.lat},${a.lng}&travelmode=transit`, '_blank'));
         }
 
         list.appendChild(div);
@@ -1789,8 +1942,9 @@ function renderActImage(container, activity) {
     img.loading = 'lazy';
     img.alt = activity.title || '';
 
+    const PH_EMOJI = { '🍣 Restaurant': '🍣', '🛍️ Shopping': '🛍️', '🏔️ Ausflug': '🏔️' };
     function showPlaceholder() {
-        container.innerHTML = '<div class="act-img-placeholder">🏯</div>';
+        container.innerHTML = `<div class="act-img-placeholder">${PH_EMOJI[activity.type] || '🏯'}</div>`;
     }
 
     if (activity.imgUrl) {

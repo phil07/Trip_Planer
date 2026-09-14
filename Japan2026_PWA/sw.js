@@ -1,5 +1,5 @@
 // Japan 2026 PWA – Service Worker
-const CACHE = 'japan2026-v19';
+const CACHE = 'japan2026-v20';
 const OFFLINE_ASSETS = [
   './',
   './index.html',
@@ -35,7 +35,9 @@ self.addEventListener('fetch', e => {
                 url.hostname.includes('wikimedia.org') ||
                 url.hostname.includes('nominatim.openstreetmap.org') ||
                 url.hostname.includes('opentripmap.com') ||
-                url.hostname.includes('overpass-api.de');
+                url.hostname.includes('overpass-api.de') ||
+                url.hostname.includes('translate.googleapis.com') ||
+                url.hostname.includes('maps.googleapis.com');
 
   if (isApi) {
     // Network-only for API calls
