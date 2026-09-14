@@ -641,6 +641,9 @@ function categorizeFromOsmTags(tags) {
     if (tags.natural) return '🏔️ Ausflug';
     return '🏯 Sehenswürdigkeit';
 }
+// Nur lateinische Schrift (EN/DE) – japanische/andere Titel aus OSM herausfiltern
+const isLatinTitle = s => !/[　-ヿ㐀-鿿豈-﫿＀-￯]/.test(s || '');
+
 async function fetchOverpassPOIs(lat, lng, radius, limit) {
     const query = `[out:json][timeout:15];(
         node["tourism"~"attraction|museum|viewpoint|gallery|zoo|artwork"](around:${radius},${lat},${lng});
@@ -652,27 +655,36 @@ async function fetchOverpassPOIs(lat, lng, radius, limit) {
     const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query });
     if (!res.ok) throw new Error('Overpass request failed: ' + res.status);
     const data = await res.json();
-    return (data.elements || [])
-        .filter(el => el.tags?.name)
-        .map(el => ({ title: el.tags.name, lat: el.lat ?? el.center?.lat, lng: el.lon ?? el.center?.lon, type: categorizeFromOsmTags(el.tags) }));
+    return (data.elements || []).map(el => ({
+        title: el.tags?.['name:en'] || el.tags?.['name:de'] || el.tags?.int_name || (isLatinTitle(el.tags?.name) ? el.tags.name : null),
+        lat: el.lat ?? el.center?.lat, lng: el.lon ?? el.center?.lon, type: categorizeFromOsmTags(el.tags)
+    })).filter(el => el.title);
 }
 
-// Fragt alle verfügbaren Quellen parallel ab (OpenTripMap, OSM/Overpass, Wikipedia),
+async function fetchWikiGeosearchPOIs(lang, lat, lng, limit) {
+    const url = `https://${lang}.wikipedia.org/w/api.php?action=query&list=geosearch&gscoord=${lat}|${lng}&gsradius=10000&gslimit=${limit}&format=json`;
+    return ((await jsonp(url))?.query?.geosearch || [])
+        .filter(p => isLatinTitle(p.title))
+        .map(p => ({ title: p.title, lat: p.lat, lng: p.lon }));
+}
+
+// Fragt mehrere Quellen parallel ab (OpenTripMap, OSM/Overpass, DE- + EN-Wikipedia),
 // merged sie und dedupliziert per Titel. Kein Key nötig – Overpass & Wikipedia laufen immer mit.
+// Nur Titel in lateinischer Schrift (EN/DE) werden weiterverwendet.
 async function fetchPOIs(root, radius, limit) {
     const jobs = [];
     if (otmKey) {
         jobs.push(fetchOpenTripMapPOIs(root.lat, root.lng, radius, limit)
-            .then(list => list.filter(p => p.name).map(p => ({ title: p.name, lat: p.point.lat, lng: p.point.lon, xid: p.xid, kinds: p.kinds })))
+            .then(list => list.filter(p => isLatinTitle(p.name)).map(p => ({ title: p.name, lat: p.point.lat, lng: p.point.lon, xid: p.xid, kinds: p.kinds })))
             .catch(e => { console.warn('OpenTripMap fehlgeschlagen:', e.message); return []; }));
     }
     jobs.push(fetchOverpassPOIs(root.lat, root.lng, radius, limit)
         .catch(e => { console.warn('Overpass fehlgeschlagen:', e.message); return []; }));
-    jobs.push((async () => {
-        const geoUrl = `https://de.wikipedia.org/w/api.php?action=query&list=geosearch&gscoord=${root.lat}|${root.lng}&gsradius=${Math.min(radius,10000)}&gslimit=${limit}&format=json`;
-        const pois = (await jsonp(geoUrl))?.query?.geosearch || [];
-        return pois.map(p => ({ title: p.title, lat: p.lat, lng: p.lon }));
-    })().catch(e => { console.warn('Wikipedia-Geosuche fehlgeschlagen:', e.message); return []; }));
+    // DE- und EN-Wikipedia parallel (EN/DE-Titel), dedupliziert nachher per Titel
+    ['de','en'].forEach(lang => jobs.push(
+        fetchWikiGeosearchPOIs(lang, root.lat, root.lng, limit)
+            .catch(e => { console.warn(`Wikipedia(${lang})-Geosuche fehlgeschlagen:`, e.message); return []; })
+    ));
 
     const results = await Promise.all(jobs);
     const merged = [], seen = new Set();
