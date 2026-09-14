@@ -833,10 +833,14 @@ async function overpassCatQuery(lat, lng, radius, cat) {
     const q = `[out:json][timeout:15];(${cat.osm});out center 40;`;
     const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: q, headers: { 'User-Agent': 'Japan2026TravelApp/1.0' } });
     if (!res.ok) throw new Error('overpass ' + res.status);
-    return ((await res.json()).elements || []).map(el => ({
-        title: el.tags?.['name:en'] || el.tags?.['name:de'] || el.tags?.int_name || (isLatinTitle(el.tags?.name) ? el.tags.name : null),
-        lat: el.lat ?? el.center?.lat, lng: el.lon ?? el.center?.lon
-    })).filter(p => p.title && p.lat != null && p.lng != null);
+    return ((await res.json()).elements || []).map(el => {
+        const r = parseFloat(el.tags?.stars || el.tags?.rating || '');
+        return {
+            title: el.tags?.['name:en'] || el.tags?.['name:de'] || el.tags?.int_name || (isLatinTitle(el.tags?.name) ? el.tags.name : null),
+            lat: el.lat ?? el.center?.lat, lng: el.lon ?? el.center?.lon,
+            osmr: (r > 0 && r <= 5) ? Math.round(r * 2) / 2 : null
+        };
+    }).filter(p => p.title && p.lat != null && p.lng != null);
 }
 async function otmCatQuery(lat, lng, radius, cat) {
     if (!otmKey) return [];
@@ -857,6 +861,8 @@ async function wikiCatQuery(lang, lat, lng, cat) {
 async function fetchRating(poi, det, cat) {
     if (det?.otmDetail && typeof det.otmDetail.rate === 'number' && det.otmDetail.rate > 0)
         return { stars: +(det.otmDetail.rate / 2).toFixed(1), count: 0, source: 'OpenTripMap' };
+    // Keyless, real: von OSM-Machbendern gepflegtes stars/rating-Tag (wo vorhanden).
+    if (typeof poi.osmr === 'number' && poi.osmr > 0) return { stars: poi.osmr, count: 0, source: 'OpenStreetMap' };
     if (!googleKey || cat.t !== '🍣 Restaurant' || !poi.lat || !poi.lng) return null;
     try {
         const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${poi.lat},${poi.lng}&rankby=prominence&keyword=${encodeURIComponent(poi.title)}&key=${encodeURIComponent(googleKey)}`;
@@ -930,16 +936,18 @@ function useType(t) {
 }
 
 function starsHtml(s) {
+    const has = +s > 0;
     const v = Math.max(0, Math.min(5, +s || 0));
     const pct = Math.round(v / 5 * 100);
-    return `<span class="stars" role="img" aria-label="${v.toFixed(1)} von 5 Sternen"><span class="stars-fill" style="width:${pct}%">★★★★★</span><span class="stars-empty">★★★★★</span></span>`;
+    return `<span class="stars" ${has ? `role="img" aria-label="${v.toFixed(1)} von 5 Sternen"` : 'aria-hidden="true"'}>` +
+        `<span class="stars-fill" style="width:${pct}%">★★★★★</span><span class="stars-empty">★★★★★</span></span>`;
 }
 function ratingHtmlFor(a) {
     if (a.type !== '🍣 Restaurant') return '';
     const q = encodeURIComponent(`${a.title} ${a.topPlace} Japan`);
     if (a.rating?.stars)
-        return `<div class="act-rating" style="color:#f5a623">${starsHtml(a.rating.stars)} <b style="color:var(--label)">${a.rating.stars.toFixed(1)}</b>${a.rating.source === 'Google' && a.rating.count ? ` <span style="opacity:.7">(${a.rating.count})</span>` : ''} <span style="opacity:.6;font-size:11px">Bewertung von ${a.rating.source}</span></div>`;
-    return `<div class="act-rating" style="font-size:12px">★ Bewertungen: <a target="_blank" rel="noopener" href="https://www.google.de/maps/search/${q}">Google</a> · <a target="_blank" rel="noopener" href="https://www.tripadvisor.de/Search?q=${q}">TripAdvisor</a> · <a target="_blank" rel="noopener" href="https://tabelog.com/rst_list/?sw=${q}">Tabelog</a></div>`;
+        return `<div class="act-rating">${starsHtml(a.rating.stars)} <b style="color:var(--label)">${a.rating.stars.toFixed(1)}</b>${a.rating.source === 'Google' && a.rating.count ? ` <span style="opacity:.7">(${a.rating.count})</span>` : ''} <span style="opacity:.6;font-size:11px">Bewertung von ${a.rating.source}</span></div>`;
+    return `<div class="act-rating">${starsHtml(0)} <span style="opacity:.6;font-size:11px">Keine Bewertung – </span><a target="_blank" rel="noopener" href="https://www.google.de/maps/search/${q}">Google</a> · <a target="_blank" rel="noopener" href="https://www.tripadvisor.de/Search?q=${q}">TripAdvisor</a> · <a target="_blank" rel="noopener" href="https://tabelog.com/rst_list/?sw=${q}">Tabelog</a></div>`;
 }
 // Garantierte Mindestanzahl: wenn echte Quellen unter 5 Treffer liefern, ergänzen
 // wir generische Kategorie-Tipps (ohne Fake-Daten/Bewertungen).
