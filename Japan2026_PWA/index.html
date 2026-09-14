@@ -216,6 +216,8 @@
         .chip:active { transform: scale(.95); }
         .chip.active { background: var(--primary); color: white; box-shadow: 0 2px 8px rgba(255,59,48,.35); }
         .chip b { font-weight: 600; }
+        .chip-busy { opacity: .65; animation: chip-pulse 1s ease-in-out infinite; }
+        @keyframes chip-pulse { 0%,100% { opacity:.35 } 50% { opacity:.9 } }
         .type-filter-bar { padding-top: 0; min-height: 44px; }
         .chip-sm { padding: 6px 13px; min-height: 30px; font-size: 12.5px; background: var(--bg-secondary); box-shadow: none; }
         .chip-sm.active { background: var(--accent); box-shadow: 0 2px 8px rgba(0,122,255,.3); }
@@ -576,7 +578,7 @@ let places = [], acts = [], startDate = "2026-11-17", computedData = [], current
 let otmKey = localStorage.getItem('jp26_otm_key') || '';
 let googleKey = localStorage.getItem('jp26_google_key') || '';
 let crawlerDone = false;
-const actsFill = {}, cityBooted = {};
+const actsFill = {}, cityBooted = {}, catsLoading = new Set();
 let activityLoadInProgress = false;
 let userLocation = null;
 let locationRequested = false;
@@ -802,6 +804,7 @@ async function loadCategory(cityKey, cat, silent = false) {
     if (actsFill[fid]) return actsFill[fid];
     actsFill[fid] = (async () => {
         let added = 0;
+        catsLoading.add(fid);
         try {
             const lists = await Promise.all([
                 overpassCatQuery(root.lat, root.lng, 10000, cat).catch(() => []),
@@ -831,8 +834,10 @@ async function loadCategory(cityKey, cat, silent = false) {
             }
         } catch (e) {
             if (!silent) showToast('❌ Laden fehlgeschlagen – Verbindung prüfen.');
+        } finally {
+            persist(); renderActs();
+            catsLoading.delete(fid);
         }
-        persist(); renderActs();
         return added;
     })();
     const n = await actsFill[fid];
@@ -1456,12 +1461,16 @@ function renderActs() {
     const tBar = document.getElementById('typeFilters');
     tBar.style.display = 'flex';
     const catBase = (currentFilter === '__favs__') ? null : currentFilter;
+    let catBusyAny = false;
     tBar.innerHTML = `<button class="chip chip-sm ${currentTypeFilter==='Alle'?'active':''}" aria-pressed="${currentTypeFilter==='Alle'}" onclick="setTypeFilter('Alle')">Alle Arten</button>`;
     for (const cat of CATS) {
+        const busy = !!catBase && catsLoading.has(catBase + '|' + cat.t);
+        if (busy) catBusyAny = true;
         const cnt = catBase ? acts.filter(a => a.topPlace === catBase && a.type === cat.t).length
                             : acts.filter(a => a.type === cat.t).length;
-        tBar.innerHTML += `<button class="chip chip-sm ${currentTypeFilter===cat.t?'active':''}" aria-pressed="${currentTypeFilter===cat.t}" onclick="useType('${cat.t.replace(/'/g,"\\'")}')">${cat.t}${cnt ? ` <b style="opacity:.6">${cnt}</b>` : ''}</button>`;
+        tBar.innerHTML += `<button class="chip chip-sm ${currentTypeFilter===cat.t?'active':''}" aria-pressed="${currentTypeFilter===cat.t}" onclick="useType('${cat.t.replace(/'/g,"\\'")}')">${cat.t}${busy ? ` <b class="chip-busy">…</b>` : (cnt ? ` <b style="opacity:.6">${cnt}</b>` : '')}</button>`;
     }
+    tBar.setAttribute('aria-busy', catBusyAny ? 'true' : 'false');
     // Beim Öffnen eines Ortes: alle Kategorien für genau diesen Ort im Hintergrund füllen.
     if (currentFilter && currentFilter !== 'Alle' && currentFilter !== '__favs__'
         && places.some(p => clean(p.name) === currentFilter) && !cityBooted[currentFilter]) {
@@ -1471,7 +1480,10 @@ function renderActs() {
     if (currentTypeFilter !== 'Alle') filtered = filtered.filter(a => a.type === currentTypeFilter);
 
     if (!filtered.length) {
-        const msg = currentFilter === '__favs__' ? '♡ Noch keine Favoriten markiert.' : (crawlerDone ? 'Keine Aktivitäten gefunden.' : 'Wird geladen…');
+        const catBusy = currentFilter !== 'Alle' && currentFilter !== '__favs__' && catsLoading.has(currentFilter + '|' + currentTypeFilter);
+        const msg = currentFilter === '__favs__' ? '♡ Noch keine Favoriten markiert.'
+            : catBusy ? `⏳ ${currentTypeFilter} wird geladen…`
+            : crawlerDone ? 'Keine Aktivitäten gefunden.' : 'Wird geladen…';
         list.innerHTML = `<div class="empty-acts">${msg}</div>`;
         return;
     }
