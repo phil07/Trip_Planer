@@ -82,6 +82,8 @@
         .empty-acts { padding: 40px 20px; text-align: center; color: #aaa; font-size: 14px; }
 
         .fab { position: absolute; bottom: 22px; right: 22px; width: 52px; height: 52px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; box-shadow: 0 4px 12px rgba(211,47,47,.4); cursor: pointer; z-index: 100; }
+        .fab.spinning { animation: locate-spin 1s linear infinite; }
+        @keyframes locate-spin { to { transform: rotate(360deg); } }
 
         .drawer-overlay { position: absolute; inset: 0; background: rgba(0,0,0,.5); z-index: 3000; opacity: 0; pointer-events: none; transition: opacity .3s; }
         .drawer { position: absolute; top: 0; bottom: 0; left: -80%; width: 74%; background: white; z-index: 3100; box-shadow: 2px 0 12px rgba(0,0,0,.2); transition: left .3s ease; display: flex; flex-direction: column; }
@@ -151,7 +153,7 @@
     <div class="view" id="view-activities">
         <div class="filter-bar" id="activityFilters"></div>
         <div class="scroll-content" id="activitiesList" style="padding:0;padding-bottom:90px;"></div>
-        <div class="fab" onclick="openAddActivity()">+</div>
+        <div class="fab" id="activitiesFab" onclick="refreshActivities()" title="Aktivitäten neu laden" aria-label="Aktivitäten neu laden">🔄</div>
     </div>
 
     <!-- Drawer -->
@@ -887,38 +889,68 @@ function renderActImage(container, activity) {
     }
 }
 
-// Load the next page of activities for one place. Called by the button and automatically at scroll end.
-async function loadMoreActs(city) {
-    if (!city || city === 'Alle' || activityLoadInProgress) return;
+// Nur lateinische Schrift (EN/DE) – filtert japanische/sonstige Titel aus Quellen wie OSM
+const isLatin = s => !/[　-ヿ㐀-鿿豈-﫿＀-￯]/.test(s || '');
+
+async function fetchOverpassPOIs(lat, lng, radius, limit) {
+    const query = `[out:json][timeout:12];(
+        node["tourism"~"attraction|museum|viewpoint|gallery|zoo|artwork"](around:${radius},${lat},${lng});
+        node["amenity"~"restaurant|cafe|fast_food|bar|marketplace"](around:${radius},${lat},${lng});
+        node["historic"](around:${radius},${lat},${lng});
+        node["leisure"~"park|garden"](around:${radius},${lat},${lng});
+    );out center ${limit};`;
+    const res = await fetch('https://overpass-api.de/api/interpreter', { method:'POST', body: query });
+    if (!res.ok) throw new Error('overpass');
+    return ((await res.json()).elements||[]).map(el => ({
+        title: el.tags?.['name:en'] || el.tags?.['name:de'] || el.tags?.int_name || (isLatin(el.tags?.name) ? el.tags.name : null),
+        lat: el.lat ?? el.center?.lat, lng: el.lon ?? el.center?.lon
+    })).filter(p => p.title && p.lat != null && p.lng != null);
+}
+
+async function fetchWikiGeosearchPOIs(lang, lat, lng, radius, limit) {
+    const url = `https://${lang}.wikipedia.org/w/api.php?action=query&list=geosearch&gscoord=${lat}|${lng}&gsradius=${Math.min(radius,10000)}&gslimit=${limit}&format=json`;
+    return ((await jsonp(url))?.query?.geosearch || [])
+        .filter(p => isLatin(p.title))
+        .map(p => ({ title: p.title, lat: p.lat, lng: p.lon }));
+}
+
+// Lädt mehr Aktivitäten aus mehreren Quellen (Overpass/OSM + Wikipedia), nur EN/DE
+async function loadMoreActs(city, silent = false) {
+    if (!city || city === 'Alle' || activityLoadInProgress) return 0;
     const root = places.find(p => clean(p.name) === city);
-    if (!root) return;
+    if (!root) return 0;
 
     activityLoadInProgress = true;
-    showToast(`🔍 Weitere Aktivitäten für ${city} werden geladen…`, 4500);
+    if (!silent) showToast(`🔍 Weitere Aktivitäten für ${city} werden geladen…`, 4500);
 
     const state = activityPageState[city] || { page: 0 };
+    const radius = 15000 + state.page * 15000;
     let added = 0;
     try {
-        // Geo-based search: expands in rings of 15km per page — always on-topic
-        const radius = 15000 + state.page * 15000;
-        const geoUrl = `https://de.wikipedia.org/w/api.php?action=query&list=geosearch&gscoord=${root.lat}|${root.lng}&gsradius=${radius}&gslimit=50&format=json`;
-        const pois = (await jsonp(geoUrl))?.query?.geosearch || [];
+        const jobs = [
+            fetchOverpassPOIs(root.lat, root.lng, radius, 60).catch(() => []),
+            fetchWikiGeosearchPOIs('en', root.lat, root.lng, radius, 100).catch(() => []),
+            fetchWikiGeosearchPOIs('de', root.lat, root.lng, radius, 100).catch(() => [])
+        ];
+        const lists = await Promise.all(jobs);
+        const seen = new Set(), pois = [];
+        for (const list of lists) for (const p of list) {
+            const key = p.title.trim().toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key); pois.push(p);
+        }
 
         for (const poi of pois) {
             if (added >= 5) break;
             if (acts.some(a => a.topPlace === city && a.title === poi.title)) continue;
-            let desc = `Sehenswürdigkeit in der Region ${city}, ca. ${Math.round(poi.dist)}m vom Ortszentrum entfernt.`;
+            let desc = `Sehenswürdigkeit in der Region ${city}.`;
             let imgUrl = null;
             try {
                 const det = await fetchWikiDetails(poi.title);
                 if (det.extract?.length > 20) desc = det.extract.trim().replace(/\n/g,' ');
                 imgUrl = det.imgUrl;
             } catch(e) {}
-            acts.push({
-                id: Date.now()+Math.random(), topPlace:city, type:'🏯 Erkunden',
-                title: poi.title, desc, imgUrl,
-                lat: poi.lat, lng: poi.lon   // always has coordinates from geosearch
-            });
+            acts.push({ id: Date.now()+Math.random(), topPlace:city, type:'🏯 Erkunden', title: poi.title, desc, imgUrl, lat: poi.lat, lng: poi.lng });
             added++;
             persist();
             await new Promise(r => setTimeout(r, 100));
@@ -927,14 +959,28 @@ async function loadMoreActs(city) {
         state.page++;
         activityPageState[city] = state;
     } catch(e) {
-        showToast('Internetverbindung prüfen – beim nächsten Scrollen erneut versuchen.');
+        if (!silent) showToast('Internetverbindung prüfen – beim nächsten Scrollen erneut versuchen.');
     } finally {
         activityLoadInProgress = false;
         persist();
         renderActs();
-        if (added) showToast(`✅ ${added} neue Aktivitäten für ${city}`);
-        else showToast('🔍 Suche wird mit weiteren Quellen fortgesetzt…');
+        if (!silent) {
+            if (added) showToast(`✅ ${added} neue Aktivitäten für ${city}`);
+            else showToast('🔍 Suche wird mit weiteren Quellen fortgesetzt…');
+        }
     }
+    return added;
+}
+
+async function refreshActivities() {
+    if (activityLoadInProgress) return;
+    const btn = document.getElementById('activitiesFab');
+    if (btn) btn.classList.add('spinning');
+    const cities = currentFilter === 'Alle' ? [...new Set(places.map(p => clean(p.name)))] : [currentFilter];
+    let total = 0;
+    for (const city of cities) total += await loadMoreActs(city, true);
+    if (btn) btn.classList.remove('spinning');
+    showToast(total ? `✅ ${total} neue Aktivitäten gefunden` : '🔍 Keine weiteren neuen Aktivitäten gefunden');
 }
 
 function setFilter(c) { currentFilter = c; renderActs(); }
