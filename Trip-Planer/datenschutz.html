@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Datenschutzerklärung – Trip Planer</title>
+<style>
+:root { --bg:#f6f5f2; --fg:#1d1d1f; --muted:#6b6b70; --accent:#5a0fc8; --line:#dcdad4; color-scheme:light }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#121214; --fg:#ececf0; --muted:#9a9aa3; --accent:#b99cff; --line:#2c2c31; color-scheme:dark } }
+:root[data-theme="dark"] { --bg:#121214; --fg:#ececf0; --muted:#9a9aa3; --accent:#b99cff; --line:#2c2c31; color-scheme:dark }
+html, body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif }
+main { max-width:720px; margin:0 auto; padding:24px 16px 48px; }
+h1 { font-size:1.6rem; margin:.2em 0 .1em; text-wrap:balance }
+h2 { font-size:1.05rem; margin:1.6em 0 .4em; color:var(--accent) }
+p, li { overflow-wrap:anywhere }
+ul { padding-left:1.2em }
+a { color:var(--accent) }
+.stand, .back { color:var(--muted); font-size:.9rem }
+.legal-links { display:flex; gap:16px; flex-wrap:wrap; margin-top:32px; padding-top:16px; border-top:1px solid var(--line) }
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="./">← Zurück zur App</a>
+  <h1>Datenschutzerklärung</h1>
+  <p class="stand">Stand: 25. Oktober 2026</p>
+
+  <section>
+    <h2>1. Verantwortlicher</h2>
+    <p>Philipp Fischer, Hugo-Sellheim-Straße 7, 68647 Biblis<br>
+       E-Mail: <a href="mailto:iphilipp07@gmail.com">iphilipp07@gmail.com</a><br>
+       Diese E-Mail-Adresse ist auch die Kontaktstelle für alle Datenschutzanfragen. Ein Datenschutzbeauftragter ist nicht bestellt.</p>
+  </section>
+
+  <section>
+    <h2>2. Kurzfassung</h2>
+    <ul>
+      <li>Der Trip Planer hat <strong>kein Benutzerkonto</strong>. Deine Reisedaten (Stationen, Aktivitäten, Budget, Tagebuch, Dokumente, Fotos) liegen <strong>auf deinem Gerät</strong>.</li>
+      <li>Es gibt <strong>keine Werbung, kein Tracking und keine Analyse-Dienste</strong> des Betreibers.</li>
+      <li>Beim Nutzen einzelner Funktionen (Karte, Suche, Wetter, Währung, KI-Vorschläge, Google-Drive-Sicherung, Teilen-Links) gehen Anfragen an andere Dienste. Welche das sind, steht in Abschnitt 5.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>3. Lokale Speicherung auf deinem Gerät</h2>
+    <p>Die App speichert deine Daten im Speicher deines Browsers (localStorage und IndexedDB) und legt die App-Dateien im Zwischenspeicher eines Service Workers ab, damit sie offline funktioniert. Das ist für die von dir genutzte Funktion technisch erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG). Der Betreiber erhält diese Daten nicht. Du kannst sie in der App über den Export als JSON sichern, über die Browser-Einstellungen löschen oder die Website-Daten entfernen. Ohne Sicherung sind gelöschte Daten nicht wiederherstellbar.</p>
+  </section>
+
+  <section>
+    <h2>4. Server des Betreibers (Cloudflare Workers)</h2>
+    <p>Die App wird über Cloudflare (Cloudflare, Inc., 101 Townsend St, San Francisco, CA 94107, USA) ausgeliefert. Beim Aufruf fallen technisch bedingt Verbindungsdaten an, insbesondere IP-Adresse, Zeitpunkt, angefragte Adresse, Browser-Angaben und Statuscode. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (sicherer und stabiler Betrieb). Mit Cloudflare besteht ein Auftragsverarbeitungsvertrag. Die Übermittlung in die USA stützt sich auf das EU-US Data Privacy Framework bzw. Standardvertragsklauseln. Weitere Informationen: <a href="https://www.cloudflare.com/privacypolicy/" rel="noopener noreferrer">cloudflare.com/privacypolicy</a>.</p>
+    <p>Der Server des Betreibers speichert nur in den folgenden Fällen Daten, und nur, wenn du die Funktion selbst nutzt:</p>
+    <ul>
+      <li><strong>Teilen-Links:</strong> Wenn du einen Teilen-Link erzeugst, wird der verschlüsselte Inhalt (Reisedaten, die du teilen möchtest) auf dem Server abgelegt. Der Schlüssel liegt nur im Link. Teilen-Links verfallen nach 30 Tagen automatisch.</li>
+      <li><strong>Push-Benachrichtigungen:</strong> Wenn du Push-Benachrichtigungen aktivierst, speichert der Server den Push-Endpunkt deines Browsers, damit er dir Nachrichten schicken kann. Du kannst die Benachrichtigungen in den Browser-Einstellungen jederzeit abschalten.</li>
+    </ul>
+    <p>Rechtsgrundlage ist deine Einwilligung durch das aktive Nutzen der Funktion (Art. 6 Abs. 1 lit. a DSGVO) bzw. die von dir gewünschte Funktion (Art. 6 Abs. 1 lit. b DSGVO).</p>
+  </section>
+
+  <section>
+    <h2>5. Drittanbieter bei der Nutzung einzelner Funktionen</h2>
+    <p>Beim Nutzen folgender Funktionen sendet der Browser Anfragen an externe Dienste. Dabei erhalten die Anbieter in der Regel deine IP-Adresse und die jeweiligen Suchbegriffe oder Koordinaten. Die Anbieter sind eigenständig Verantwortliche; es gelten ihre Datenschutzbestimmungen.</p>
+    <ul>
+      <li><strong>Karte und Ortssuche:</strong> OpenStreetMap-Kartenkacheln und Nominatim (Ortssuche), Esri/ArcGIS-Satellitenkacheln, Mapbox (Ortsdaten). Anbieter: OpenStreetMap Foundation, Esri, Mapbox Inc. (USA).</li>
+      <li><strong>Wetter:</strong> Open-Meteo (open-meteo.com).</li>
+      <li><strong>Währungsrechner:</strong> Frankfurter (frankfurter.dev), Wechselkurse ohne Personenbezug.</li>
+      <li><strong>Orte, Restaurants und Bewertungen:</strong> OpenTripMap, Geoapify, Yelp Fusion (Yelp Inc., USA) und Google (Places und Maps, Google Ireland Limited bzw. Google LLC). Gesendet werden Koordinaten bzw. Namen der Orte.</li>
+      <li><strong>Fotos:</strong> Wikimedia Commons (Wikimedia Foundation, USA) für Bilder von Sehenswürdigkeiten.</li>
+      <li><strong>Übersetzung und Sprachführer:</strong> Google Translate, sofern du die Übersetzungsfunktion nutzt.</li>
+      <li><strong>KI-Routenvorschläge:</strong> Die Anfrage wird an den Dienst text.pollinations.ai gesendet. Gesendet wird nur der Text, den du für den Vorschlag eingibst, nicht deine gespeicherten Reisedaten. Bitte gib dort keine sensiblen Daten ein.</li>
+      <li><strong>Schriften und Bibliotheken:</strong> Google Fonts (fonts.googleapis.com) und jsDelivr (cdn.jsdelivr.net) für Schriften und Hilfsbibliotheken. Dabei wird deine IP-Adresse übertragen.</li>
+    </ul>
+    <p>Rechtsgrundlage für diese Anfragen ist Art. 6 Abs. 1 lit. b DSGVO (Funktion, die du nutzt) bzw. lit. f (Darstellung und Schriften).</p>
+  </section>
+
+  <section>
+    <h2>6. Google-Drive-Sicherung (optional)</h2>
+    <p>Wenn du in den Einstellungen die Google-Drive-Sicherung einrichtest, meldest du dich bei Google an und erlaubst der App Zugriff auf den <strong>versteckten App-Ordner</strong> in deinem Google Drive (Berechtigung „drive.appdata“). Auf andere Dateien in deinem Drive hat die App keinen Zugriff. Die Sicherungsdatei liegt in deinem Google-Konto, nicht beim Betreiber. Der Abgleich läuft direkt zwischen deinem Browser und Google; der Server des Betreibers ist daran nicht beteiligt und speichert keine Zugangsdaten.</p>
+    <p>Empfänger ist Google (für Nutzer im EWR Google Ireland Limited, Irland; Übermittlungen an Google LLC in den USA stützen sich auf das EU-US Data Privacy Framework bzw. Standardvertragsklauseln). Es gelten die Datenschutzbestimmungen von Google: <a href="https://policies.google.com/privacy" rel="noopener noreferrer">policies.google.com/privacy</a>. Die App hält die <a href="https://developers.google.com/terms/api-services-user-data-policy" rel="noopener noreferrer">Google API Services User Data Policy</a> ein; Daten aus deinem Drive werden nur für die Sicherung innerhalb der App verwendet.</p>
+    <p>Rechtsgrundlage ist deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO). Du widerrufst sie, indem du in der App die Verbindung trennst, und zusätzlich unter <a href="https://myaccount.google.com/permissions" rel="noopener noreferrer">myaccount.google.com/permissions</a>. Die App funktioniert auch ohne Google-Drive-Sicherung vollständig.</p>
+  </section>
+
+  <section>
+    <h2>7. Browser-Berechtigungen</h2>
+    <p>Standort, Benachrichtigungen und Kamera bzw. Fotos fragt die App nur ab, wenn du die jeweilige Funktion nutzt. Die Berechtigungen kannst du jederzeit in den Browser- oder Systemeinstellungen zurücknehmen.</p>
+  </section>
+
+  <section>
+    <h2>8. Speicherdauer</h2>
+    <p>Lokal gespeicherte Daten bleiben bis zu deiner Löschung auf deinem Gerät. Teilen-Links werden nach 30 Tagen automatisch gelöscht. Push-Endpunkte bleiben gespeichert, bis du die Benachrichtigungen abschaltest oder der Endpunkt ungültig wird. Daten in deinem Google Drive bleiben bis zu deiner Löschung dort. Server-Logdaten richten sich nach den Fristen von Cloudflare.</p>
+  </section>
+
+  <section>
+    <h2>9. Deine Rechte</h2>
+    <p>Du hast nach der DSGVO das Recht auf Auskunft (Art. 15), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch (Art. 21). Erteilte Einwilligungen kannst du mit Wirkung für die Zukunft widerrufen (Art. 7 Abs. 3 DSGVO). Da deine Reisedaten auf deinem Gerät liegen, kannst du die meisten Rechte direkt in der App ausüben. Bei Fragen wende dich an die oben genannte E-Mail-Adresse.</p>
+    <p>Du kannst dich außerdem bei einer Datenschutz-Aufsichtsbehörde beschweren (Art. 77 DSGVO). Zuständig für den Betreiber ist der Hessische Beauftragte für Datenschutz und Informationsfreiheit, Gustav-Stresemann-Ring 1, 65189 Wiesbaden, <a href="https://datenschutz.hessen.de" rel="noopener noreferrer">datenschutz.hessen.de</a>.</p>
+  </section>
+
+  <section>
+    <h2>10. Änderungen</h2>
+    <p>Diese Erklärung wird angepasst, wenn sich die App oder die Rechtslage ändert. Der aktuelle Stand steht oben.</p>
+  </section>
+
+  <nav class="legal-links"><a href="nutzungsbedingungen.html">Nutzungsbedingungen</a><a href="./">Zur App</a></nav>
+</main>
+</body>
+</html>
