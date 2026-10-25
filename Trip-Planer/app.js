@@ -1447,7 +1447,14 @@ function renderFxSelects() {
     const opts = FX_CURRENCIES.map(([code, name]) => `<option value="${code}">${code} – ${name}</option>`).join('');
     fromEl.innerHTML = opts; toEl.innerHTML = opts;
     fromEl.value = fxFrom; toEl.value = fxTo;
+    fxSeedAmount();
     renderFxChips();
+}
+// Die Quellseite startet immer mit 1, damit man sofort den Kurs in der Zielwährung sieht.
+function fxSeedAmount() {
+    const el = document.getElementById('fxFromAmt');
+    if (el && !el.value.trim()) el.value = '1';
+    fxConvert('from');
 }
 function renderFxMeta(offline) {
     const meta = document.getElementById('fxMeta');
@@ -1587,7 +1594,7 @@ function fxSwapCurrencies() {
 }
 async function refreshFxRate(force) {
     const cache = loadFxCache();
-    if (cache && !fxRates) { fxRates = cache.rates; renderFxMeta(); }
+    if (cache && !fxRates) { fxRates = cache.rates; renderFxMeta(); fxConvert('from'); }
     if (!force && cache && (Date.now() - cache.ts) < FX_MAX_AGE_MS) return;
     try {
         const res = await fetch('https://api.frankfurter.dev/v1/latest?base=EUR', { signal: AbortSignal.timeout(8000) });
