@@ -2651,9 +2651,14 @@ function updateSyncUI() {
 function syncNowUi() {
     if (!window.TripPlannerSync) { showToast('Sync noch nicht geladen'); return; }
     window.TripPlannerSync.syncNow({ interactive: true })
-        .then(r => showToast('Synchronisiert (' + r.action + ')'))
-        .catch(e => showToast('Sync fehlgeschlagen: ' + e.message, 6000))
-        .finally(updateSyncUI);
+        .then(r => { updateSyncUI(); showToast('Synchronisiert (' + r.action + ')'); })
+        .catch(e => {
+            // Vollständiger Text bleibt in der Statuszeile stehen (der Toast wird abgeschnitten).
+            updateSyncUI();
+            const el = document.getElementById('sync-status');
+            if (el) el.textContent = 'Fehler: ' + e.message;
+            showToast('Sync fehlgeschlagen, siehe Anzeige im Menü');
+        });
 }
 
 function toggleSync() {
