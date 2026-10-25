@@ -131,14 +131,17 @@ async function drive(url, opts = {}) {
   return r;
 }
 
+// Fehler mit HTTP-Status und Googles Begründung
+async function driveError(r, what) {
+  const detail = await r.json().then(j => j?.error?.message).catch(() => '');
+  return new Error(what + ' fehlgeschlagen (' + r.status + ')' + (detail ? ': ' + detail : ''));
+}
+
 // Datei finden
 async function findFileId() {
   const q = encodeURIComponent(`name='${FILE_NAME}' and trashed=false`);
   const r = await drive(`${API}?q=${q}&spaces=appDataFolder&fields=files(id,name)`);
-  if (!r.ok) {
-    const detail = await r.json().then(j => j?.error?.message).catch(() => '');
-    throw new Error('Drive abfrage fehlgeschlagen (' + r.status + ')' + (detail ? ': ' + detail : ''));
-  }
+  if (!r.ok) throw await driveError(r, 'Drive abfrage');
   const j = await r.json();
   return j.files && j.files[0] ? j.files[0].id : null;
 }
@@ -160,7 +163,7 @@ async function uploadFile(payload) {
       method: 'PATCH',
       body: form
     });
-    if (!r.ok) throw new Error('Update fehlgeschlagen');
+    if (!r.ok) throw await driveError(r, 'Update');
     return fileId;
   } else {
     // Create
@@ -168,7 +171,7 @@ async function uploadFile(payload) {
       method: 'POST',
       body: form
     });
-    if (!r.ok) throw new Error('Erstellen fehlgeschlagen');
+    if (!r.ok) throw await driveError(r, 'Erstellen');
     const j = await r.json();
     setMeta({ fileId: j.id });
     return j.id;
