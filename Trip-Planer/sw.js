@@ -2,22 +2,19 @@
 importScripts('version.js'); // sets self.APP_VERSION – single source of truth
 importScripts('features/reminders-sw.js'); // Erinnerungen vor Stationswechseln (Periodic Sync)
 const CACHE = 'trip-planer-' + self.APP_VERSION;
-'./icons/icon-192.svg', './icons/icon-512.svg', './icons/icon-192-v2.png', './icons/icon-512-v2.png',
-'./icons/icon-192-maskable-v2.png', './icons/icon-512-maskable-v2.png',
-'./vendor/leaflet/leaflet.js', './vendor/leaflet/leaflet.css', './vendor/leaflet/images/layers.png',
-'./vendor/leaflet/images/layers-2x.png', './vendor/leaflet/images/marker-icon.png',
-'./vendor/leaflet/images/marker-icon-2x.png', './vendor/leaflet/images/marker-shadow.png',
-'./features/calendar.js', './features/calendar.css',
-'./features/taxicard.js', './features/taxicard.css',
-'./features/share.js', './features/share.css',
-'./vendor/qrcode-generator/qrcode.js', './features/weather.js',
-'./features/weather.css', './features/transit.js',
-'./features/transit.css', './features/emergency.js',
-'./features/emergency.css', './features/splitcosts.js',
-'./features/splitcosts.css', './features/openinghours.js',
-'./features/openinghours.css', './features/documents.js',
-'./features/documents.css', './features/journalplus.js',
-'./features/journalplus.css', './datenschutz.html', './nutzungsbedingungen.html', './impressum.html'];
+const PRECACHE = ['./', './index.html', './style.css', './app.js', './version.js', './manifest.json',
+  './icons/icon-192.svg', './icons/icon-512.svg', './icons/icon-192-v2.png', './icons/icon-512-v2.png',
+  './icons/icon-192-maskable-v2.png', './icons/icon-512-maskable-v2.png',
+  './vendor/leaflet/leaflet.js', './vendor/leaflet/leaflet.css', './vendor/leaflet/images/layers.png',
+  './vendor/leaflet/images/layers-2x.png', './vendor/leaflet/images/marker-icon.png',
+  './vendor/leaflet/images/marker-icon-2x.png', './vendor/leaflet/images/marker-shadow.png',
+  './features/calendar.js', './features/calendar.css', './features/taxicard.js', './features/taxicard.css',
+  './features/share.js', './features/share.css', './vendor/qrcode-generator/qrcode.js', './features/weather.js',
+  './features/weather.css', './features/transit.js', './features/transit.css', './features/emergency.js',
+  './features/emergency.css', './features/splitcosts.js', './features/splitcosts.css', './features/openinghours.js',
+  './features/openinghours.css', './features/documents.js', './features/documents.css', './features/journalplus.js',
+  './features/journalplus.css', './features/reminders.js', './features/reminders.css', './features/reminders-sw.js',
+  './features/packcategories.css', './datenschutz.html', './nutzungsbedingungen.html', './impressum.html'];
 const TILE_CACHE = 'trip-planer-tiles';
 const TILE_CACHE_MAX = 300;
 // Fremd-Hosts, deren Dateien (versioniert, CSS/Fonts) offline aus dem Cache kommen dürfen.
@@ -27,26 +24,8 @@ const CDN_HOSTS = ['cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.co
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(c =>
-      c.addAll(['./', './index.html', './style.css', './app.js', './version.js', './manifest.json', './icons/icon-192.svg', './icons/icon-512.svg', './icons/icon-192-v2.png', './icons/icon-512-v2.png', './icons/icon-192-maskable-v2.png', './icons/icon-512-maskable-v2.png', './vendor/leaflet/leaflet.js', './vendor/leaflet/leaflet.css', './vendor/leaflet/images/layers.png', './vendor/leaflet/images/layers-2x.png', './vendor/leaflet/images/marker-icon.png', './vendor/leaflet/images/marker-icon-2x.png', './vendor/leaflet/images/marker-shadow.png', './features/calendar.js', './features/calendar.css', './features/taxicard.js', './features/taxicard.css', './features/share.js', './features/share.css', './vendor/qrcode-generator/qrcode.js', './features/weather.js', './features/weather.css', './features/transit.js', './features/transit.css', './features/emergency.js', './features/emergency.css', './features/splitcosts.js', './features/splitcosts.css', './features/openinghours.js', './features/openinghours.css', './features/documents.js', './features/documents.css', './features/journalplus.js', './features/journalplus.css', './features/reminders.js', './features/reminders.css', './datenschutz.html', './nutzungsbedingungen.html', './impressum.html'])
-        './icons/icon-192.svg', './icons/icon-512.svg', './icons/icon-192-v2.png', './icons/icon-512-v2.png',
-        './icons/icon-192-maskable-v2.png', './icons/icon-512-maskable-v2.png',
-        './vendor/leaflet/leaflet.js', './vendor/leaflet/leaflet.css', './vendor/leaflet/images/layers.png',
-        './vendor/leaflet/images/layers-2x.png', './vendor/leaflet/images/marker-icon.png',
-        './vendor/leaflet/images/marker-icon-2x.png', './vendor/leaflet/images/marker-shadow.png',
-        './features/calendar.js', './features/calendar.css',
-        './features/taxicard.js', './features/taxicard.css',
-        './features/share.js', './features/share.css',
-        './vendor/qrcode-generator/qrcode.js', './features/weather.js',
-        './features/weather.css', './features/transit.js',
-        './features/transit.css', './features/emergency.js',
-        './features/emergency.css', './features/splitcosts.js',
-        './features/splitcosts.css', './features/openinghours.js',
-        './features/openinghours.css', './features/documents.js',
-        './features/documents.css', './features/journalplus.js',
-        './features/journalplus.css', './features/reminders.js',
-        './features/reminders.css', './features/reminders-sw.js',
-        './features/packcategories.css']
-        .map(u => new Request(u, { cache: 'reload' }))).catch(e => console.warn('SW precache failed (install continues):', e))
+      c.addAll(PRECACHE.map(u => new Request(u, { cache: 'reload' })))
+        .catch(err => console.warn('SW precache failed (install continues):', err))
     )
   );
   // Kein auto-skipWaiting – Nutzer tippt Update-Toast → SKIP_WAITING
