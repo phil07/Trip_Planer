@@ -2640,6 +2640,16 @@ function updateSyncUI() {
     if (statusEl) statusEl.textContent = window.TripPlannerSync.statusText();
     if (labelEl) labelEl.textContent = enabled ? 'Cloud trennen' : 'Cloud verbinden';
     if (btn) btn.classList.toggle('active', enabled);
+    const nowBtn = document.getElementById('btnSyncNow');
+    if (nowBtn) nowBtn.style.display = enabled ? '' : 'none';
+}
+
+function syncNowUi() {
+    if (!window.TripPlannerSync) { showToast('Sync noch nicht geladen'); return; }
+    window.TripPlannerSync.syncNow({ interactive: true })
+        .then(r => showToast('Synchronisiert (' + r.action + ')'))
+        .catch(e => showToast('Sync fehlgeschlagen: ' + e.message, 6000))
+        .finally(updateSyncUI);
 }
 
 function toggleSync() {
