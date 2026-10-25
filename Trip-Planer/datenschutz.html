@@ -60,10 +60,9 @@
   <section>
     <h2>4. Server des Betreibers (Cloudflare Workers)</h2>
     <p>Die App wird über Cloudflare (Cloudflare, Inc., 101 Townsend St, San Francisco, CA 94107, USA) ausgeliefert. Beim Aufruf fallen technisch bedingt Verbindungsdaten an, insbesondere IP-Adresse, Zeitpunkt, angefragte Adresse, Browser-Angaben und Statuscode. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (sicherer und stabiler Betrieb). Mit Cloudflare besteht ein Auftragsverarbeitungsvertrag. Die Übermittlung in die USA stützt sich auf das EU-US Data Privacy Framework bzw. Standardvertragsklauseln. Weitere Informationen: <a href="https://www.cloudflare.com/privacypolicy/" rel="noopener noreferrer">cloudflare.com/privacypolicy</a>.</p>
-    <p>Der Server des Betreibers speichert nur in den folgenden Fällen Daten, und nur, wenn du die Funktion selbst nutzt:</p>
+    <p>Der Server des Betreibers speichert nur in folgendem Fall Daten, und nur, wenn du die Funktion selbst nutzt:</p>
     <ul>
       <li><strong>Teilen-Links:</strong> Wenn du einen Teilen-Link erzeugst, wird der verschlüsselte Inhalt (Reisedaten, die du teilen möchtest) auf dem Server abgelegt. Der Schlüssel liegt nur im Link. Teilen-Links verfallen nach 30 Tagen automatisch.</li>
-      <li><strong>Push-Benachrichtigungen:</strong> Wenn du Push-Benachrichtigungen aktivierst, speichert der Server den Push-Endpunkt deines Browsers, damit er dir Nachrichten schicken kann. Du kannst die Benachrichtigungen in den Browser-Einstellungen jederzeit abschalten.</li>
     </ul>
     <p>Rechtsgrundlage ist deine Einwilligung durch das aktive Nutzen der Funktion (Art. 6 Abs. 1 lit. a DSGVO) bzw. die von dir gewünschte Funktion (Art. 6 Abs. 1 lit. b DSGVO).</p>
   </section>
@@ -78,7 +77,7 @@
       <li><strong>Orte, Restaurants und Bewertungen:</strong> OpenTripMap, Geoapify, Yelp Fusion (Yelp Inc., USA) und Google (Places und Maps, Google Ireland Limited bzw. Google LLC). Gesendet werden Koordinaten bzw. Namen der Orte.</li>
       <li><strong>Fotos:</strong> Wikimedia Commons (Wikimedia Foundation, USA) für Bilder von Sehenswürdigkeiten.</li>
       <li><strong>Übersetzung und Sprachführer:</strong> Google Translate, sofern du die Übersetzungsfunktion nutzt.</li>
-      <li><strong>KI-Routenvorschläge:</strong> Die Anfrage wird an den Dienst text.pollinations.ai gesendet. Gesendet wird nur der Text, den du für den Vorschlag eingibst, nicht deine gespeicherten Reisedaten. Bitte gib dort keine sensiblen Daten ein.</li>
+      <li><strong>KI-Routenvorschläge:</strong> Die Anfrage wird an den Dienst text.pollinations.ai gesendet. Gesendet wird nur der Text, den du für den Vorschlag eingibst, nicht deine gespeicherten Reisedaten. Bitte gib dort keine sensiblen Daten ein. Zusätzlich gibt es die KI-Quelle Puter (puter.com). Sie läuft über eine eigene Seite des Betreibers, die vom Betreiber auf Cloudflare bereitgestellt wird (japan-ki.iphilipp07-869.workers.dev). Dorthin wird ebenfalls nur der Routen-Text gesendet. Puter hat keinen Zugriff auf deine Reisedaten im Browser. Meldest du dich bei Puter an, gelten zusätzlich die Bedingungen von Puter.</li>
       <li><strong>Schriften und Bibliotheken:</strong> Google Fonts (fonts.googleapis.com) und jsDelivr (cdn.jsdelivr.net) für Schriften und Hilfsbibliotheken. Dabei wird deine IP-Adresse übertragen.</li>
     </ul>
     <p>Rechtsgrundlage für diese Anfragen ist Art. 6 Abs. 1 lit. b DSGVO (Funktion, die du nutzt) bzw. lit. f (Darstellung und Schriften).</p>
@@ -93,12 +92,12 @@
 
   <section>
     <h2>7. Browser-Berechtigungen</h2>
-    <p>Standort, Benachrichtigungen und Kamera bzw. Fotos fragt die App nur ab, wenn du die jeweilige Funktion nutzt. Die Berechtigungen kannst du jederzeit in den Browser- oder Systemeinstellungen zurücknehmen.</p>
+    <p>Standort sowie Kamera bzw. Fotos fragt die App nur ab, wenn du die jeweilige Funktion nutzt. Für Hinweise auf neue App-Versionen fragt die App einmal beim ersten Tippen nach der Erlaubnis für Benachrichtigungen. Die Berechtigungen kannst du jederzeit in den Browser- oder Systemeinstellungen zurücknehmen.</p>
   </section>
 
   <section>
     <h2>8. Speicherdauer</h2>
-    <p>Lokal gespeicherte Daten bleiben bis zu deiner Löschung auf deinem Gerät. Teilen-Links werden nach 30 Tagen automatisch gelöscht. Push-Endpunkte bleiben gespeichert, bis du die Benachrichtigungen abschaltest oder der Endpunkt ungültig wird. Daten in deinem Google Drive bleiben bis zu deiner Löschung dort. Server-Logdaten richten sich nach den Fristen von Cloudflare.</p>
+    <p>Lokal gespeicherte Daten bleiben bis zu deiner Löschung auf deinem Gerät. Teilen-Links werden nach 30 Tagen automatisch gelöscht. Daten in deinem Google Drive bleiben bis zu deiner Löschung dort. Server-Logdaten richten sich nach den Fristen von Cloudflare.</p>
   </section>
 
   <section>

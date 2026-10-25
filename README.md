@@ -59,9 +59,9 @@ Entstanden für eine Japan-Reise, funktioniert Trip Planer inzwischen für **jed
 <details open>
 <summary><b>Alle Menüpunkte im Überblick</b></summary>
 
-Das Menü ist nach Themen gruppiert: Reise, Daten, Cloud und App. Reihenfolge der Ansichten wie im Menü: Start, Karte, Stationen, Aktivitäten, Tagesplan, Währungsrechner, Reisekosten, Sprachführer, Dokumente, Tagebuch, Notfall.
+Das Menü zeigt alle Ansichten untereinander, darunter die Knöpfe für Teilen, Reisen, Backup, Wiederherstellen und Cloud. Reihenfolge der Ansichten wie im Menü: Start, Karte, Stationen, Aktivitäten, Tagesplan, Währungsrechner, Reisekosten, Sprachführer, Dokumente, Tagebuch, Notfall.
 
-<img src="docs/screenshots/menu.jpg" width="140" alt="Menü mit Gruppen"/>
+<img src="docs/screenshots/menu.jpg" width="140" alt="Menü"/>
 
 <img src="docs/screenshots/home.jpg" width="140" alt="Start"/>
 <img src="docs/screenshots/karte.jpg" width="140" alt="Karte &amp; Route"/>
@@ -96,8 +96,8 @@ Anschließend `http://localhost:8080` öffnen. Service Worker und PWA-Installati
 | `Trip-Planer/` | Die App: `index.html`, `app.js`, `style.css`, `sw.js`, `manifest.json`, `version.js` |
 | `Trip-Planer/features/` | Funktionsmodule (Wetter, Notfall, Taxi-Karte, Kostenaufteilung, Kalender, Erinnerungen …) |
 | `Trip-Planer/sync.js` | Optionaler Abgleich über Google Drive (Scope `drive.appdata`) |
-| `Trip-Planer/datenschutz.html`, `nutzungsbedingungen.html` | Rechtliche Seiten |
-| `worker/` | Cloudflare-Worker: verschlüsselte Kurzlinks fürs Teilen (`/api/share`, KV wird beim Deploy automatisch angelegt) und optional Web-Push ([Einrichtung](docs/push-setup.md)) |
+| `Trip-Planer/datenschutz.html`, `nutzungsbedingungen.html`, `impressum.html` | Rechtliche Seiten, im App-Design |
+| `worker/` | Cloudflare-Worker: verschlüsselte Kurzlinks fürs Teilen (`/api/share`, KV wird beim Deploy automatisch angelegt) und vorbereitet Web-Push ([Einrichtung](docs/push-setup.md)) |
 | `puter_bridge/` | Eigener Worker für die zusätzliche KI-Quelle, getrennt von der App ([README](puter_bridge/README.md)) |
 | `tests/` | Node-Tests (Kalender, Kostenaufteilung, Datenspeicherung, Datenaufbereitung, Verbindungen, Notfall, Öffnungszeiten, Wetter, Erinnerungen, Teilen, Startseite) |
 | `wrangler.jsonc` | Deployment der App als statische Cloudflare-Assets |
@@ -129,18 +129,19 @@ Die App kommt ohne eigene Server aus. Für aktuelle Inhalte ruft sie bei Bedarf 
 
 | Zweck | Dienst |
 | --- | --- |
-| Orte und Karten | OpenStreetMap/Nominatim, OpenTripMap, Mapbox, Geoapify |
+| Orte und Karten | OpenStreetMap/Nominatim, Esri (Satellitenkarte), OpenTripMap, Mapbox, Geoapify, Yelp Fusion, Google Places |
+| Fotos | Wikimedia Commons |
 | Wetter | Open-Meteo |
 | Wechselkurse | Frankfurter |
 | Übersetzung des Sprachführers | Google Translate |
-| KI-Routen | Pollinations, Puter |
+| KI-Routen | Pollinations, Puter (über eine eigene Brücke, siehe `puter_bridge/`) |
 | Optionaler Abgleich | Google Drive (nur mit deiner Anmeldung) |
 
 Es gelten die jeweiligen Datenschutzregeln der Dienste. Ohne Verbindung bleiben gespeicherte Daten und bereits geladene Inhalte nutzbar.
 
 ## 🔐 Datenschutz und Sicherung
 
-Reisedaten verbleiben im lokalen Speicher des Browsers. Wenn du den Google-Drive-Abgleich einschaltest, wird zusätzlich eine Datei im versteckten App-Ordner deines Google-Kontos gespeichert; es gibt keinen Server des Entwicklers mit Zugriff darauf. Das Löschen von Browserdaten oder das Zurücksetzen des Geräts entfernt die lokalen Daten. Installierte App und Browser-Tab können getrennte Speicher haben. **Exportiere die Reise deshalb regelmäßig** (Menü → Einstellungen) und behandle Exportdateien wie persönliche Reisedokumente.
+Reisedaten verbleiben im lokalen Speicher des Browsers. Wenn du den Google-Drive-Abgleich einschaltest, wird zusätzlich eine Datei im versteckten App-Ordner deines Google-Kontos gespeichert; es gibt keinen Server des Entwicklers mit Zugriff darauf. Das Löschen von Browserdaten oder das Zurücksetzen des Geräts entfernt die lokalen Daten. Installierte App und Browser-Tab können getrennte Speicher haben. **Exportiere die Reise deshalb regelmäßig** (Menü → Daten → Backup) und behandle Exportdateien wie persönliche Reisedokumente.
 
 > Notrufnummern und Notfall-Sätze sind ohne Gewähr; im Zweifel gilt der lokale Notruf.
 

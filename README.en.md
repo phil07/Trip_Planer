@@ -59,9 +59,9 @@ Built for a trip to Japan, Trip Planer now works for **any destination**: langua
 <details open>
 <summary><b>All menu items at a glance</b></summary>
 
-The menu is grouped by topic: Trip, Data, Cloud and App. Views in menu order: Home, Map, Stops, Activities, Daily plan, Currency converter, Trip costs, Phrase guide, Documents, Journal, Emergency.
+The menu lists all views one below another, followed by the buttons for sharing, trips, backup, restore and cloud. Views in menu order: Home, Map, Stops, Activities, Daily plan, Currency converter, Trip costs, Phrase guide, Documents, Journal, Emergency.
 
-<img src="docs/screenshots/menu.jpg" width="140" alt="Menu with groups"/>
+<img src="docs/screenshots/menu.jpg" width="140" alt="Menu"/>
 
 <img src="docs/screenshots/home.jpg" width="140" alt="Home"/>
 <img src="docs/screenshots/karte.jpg" width="140" alt="Map &amp; route"/>
@@ -96,8 +96,8 @@ Then open `http://localhost:8080`. Service workers and PWA installation require 
 | `Trip-Planer/` | The app: `index.html`, `app.js`, `style.css`, `sw.js`, `manifest.json`, `version.js` |
 | `Trip-Planer/features/` | Feature modules (weather, emergency, taxi card, cost splitting, calendar, reminders …) |
 | `Trip-Planer/sync.js` | Optional sync via Google Drive (scope `drive.appdata`) |
-| `Trip-Planer/datenschutz.html`, `nutzungsbedingungen.html` | Legal pages (German) |
-| `worker/` | Optional Cloudflare Worker for web push ([setup](docs/push-setup.md), German) |
+| `Trip-Planer/datenschutz.html`, `nutzungsbedingungen.html`, `impressum.html` | Legal pages (German), in app design |
+| `worker/` | Cloudflare Worker, prepared for web push ([setup](docs/push-setup.md), German) |
 | `puter_bridge/` | Separate worker for the additional AI source, isolated from the app ([README](puter_bridge/README.md)) |
 | `tests/` | Node tests (calendar, cost splitting, data storage, data normalization, connections, emergency, opening hours, weather, reminders, sharing, home screen) |
 | `wrangler.jsonc` | Deployment of the app as static Cloudflare assets |
@@ -129,11 +129,12 @@ The app needs no servers of its own. For current content it calls public service
 
 | Purpose | Service |
 | --- | --- |
-| Places and maps | OpenStreetMap/Nominatim, OpenTripMap, Mapbox, Geoapify |
+| Places and maps | OpenStreetMap/Nominatim, Esri (satellite map), OpenTripMap, Mapbox, Geoapify, Yelp Fusion, Google Places |
+| Photos | Wikimedia Commons |
 | Weather | Open-Meteo |
 | Exchange rates | Frankfurter |
 | Phrase-guide translation | Google Translate |
-| AI routes | Pollinations, Puter |
+| AI routes | Pollinations, Puter (via its own bridge, see `puter_bridge/`) |
 | Optional sync | Google Drive (only with your sign-in) |
 
 Each service's own privacy terms apply. Without a connection, stored data and already loaded content remain usable.
