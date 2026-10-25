@@ -2804,6 +2804,13 @@ function updateUndoImportBtn() {
     const btn = document.getElementById('btnUndoImport');
     if (btn) try { btn.hidden = !localStorage.getItem('tp_backup_before_import'); } catch (e) { btn.hidden = true; }
 }
+function tripNewFromSettings() {
+    const name = prompt('Name der neuen Reise (z. B. Sommerurlaub 2027):', '');
+    if (name === null) return;
+    if (!name.trim()) { showToast('Bitte einen Namen eingeben'); return; }
+    document.getElementById('modal-settings')?.close();
+    tripCreate(name);
+}
 function openSettings() {
     const sStart = document.getElementById('s-startdate'); if (sStart) sStart.value = startDate;
     const sName = document.getElementById('s-tripname'); if (sName) sName.value = tripName;

@@ -314,7 +314,6 @@
     window.reminders = { render, check, open: openDialog, buildEvents: () => buildEvents(loadSettings()) };
 
     document.addEventListener('DOMContentLoaded', () => {
-        injectSettingsEntry();
         check();
         updatePeriodicSync();
     });
