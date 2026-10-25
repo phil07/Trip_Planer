@@ -4687,13 +4687,15 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('appVersion').innerText = 'Version ' + APP_VERSION;
     // Onboarding nur bis zum ersten erfolgreichen Speichern der Einstellungen. Bestandsnutzer
     // (Reisename oder Stationen vorhanden) gelten einmalig migriert als eingerichtet.
+    // Eine Reise mit Namen oder Stationen gilt als eingerichtet – auch wenn der Schalter früher
+    // auf '0' stand (z. B. nach dem Anlegen einer neuen Reise), sonst öffnet der Dialog bei jedem Start.
     let onboarded = localStorage.getItem('tp_onboarded');
-    if (onboarded === null) {
-        let hasPlaces = false;
-        try { hasPlaces = (JSON.parse(localStorage.getItem('tp_places')) || []).length > 0; } catch (e) {}
-        onboarded = localStorage.getItem('tp_tripname') || hasPlaces ? '1' : '0';
-        try { localStorage.setItem('tp_onboarded', onboarded); } catch (e) {}
-    }
+    let hasPlaces = false;
+    try { hasPlaces = (JSON.parse(localStorage.getItem('tp_places')) || []).length > 0; } catch (e) {}
+    const hasTripData = !!localStorage.getItem('tp_tripname') || hasPlaces;
+    if (onboarded !== '1' && hasTripData) onboarded = '1';
+    if (onboarded === null) onboarded = '0';
+    try { localStorage.setItem('tp_onboarded', onboarded); } catch (e) {}
     const isFirstRun = onboarded !== '1';
     loadState();
     ensureTripCurrencyInFx();
