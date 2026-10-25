@@ -10,6 +10,9 @@
 // Die Client-ID unten aus dem Service-Tracker übernommen. Falls du eine
 // separate ID für Trip Planer nutzt, ersetze sie hier.
 
+(function () {
+'use strict';
+
 const TP_SYNC_CLIENT_ID = '456570124356-ksovdvup3n1o9hhq6hnm3tfms1r1a0hs.apps.googleusercontent.com';
 
 // Konfiguration
@@ -262,3 +265,4 @@ window.TripPlannerSync = {
   statusText: syncStatusText,
   isEnabled: () => !!getMeta().enabled
 };
+})();
