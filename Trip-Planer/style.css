@@ -746,18 +746,21 @@ body button.menu-item {
     width: 100%; margin: 0; padding: 8px 12px; min-height: 54px; border-radius: 18px;
     font-size: 21px; font-weight: 700; letter-spacing: -.02em; color: var(--label); background: none; gap: 14px;
     opacity: 0; transform: translateY(28px);
-    transition: transform .8s var(--ease-out), opacity .6s var(--ease-out), background .3s var(--ease-out), color .3s;
+    /* Die Einblend-Verzögerung (--d) gilt nur für Position und Deckkraft, nicht für Farben.
+       So wechseln alle Menüpunkte beim Design-Wechsel gleichzeitig die Farbe. */
+    transition: transform .8s var(--ease-out) var(--d, 0s), opacity .6s var(--ease-out) var(--d, 0s), background .3s var(--ease-out), color .3s;
 }
 .menu-open button.menu-item { opacity: 1; transform: none; }
 body button.menu-item:hover { background: var(--shell); }
 body button.menu-item:active { background: var(--bg-secondary); }
 body button.menu-item.active { color: var(--primary-text); background: var(--accent-soft); }
-.menu-list > :nth-child(2) { transition-delay: .04s; } .menu-list > :nth-child(3) { transition-delay: .07s; }
-.menu-list > :nth-child(4) { transition-delay: .10s; } .menu-list > :nth-child(5) { transition-delay: .13s; }
-.menu-list > :nth-child(6) { transition-delay: .16s; } .menu-list > :nth-child(9) { transition-delay: .19s; }
-.menu-list > :nth-child(10) { transition-delay: .22s; } .menu-list > :nth-child(11) { transition-delay: .25s; }
-.menu-list > :nth-child(12) { transition-delay: .28s; } .menu-list > :nth-child(13) { transition-delay: .31s; }
-.app-container:not(.menu-open) .menu-list > * { transition-delay: 0s; }
+.menu-list > :nth-child(2) { --d: .04s; } .menu-list > :nth-child(3) { --d: .07s; }
+.menu-list > :nth-child(4) { --d: .10s; } .menu-list > :nth-child(5) { --d: .13s; }
+.menu-list > :nth-child(6) { --d: .16s; } .menu-list > :nth-child(9) { --d: .19s; }
+.menu-list > :nth-child(10) { --d: .22s; } .menu-list > :nth-child(11) { --d: .25s; }
+.menu-list > :nth-child(12) { --d: .28s; } .menu-list > :nth-child(13) { --d: .31s; }
+.menu-list > :nth-child(14) { --d: .34s; }
+.app-container:not(.menu-open) .menu-list > * { --d: 0s; }
 body .menu-icon {
     width: 40px; height: 40px; border-radius: 999px; background: var(--bg-elevated); color: var(--muted);
     box-shadow: var(--hl), inset 0 0 0 1px var(--shell-ring); font-size: 20px;
