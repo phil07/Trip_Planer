@@ -334,49 +334,14 @@ function syncStatusText() {
   return 'Zuletzt: ' + new Date(meta.lastSync).toLocaleString('de-DE');
 }
 
-// Drive-Reisen zur Auswahl auflisten (übernimmt noch nichts)
-async function listRemoteTrips() {
-  const q = encodeURIComponent(`name contains '${FILE_PREFIX}' and trashed=false`);
-  const r = await drive(`${API}?q=${q}&spaces=appDataFolder&fields=files(id,name,modifiedTime)`);
-  if (!r.ok) throw await driveError(r, 'Drive abfrage');
-  const files = (await r.json()).files || [];
-  let trips = [];
-  try { trips = JSON.parse(localStorage.getItem(TRIPS_KEY) || '[]') || []; } catch (e) {}
-  const known = new Set(trips.map(t => t.id));
-  const out = [];
-  for (const f of files) {
-    const tripId = tripIdFromFileName(f.name);
-    if (!tripId) continue;
-    const remote = await downloadFile(f.id);
-    if (!remote || remote.app !== 'trip-planer' || !remote.data) continue;
-    out.push({
-      tripId, fileId: f.id, modifiedTime: f.modifiedTime, known: known.has(tripId), remote,
-      name: (remote.data.tp_tripname || '').trim() || 'Reise aus Drive'
-    });
-  }
-  return out;
-}
-
-// Eine ausgewählte Drive-Reise als eigene Reise übernehmen (lokale Reisen bleiben unberührt)
-function adoptRemoteTrip(t) {
-  let trips = [];
-  try { trips = JSON.parse(localStorage.getItem(TRIPS_KEY) || '[]') || []; } catch (e) {}
-  if (trips.some(x => x.id === t.tripId)) return false;
-  trips.push({ id: t.tripId, name: t.name, created: t.remote.exportedAt || new Date().toISOString() });
-  localStorage.setItem(TRIPS_KEY, JSON.stringify(trips));
-  localStorage.setItem(SNAP_PREFIX + t.tripId, JSON.stringify(t.remote.data));
-  rememberFile(t.tripId, t.fileId, t.modifiedTime, t.remote.data);
-  return true;
-}
-
 // Öffentliche API
 window.TripPlannerSync = {
-  listRemoteTrips,
-  adoptRemoteTrip,
   init: async () => {
     // Sync auf Änderungen planen
     setInterval(() => {
-      if (getMeta().enabled) syncNow().catch(() => {});
+      if (getMeta().enabled) syncNow().then(() => importRemoteTrips()).then(n => {
+        if (n && typeof window.tripsOpenRender === 'function') window.tripsOpenRender();
+      }).catch(() => {});
     }, 90000);
   },
   connect: async () => {
@@ -384,7 +349,9 @@ window.TripPlannerSync = {
       await requestToken();
       setMeta({ enabled: true });
       await syncNow({ interactive: true });
-      if (typeof showToast === 'function') showToast('Mit Google Drive verbunden – Reisen über „Meine Reisen“ laden', 'ok');
+      const n = await importRemoteTrips();
+      if (typeof showToast === 'function') showToast(n ? 'Mit Google Drive verbunden, ' + n + ' Reise(n) übernommen' : 'Mit Google Drive verbunden', 'ok');
+      if (n && typeof window.tripsOpenRender === 'function') window.tripsOpenRender();
     } catch (e) {
       if (typeof showToast === 'function') showToast('Verbindung fehlgeschlagen: ' + e.message, 'err');
     }
