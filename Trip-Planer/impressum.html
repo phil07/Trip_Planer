@@ -5,25 +5,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>Impressum – Trip Planer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" crossorigin="anonymous">
+<script>
+(function(){
+  var t = 'auto';
+  try { t = localStorage.getItem('tp_theme') || 'auto'; } catch (e) {}
+  if (t !== 'light' && t !== 'dark') t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
+<link rel="stylesheet" href="style.css">
 <style>
-:root { --bg:#f6f5f2; --fg:#1d1d1f; --muted:#6b6b70; --accent:#5a0fc8; --line:#dcdad4; color-scheme:light }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#121214; --fg:#ececf0; --muted:#9a9aa3; --accent:#b99cff; --line:#2c2c31; color-scheme:dark } }
-:root[data-theme="dark"] { --bg:#121214; --fg:#ececf0; --muted:#9a9aa3; --accent:#b99cff; --line:#2c2c31; color-scheme:dark }
-html, body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif }
-main { max-width:720px; margin:0 auto; padding:24px 16px 48px; }
-h1 { font-size:1.6rem; margin:.2em 0 .1em; text-wrap:balance }
-h2 { font-size:1.05rem; margin:1.6em 0 .4em; color:var(--accent) }
-p, li { overflow-wrap:anywhere }
-ul { padding-left:1.2em }
-a { color:var(--accent) }
-.stand, .back { color:var(--muted); font-size:.9rem }
-.legal-links { display:flex; gap:16px; flex-wrap:wrap; margin-top:32px; padding-top:16px; border-top:1px solid var(--line) }
+.legal-page { max-width: 640px; margin: 0 auto; padding: 16px 16px 48px; color: var(--label); font-size: 15px; line-height: 1.6; }
+.legal-page .back { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 999px; background: var(--bg-secondary); color: var(--label); text-decoration: none; font-size: 14px; font-weight: 600; }
+.legal-page .legal-card { margin-top: 16px; background: var(--bg-elevated); border-radius: 22px; padding: 20px 20px 24px; overflow-wrap: break-word; }
+.legal-page h1 { font-size: 1.45rem; font-weight: 800; margin: .3em 0 .2em; text-wrap: balance; }
+.legal-page h2 { font-size: 1.02rem; font-weight: 700; margin: 1.6em 0 .4em; color: var(--accent-text); }
+.legal-page .stand { color: var(--muted); font-size: .9rem; margin: 0; }
+.legal-page a { color: var(--accent-text); }
+.legal-page ul { padding-left: 1.2em; }
+.legal-page .legal-links { margin-top: 16px; }
 </style>
 </head>
 <body>
-<main>
+<main class="legal-page">
   <a class="back" href="./">← Zurück zur App</a>
-  <h1>Impressum</h1>
+  <div class="legal-card">
+<h1>Impressum</h1>
   <p class="stand">Stand: 25. Oktober 2026</p>
 
   <section>
@@ -60,6 +70,7 @@ a { color:var(--accent) }
     <a href="./">Zur App</a>
   </section>
 
+  </div>
 </main>
 </body>
 </html>
