@@ -768,7 +768,7 @@ body .menu-icon {
 }
 body .menu-item.active .menu-icon { color: var(--primary-text); }
 .menu-footer { border-top: 1px solid var(--border); color: var(--muted); padding: 18px 28px calc(18px + env(safe-area-inset-bottom)); }
-.menu-footer .btn-icon { min-height: 44px; }
+.menu-footer .btn-icon { min-height: 44px; justify-content: center; }
 .menu-footer .btn-row { flex-wrap: wrap; }
 .menu-footer .btn-row > .btn-icon { flex: 1 1 auto; min-width: 0; }
 .menu-footer .sync-status { flex-basis: 100%; min-width: 0; margin-left: 0 !important; text-align: center; overflow-wrap: anywhere; }
