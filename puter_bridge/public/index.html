@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KI-Brücke</title>
+<style>
+  :root { color-scheme: light; --bg: #FFFFFF; --label: #111318; --muted: #535865; --accent: #D70015; --on-accent: #FFFFFF; }
+  :root[data-theme="dark"] { color-scheme: dark; --bg: #16181D; --label: #F3F4F6; --muted: #A9AEB9; --accent: #FF4D5E; --on-accent: #0B0C0F; }
+  html, body { margin: 0; background: var(--bg); color: var(--label);
+    font: 14px/1.45 "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
+  body { padding: 2px 2px 4px; }
+  p { margin: 0 0 12px; }
+  .muted { color: var(--muted); font-size: 12.5px; }
+  button { width: 100%; border: 0; border-radius: 12px; padding: 12px 14px; font: inherit; font-weight: 700;
+    background: var(--accent); color: var(--on-accent); cursor: pointer; }
+  button:disabled { opacity: .6; cursor: default; }
+  #status { min-height: 18px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<p>Puter ist eine zusätzliche, kostenlose KI-Quelle für Routenvorschläge. Sie verlangt ein eigenes Puter-Konto.</p>
+<p class="muted">Die Anmeldung läuft abgeschottet von der Reise-App: Puter sieht nur den Text der Routen-Anfrage, nicht deine gespeicherten Reisedaten.</p>
+<button type="button" id="login" disabled>Bei Puter anmelden</button>
+<div class="muted" id="status" role="status">Lade Puter …</div>
+<script>
+// Puter-KI-Brücke: läuft im iframe der Reise-App, auf eigener Herkunft.
+// Einzige Schnittstelle sind postMessage-Nachrichten von der erlaubten App-Adresse:
+//   App → Brücke: { type: 'chat', id, text }
+//   Brücke → App: { type: 'ready', signedIn, sdk } | { type: 'auth', signedIn } | { type: 'reply', id, ok, text | error }
+(function () {
+  'use strict';
+  var APP_ORIGINS = ['https://japan.iphilipp07-869.workers.dev'];
+  var MAX_PROMPT = 20000, MAX_REPLY = 20000;
+  if (/(^|[#&])theme=dark\b/.test(location.hash)) document.documentElement.setAttribute('data-theme', 'dark');
+  var btn = document.getElementById('login'), status = document.getElementById('status');
+
+  function toApp(msg) {
+    if (window.parent === window) return;
+    APP_ORIGINS.forEach(function (o) { window.parent.postMessage(msg, o); });
+  }
+  function signedIn() {
+    try { return !!(window.puter && puter.auth && puter.auth.isSignedIn()); } catch (e) { return false; }
+  }
+  function replyText(r) {
+    if (typeof r === 'string') return r;
+    var c = r && r.message && r.message.content;
+    if (typeof c === 'string') return c;
+    if (Array.isArray(c)) return c.map(function (p) { return p && typeof p.text === 'string' ? p.text : ''; }).join('');
+    if (r && typeof r.text === 'string') return r.text;
+    return '';
+  }
+
+  window.addEventListener('message', function (e) {
+    if (APP_ORIGINS.indexOf(e.origin) === -1 || e.source !== window.parent) return;
+    var m = e.data;
+    if (!m || m.type !== 'chat' || typeof m.id !== 'number' || typeof m.text !== 'string') return;
+    function answer(ok, val) {
+      var msg = { type: 'reply', id: m.id, ok: ok };
+      msg[ok ? 'text' : 'error'] = String(val).slice(0, MAX_REPLY);
+      e.source.postMessage(msg, e.origin);
+    }
+    if (m.text.length > MAX_PROMPT) return answer(false, 'Anfrage zu lang');
+    if (!window.puter || !puter.ai || !puter.ai.chat) return answer(false, 'Puter-SDK nicht geladen');
+    // Ohne Login würde Puter sein eigenes Anmeldefenster im unsichtbaren iframe öffnen.
+    if (!signedIn()) return answer(false, 'nicht angemeldet');
+    Promise.resolve(puter.ai.chat(m.text))
+      .then(function (r) { answer(true, replyText(r)); })
+      .catch(function (err) { answer(false, (err && (err.message || err.error && err.error.message)) || 'Fehler'); });
+  });
+
+  btn.addEventListener('click', function () {
+    btn.disabled = true; status.textContent = 'Anmeldefenster geöffnet …';
+    Promise.resolve(puter.auth.signIn())
+      .then(function () { status.textContent = signedIn() ? 'Angemeldet.' : 'Nicht angemeldet.'; })
+      .catch(function () { status.textContent = 'Anmeldung abgebrochen.'; })
+      .then(function () { btn.disabled = false; toApp({ type: 'auth', signedIn: signedIn() }); });
+  });
+
+  var s = document.createElement('script');
+  s.src = 'https://js.puter.com/v2/';
+  s.onload = function () {
+    var ok = !!(window.puter && puter.ai && puter.auth);
+    btn.disabled = !ok;
+    status.textContent = ok ? (signedIn() ? 'Bereits angemeldet.' : '') : 'Puter ist gerade nicht verfügbar.';
+    toApp({ type: 'ready', sdk: ok, signedIn: signedIn() });
+  };
+  s.onerror = function () {
+    status.textContent = 'Puter konnte nicht geladen werden.';
+    toApp({ type: 'ready', sdk: false, signedIn: false });
+  };
+  document.head.appendChild(s);
+})();
+</script>
+</body>
+</html>

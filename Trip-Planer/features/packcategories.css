@@ -1,0 +1,29 @@
+/* Packliste: Kategorien (einklappbar, mit Fortschritt) & mehrere Listen */
+
+/* Listen-Umschalter oben im Sheet */
+.pack-lists { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; min-width: 0; }
+.pack-list-tabs { display: flex; gap: 6px; flex: 1 1 auto; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; touch-action: pan-x; scrollbar-width: none; padding: 2px; }
+.pack-list-tabs::-webkit-scrollbar { display: none; }
+.pack-list-chip { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; max-width: 180px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--label); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.pack-list-chip.active { background: var(--primary-fill); border-color: transparent; color: var(--on-primary, #fff); }
+.pack-list-chip:focus-visible, .pack-list-act:focus-visible, .pack-cat-head:focus-visible { outline: 2px solid var(--primary-fill); outline-offset: 2px; }
+.pack-list-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.pack-list-n { font-size: 11px; font-weight: 700; opacity: .75; font-variant-numeric: tabular-nums; }
+.pack-list-new { color: var(--muted); border-style: dashed; background: none; gap: 4px; }
+.pack-list-act { flex: 0 0 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: none; color: var(--muted); font-size: 18px; cursor: pointer; }
+.pack-list-act:hover { color: var(--label); }
+.pack-list-form { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.pack-list-form-row { display: flex; gap: 6px; }
+.pack-list-form input[type="text"] { flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--primary-fill); background: var(--bg-secondary); color: var(--label); font: inherit; font-size: 16px; }
+.pack-list-ok, .pack-list-cancel { flex: 0 0 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; font-size: 20px; cursor: pointer; }
+.pack-list-ok { background: var(--primary-fill); color: var(--on-primary, #fff); }
+.pack-list-cancel { background: var(--bg-secondary); color: var(--label); }
+.pack-list-start { display: flex; gap: 6px; flex-wrap: wrap; }
+.pack-list-start label { position: relative; cursor: pointer; }
+.pack-list-start input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.pack-list-start span { display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--label); font-size: 13px; font-weight: 600; }
+.pack-list-start input:checked + span { background: var(--primary-fill); border-color: transparent; color: var(--on-primary, #fff); }
+.pack-list-start input:focus-visible + span { outline: 2px solid var(--primary-fill); outline-offset: 2px; }
+
+/* Handle: Name der aktiven Liste */
+.pack-handle-label { max-width: 52vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

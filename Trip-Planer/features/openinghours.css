@@ -1,0 +1,38 @@
+/* ─── Öffnungszeiten & Ruhetage (features/openinghours.js) ─── */
+:root { --oh-warn-bg: #FFF4E0; --oh-warn-text: #8A4B00; --oh-info-bg: var(--bg-secondary); --oh-info-text: var(--muted); }
+:root[data-theme="dark"] { --oh-warn-bg: rgba(255,170,51,.14); --oh-warn-text: #FFC266; }
+
+/* Dialog */
+fieldset.oh-group { border: 0; padding: 0; margin-inline: 0; min-width: 0; }
+fieldset.oh-group legend { padding: 0; margin-bottom: 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.oh-sub { font-size: var(--fs-caption); color: var(--muted); margin: 8px 0 6px; }
+.oh-days { display: flex; gap: 5px; }
+.form-group label.oh-day { display: flex; flex: 1 1 0; min-width: 0; margin: 0; cursor: pointer; }
+.form-group .oh-day input { position: absolute; opacity: 0; width: 1px; height: 1px; min-height: 0; padding: 0; pointer-events: none; }
+.oh-day span {
+    display: flex; flex: 1; align-items: center; justify-content: center; min-height: 38px; padding: 0 2px;
+    border-radius: 12px; background: var(--bg-secondary); color: var(--label); font-size: var(--fs-footnote); font-weight: 600;
+    box-shadow: inset 0 0 0 1px var(--shell-ring); transition: background .2s, color .2s;
+}
+.oh-day input:checked + span { background: var(--primary-fill); color: var(--on-primary); box-shadow: none; }
+.oh-day input:focus-visible + span { outline: 2px solid var(--primary); outline-offset: 2px; }
+.oh-range { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.form-group .oh-range input[type="time"] { flex: 1 1 110px; width: auto; min-width: 0; }
+.oh-range span { color: var(--muted); }
+.form-group .oh-time-input { max-width: 180px; }
+.form-hint.oh-hint-err { color: var(--primary-text); }
+
+/* Tagesplan */
+.oh-line { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 4px; }
+.oh-time { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-caption); color: var(--muted); font-weight: 600; }
+.oh-warn {
+    display: inline-flex; align-items: flex-start; gap: 4px; max-width: 100%; border: 0; border-radius: 8px; padding: 3px 7px;
+    font: inherit; font-size: var(--fs-caption); line-height: 1.35; font-weight: 600; text-align: left; cursor: pointer;
+}
+.oh-warn i { font-size: 13px; flex: none; margin-top: 1px; }
+.oh-warn span { white-space: normal; overflow-wrap: anywhere; }
+.oh-warn.oh-lvl-warn { background: var(--oh-warn-bg); color: var(--oh-warn-text); }
+.oh-warn.oh-lvl-info { background: var(--oh-info-bg); color: var(--oh-info-text); }
+/* Hinweiszeile volle Breite unter der Tagesplan-Zeile (eingerückt auf Höhe des Titels) */
+.dayplan-item:has(> .oh-line) { flex-wrap: wrap; row-gap: 4px; }
+.dayplan-item > .oh-line { flex: 1 1 100%; margin-top: 0; padding-left: 54px; }

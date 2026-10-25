@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Trip Planer</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#D70015" id="metaThemeColor">
+    <script>
+        (function(){
+            var t = 'auto';
+            try { t = localStorage.getItem('tp_theme') || 'auto'; } catch (e) {}
+            if (t !== 'light' && t !== 'dark') t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+        (function(){
+            function setVh(){
+                var h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+                document.documentElement.style.setProperty('--vh', (h * 0.01) + 'px');
+            }
+            setVh();
+            window.addEventListener('resize', setVh);
+            window.addEventListener('orientationchange', setVh);
+            if (window.visualViewport) window.visualViewport.addEventListener('resize', setVh);
+        })();
+    </script>
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Trip Planer">
+    <meta name="application-name" content="Trip Planer">
+    <meta name="msapplication-TileColor" content="#D70015">
+
+    <!-- Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- App Icons -->
+    <link rel="icon" type="image/svg+xml" href="icons/icon-192.svg">
+    <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192-v2.png">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+    <!-- Schrift + Icons (cross-origin, crossorigin → vom Service Worker cachebar; ohne Netz: Systemschrift + Text-Labels) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/light/style.css" integrity="sha384-GzhNOdwUkh38xzoNEY1vRdLr+w8q+bXEJsd/km6Ef61w1Kfk+lself6cn14ilrpO" crossorigin="anonymous">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="features/calendar.css">
+    <link rel="stylesheet" href="features/taxicard.css">
+    <link rel="stylesheet" href="features/share.css">
+    <link rel="stylesheet" href="features/weather.css">
+    <link rel="stylesheet" href="features/transit.css">
+    <link rel="stylesheet" href="features/emergency.css">
+    <link rel="stylesheet" href="features/splitcosts.css">
+    <link rel="stylesheet" href="features/openinghours.css">
+    <link rel="stylesheet" href="features/documents.css">
+    <link rel="stylesheet" href="features/journalplus.css">
+    <link rel="stylesheet" href="features/reminders.css">
+    <link rel="stylesheet" href="features/packcategories.css">
+    </head>
+<body>
+<div class="app-container" id="app">
+    <div id="offline-bar">📵 Offline – Karte und gespeicherte Daten verfügbar</div>
+    <div id="toast" role="status" aria-live="polite"></div>
+
+    <div class="app-header">
+        <button type="button" class="header-btn" id="menuBtn" onclick="toggleMenu()" aria-label="Menü öffnen" aria-expanded="false" aria-controls="drawer"><span class="burger-line" aria-hidden="true"></span><span class="burger-line" aria-hidden="true"></span></button>
+        <h1 class="header-title" id="pageTitle">Start</h1>
+        <div class="header-spacer" aria-hidden="true"></div>
+    </div>
+
+    <!-- HOME (Dashboard) -->
+    <div class="view active" id="view-home">
+        <div class="scroll-content home-scroll">
+            <div class="home-intro"><span class="eyebrow" id="homeEyebrow"></span><h2 class="home-headline" id="homeHeadline"></h2></div>
+            <div class="hero-card home" id="heroCard">
+                <div class="hero-eyebrow">Deine Reise</div>
+                <div class="hero-num-row"><span class="hero-num" id="hero-num">–</span><span class="hero-unit" id="hero-unit"></span></div>
+                <div class="hero-sub" id="hero-sub">–</div>
+                <div class="hero-progress"><div class="hero-progress-fill" id="hero-progress-fill"></div></div>
+                <div class="hero-route" id="hero-route">–</div>
+            </div>
+            <div class="home-stats" id="homeStats"></div>
+            <div class="home-next" id="homeNext"></div>
+            <div class="home-weather" id="homeWeather" hidden></div>
+        </div>
+    </div>
+
+    <!-- PACKLISTE: Global bottom sheet (swipe up to open) -->
+    <div class="pack-sheet" id="packSheet" inert>
+        <div class="pack-sheet-handle"></div>
+        <div class="pack-head"><span>🧳 Packliste</span><span class="pack-count" id="packCount">0/0</span></div>
+        <div class="pack-lists" id="packLists"></div>
+        <form class="pack-add" id="packAddForm" autocomplete="off">
+            <input type="text" id="packAddInput" maxlength="90" placeholder="Eigenen Eintrag hinzufügen …" aria-label="Eigenen Eintrag zur Packliste hinzufügen" enterkeyhint="done">
+            <button type="submit" class="pack-add-btn" aria-label="Hinzufügen">+</button>
+        </form>
+        <div class="pack-items" id="packItems"></div>
+    </div>
+    <div class="pack-handle" id="packHandle" role="button" tabindex="0" aria-label="Packliste öffnen" aria-expanded="false">
+        <span class="pack-handle-icon">▲</span>
+        <span id="packHandleLabel" class="pack-handle-label">Packliste</span>
+        <span class="pack-count" id="packHandleCount">0/0</span>
+    </div>
+
+    <!-- MAP -->
+    <div class="view" id="view-map">
+        <div id="map"></div>
+
+        <div class="maptype-switcher" id="maptypeSwitcher" role="group" aria-label="Kartentyp">
+            <button class="maptype-btn active" data-type="standard" onclick="setMapType('standard')" title="Standard" aria-label="Standardkarte" aria-pressed="true"><i class="ph-light ph-map-trifold" data-fb="🗺️" aria-hidden="true"></i></button>
+            <button class="maptype-btn" data-type="satellite" onclick="setMapType('satellite')" title="Satellit" aria-label="Satellitenkarte" aria-pressed="false"><i class="ph-light ph-globe-hemisphere-east" data-fb="🛰️" aria-hidden="true"></i></button>
+            <button class="maptype-btn" data-type="terrain" onclick="setMapType('terrain')" title="Gelände" aria-label="Geländekarte" aria-pressed="false"><i class="ph-light ph-mountains" data-fb="🏔️" aria-hidden="true"></i></button>
+        </div>
+        <button class="locate-btn" id="locateBtn" onclick="refreshUserLocation()" aria-label="Standort aktualisieren" title="Standort aktualisieren"><i class="ph-light ph-crosshair" data-fb="🎯" aria-hidden="true"></i></button>
+        <div class="bottom-sheet" id="bottomSheet">
+            <div class="sheet-handle"></div>
+            <div id="bs-place">
+                <div class="dates-badge" id="bs-dates">–</div>
+                <h3 id="bs-title" class="bs-title">–</h3>
+                <div class="bs-meta">
+                    <strong>Unterkunft:</strong> <span id="bs-hotel">–</span><br>
+                    <strong>Anreise:</strong> <span id="bs-transport">–</span>
+                </div>
+                <button class="btn" onclick="jumpToActivities()">Aktivitäten anzeigen</button>
+            </div>
+            <div id="bs-act" hidden>
+                <img id="bs-act-img" alt="" class="bs-act-img" hidden>
+                <h3 id="bs-act-title" class="bs-act-title">–</h3>
+                <p id="bs-act-desc" class="bs-act-desc"></p>
+                <button class="btn btn-accent" onclick="openGoogleMapsRoute()">🧭 Route hierhin (Google Maps)</button>
+                <button class="btn btn-secondary" onclick="openActivityWeb()">🌐 Mehr erfahren (Browser)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PLACES -->
+    <div class="view" id="view-places">
+        <div class="places-bar"><button class="fab-suggest" id="fabSuggestRoute" onclick="openRouteWizard()" aria-label="Route vorschlagen">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 3 21l9-4.5L21 21z"/></svg>
+            <span id="fabSuggestLabel">Route vorschlagen</span>
+        </button>
+        </div>
+        <div class="scroll-content" id="placesList"></div>
+        <button class="fab" onclick="document.getElementById('modal-place').showModal()" aria-label="Station hinzufügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
+    </div>
+
+    <!-- ACTIVITIES -->
+    <div class="view" id="view-activities">
+        <div class="search-bar"><input type="search" id="actSearch" placeholder="Aktivitäten durchsuchen…" aria-label="Aktivitäten durchsuchen" oninput="setActSearch(this.value)"></div>
+        <div class="filter-bar" id="activityFilters"></div>
+        <div class="filter-bar type-filter-bar" id="typeFilters"></div>
+        <div class="scroll-content" id="activitiesList"></div>
+        <button class="fab fab-add-act" onclick="openAddActivity()" aria-label="Aktivität hinzufügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
+        <button class="fab fab-refresh" id="activitiesFab" onclick="refreshActivities()" aria-label="Aktivitäten neu laden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></button>
+    </div>
+
+    <!-- DAY PLAN -->
+    <div class="view" id="view-dayplan">
+        <div class="scroll-content" id="dayPlanList"></div>
+    </div>
+
+    <!-- CURRENCY CONVERTER -->
+    <div class="view" id="view-currency">
+        <div class="scroll-content">
+            <div class="budget-card fx-card">
+                <div class="home-card-title">Betrag umrechnen</div>
+                <div class="fx-field">
+                    <input type="text" id="fxFromAmt" inputmode="decimal" placeholder="0" aria-label="Betrag Quellwährung" oninput="fxConvert('from')">
+                    <select id="fxFromCcy" aria-label="Quellwährung" onchange="fxOnCcyChange()"></select>
+                </div>
+                <div class="fx-swap-row">
+                    <button type="button" class="fx-swap-btn" onclick="fxSwapCurrencies()" aria-label="Währungen tauschen"><i class="ph-light ph-arrows-down-up" data-fb="⇅" aria-hidden="true"></i></button>
+                </div>
+                <div class="fx-field">
+                    <input type="text" id="fxToAmt" inputmode="decimal" placeholder="0" aria-label="Betrag Zielwährung" oninput="fxConvert('to')">
+                    <select id="fxToCcy" aria-label="Zielwährung" onchange="fxOnCcyChange()"></select>
+                </div>
+                <div class="fx-meta" id="fxMeta">Kurs wird geladen…</div>
+            </div>
+            <div class="fx-chips" id="fxChips" aria-label="Schnellbeträge"></div>
+            <div class="budget-card fx-history" id="fxHistory" hidden>
+                <div class="home-card-title">Kursverlauf · 30 Tage</div>
+                <div id="fxHistoryChart"></div>
+                <div class="fx-meta" id="fxHistoryMeta"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BUDGET -->
+    <div class="view" id="view-budget">
+        <div class="scroll-content budget-scroll">
+            <div id="budgetTop"></div>
+            <div id="budgetTitleFixed" class="home-card-title">Ausgaben</div>
+            <div id="budgetEntries"></div>
+        </div>
+        <button class="fab" onclick="openBudgetModal()" aria-label="Ausgabe hinzufügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
+    </div>
+
+    <!-- PHRASES -->
+    <div class="view" id="view-phrases">
+        <div class="translate-card">
+            <textarea id="ttInput" rows="2" placeholder="Eingeben &amp; live übersetzen – z. B. ‚Wo ist der Bahnhof?‘" aria-label="Text zum Übersetzen" inputmode="text"></textarea>
+            <div class="translate-out" id="ttOut" hidden>
+                <div class="translate-chip"><span class="tt-dir" id="ttDir">DE → 🇯🇵</span><button class="phrase-speak" id="ttSpeak" aria-label="Übersetzung vorlesen"><i class="ph-light ph-speaker-high" data-fb="🔊" aria-hidden="true"></i></button></div>
+                <div class="phrase-jp" id="ttJa"></div>
+                <div class="phrase-ro" id="ttRo"></div>
+                <div class="phrase-de" id="ttDe"></div>
+            </div>
+        </div>
+        <div class="search-bar"><input type="search" id="phraseSearch" placeholder="Suchen… z. B. Danke, Bahnhof" aria-label="Phrasen durchsuchen"></div>
+        <div class="scroll-content" id="phrasesList"></div>
+    </div>
+
+    <!-- JOURNAL -->
+    <div class="view" id="view-journal">
+        <div class="scroll-content" id="journalList"></div>
+        <button class="fab" onclick="openJournalModal()" aria-label="Tagebuch-Eintrag hinzufügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
+    </div>
+
+    <!-- NOTFALL -->
+    <div class="view" id="view-emergency">
+        <div class="scroll-content" id="emergencyContent"></div>
+    </div>
+
+    <!-- DOKUMENTE (Fotos/PDFs offline, nur lokal in IndexedDB – features/documents.js) -->
+    <div class="view" id="view-documents">
+        <div class="scroll-content" id="documentsList"></div>
+        <button class="fab" id="docFab" aria-label="Dokument hinzufügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
+    </div>
+
+    <!-- LOGS (Diagnose, v. a. für Debugging ohne Browser-DevTools auf dem Handy) -->
+    <div class="view" id="view-logs">
+        <div class="btn-row">
+            <button class="btn-icon" onclick="copyLogs()">📋 Kopieren</button>
+            <button class="btn-icon" onclick="clearLogs()">🗑️ Leeren</button>
+        </div>
+        <pre id="logsOutput"></pre>
+    </div>
+
+    <!-- Drawer -->
+    <div class="drawer-overlay" onclick="toggleMenu()"></div>
+    <nav class="drawer" id="drawer" aria-label="Hauptmenü" inert>
+        <div class="menu-header">
+            <h2 class="menu-title" id="drawer-tripname">Reise</h2>
+            <button type="button" class="menu-dates" onclick="openSettings()" aria-label="Reise-Einstellungen öffnen">
+                <span id="drawer-dates">–</span> · <span id="drawer-nights">–</span>
+                <span class="menu-countdown" id="drawer-countdown">–</span>
+            </button>
+        </div>
+        <div class="menu-list">
+            <div class="menu-group-label">Reise</div>
+            <button type="button" class="menu-item active" id="menu-home" onclick="switchView('view-home','Start')"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-house" data-fb="🏠"></i></span> Start</button>
+            <button type="button" class="menu-item" id="menu-map" onclick="switchView('view-map','Reiseroute Karte')"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-map-trifold" data-fb="📍"></i></span> Karte & Route</button>
+            <button type="button" class="menu-item" id="menu-places" onclick="switchView('view-places','')"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-path" data-fb="📋"></i></span> Stationen</button>
+            <button type="button" class="menu-item" id="menu-activities" onclick="switchView('view-activities','Aktivitäten')"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-bowl-food" data-fb="🍣"></i></span> Aktivitäten & Essen</button>
+            <button type="button" class="menu-item" id="menu-dayplan" onclick="switchView('view-dayplan','Tagesplan')"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-calendar-check" data-fb="🗓️"></i></span> Tagesplan</button>
+            <div class="menu-divider"></div>
+            <div class="menu-group-label">Extras</div>
+            <button type="button" class="menu-item" id="menu-currency" onclick="switchView('view-currency','Währungsrechner')"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-currency-circle-dollar" data-fb="💱"></i></span> Währungsrechner</button>
+            <button type="button" class="menu-item" id="menu-budget" onclick="switchView('view-budget','Reisekosten')"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-wallet" data-fb="💰"></i></span> Reisekosten</button>
+            <button type="button" class="menu-item" id="menu-phrases" onclick="switchView('view-phrases', document.getElementById('menu-phrases-label').textContent)"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-translate" data-fb="🗣️"></i></span> <span id="menu-phrases-label">Sprachführer</span></button>
+            <button type="button" class="menu-item" id="menu-documents" onclick="switchView('view-documents','Dokumente')"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-identification-card" data-fb="🛂"></i></span> Dokumente</button>
+            <button type="button" class="menu-item" id="menu-journal" onclick="switchView('view-journal','Tagebuch')"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-notebook" data-fb="📝"></i></span> Tagebuch</button>
+            <button type="button" class="menu-item" id="menu-emergency" onclick="switchView('view-emergency','Notfall')"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-first-aid" data-fb="🆘"></i></span> Notfall-Infos</button>
+            <button type="button" class="menu-item" id="menu-logs" onclick="switchView('view-logs','Logs')" hidden><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-terminal-window" data-fb="🪵"></i></span> Logs</button>
+        </div>
+        <div class="menu-footer">
+            <div class="theme-switcher" id="themeSwitcher" role="group" aria-label="Design">
+                <button type="button" class="theme-btn" data-theme="light" onclick="setTheme('light')" title="Helles Design" aria-label="Helles Design" aria-pressed="false"><i class="ph-light ph-sun" data-fb="☀️" aria-hidden="true"></i></button>
+                <button type="button" class="theme-btn" data-theme="dark" onclick="setTheme('dark')" title="Dunkles Design" aria-label="Dunkles Design" aria-pressed="false"><i class="ph-light ph-moon" data-fb="🌙" aria-hidden="true"></i></button>
+                <button type="button" class="theme-btn" data-theme="auto" onclick="setTheme('auto')" title="Wie System" aria-label="Design wie System" aria-pressed="false">Auto</button>
+            </div>
+            <div class="drawer-version-row">
+                <button type="button" id="appVersion" class="link-btn version-btn" onclick="tapVersionForLogs()">–</button>
+                <button type="button" id="btnCheckUpdate" onclick="checkForUpdate()" aria-label="Auf Update prüfen">Prüfen</button>
+            </div>
+            <button type="button" id="btnNotifyUpdates" class="btn-icon btn-notify" onclick="enableUpdateNotifications()" aria-pressed="false">🔕 Bei neuer Version benachrichtigen</button>
+            <div class="btn-row">
+                <button type="button" class="btn-icon" onclick="exportTripData()"><i class="ph-light ph-download-simple" aria-hidden="true"></i> Backup</button>
+                <button type="button" class="btn-icon" onclick="document.getElementById('importFileInput').click()"><i class="ph-light ph-upload-simple" aria-hidden="true"></i> Wiederherstellen</button>
+                <input type="file" id="importFileInput" accept="application/json" hidden onchange="importTripData(this.files[0])">
+            </div>
+            <div class="btn-row">
+                <button type="button" class="btn-icon js-sync" id="btnSync" onclick="toggleSync()"><i class="ph-light ph-cloud-arrow-up" aria-hidden="true"></i> <span id="sync-label">Cloud verbinden</span></button>
+                <span id="sync-status" class="sync-status" style="font-size:0.8rem;opacity:0.7;margin-left:8px"></span>
+            </div>
+            <button type="button" class="btn-icon cal-export-btn" onclick="calendarExport.open()"><i class="ph-light ph-calendar-plus" data-fb="📅" aria-hidden="true"></i> In Kalender exportieren</button>
+            <button type="button" id="btnUndoImport" class="link-btn undo-import-btn" hidden onclick="restorePreImportBackup()">Letzten Import rückgängig machen</button>
+            Gespeichert im LocalStorage · <button type="button" class="link-btn" onclick="appReset()">Zurücksetzen</button>
+        </div>
+    </nav>
+
+    <!-- Install Banner -->
+    <div id="install-banner">
+        <div class="banner-icon">🧳</div>
+        <div class="banner-text">
+            <strong>Trip Planer installieren</strong>
+            <span>Als App auf dem Homescreen speichern</span>
+        </div>
+        <div class="banner-btns">
+            <button class="btn-install" id="btn-install">Installieren</button>
+            <button class="btn-dismiss" id="btn-dismiss">Später</button>
+        </div>
+    </div>
+
+    <!-- Modals: Kopf + scrollender Body + fixe Aktionsleiste (Submit immer sichtbar) -->
+    <dialog id="modal-settings" aria-labelledby="modal-settings-title">
+        <h3 id="modal-settings-title">Reise-Daten</h3>
+        <div class="dialog-body">
+            <div class="form-group"><label for="s-tripname">Reisename</label><input type="text" id="s-tripname" placeholder="z. B. Sommerurlaub 2026"></div>
+            <div class="form-group">
+                <label for="s-tripcountry">Reiseland</label>
+                <input type="text" id="s-tripcountry" list="s-tripcountry-list" placeholder="z. B. Italien, Japan, Thailand …">
+                <datalist id="s-tripcountry-list"></datalist>
+            </div>
+            <div class="form-group"><label for="s-startdate">Startdatum</label><input type="date" id="s-startdate"></div>
+            <!-- API-Keys (OpenTripMap/Google/Yelp/Mapbox/Geoapify) laufen bewusst unsichtbar im
+                 Hintergrund mit App-eigenen Default-Keys – niemand soll eigene Keys sehen oder
+                 eintragen müssen. Felder s-otmkey/s-googlekey/s-yelpkey/s-mapboxkey/s-geoapifykey
+                 existieren nicht mehr im DOM; saveSettings()/openSettings() greifen dort per
+                 optional chaining (?.) ins Leere, ohne etwas zu überschreiben. -->
+        </div>
+        <div class="dialog-actions">
+            <button class="btn" onclick="saveSettings()">Speichern</button>
+            <button class="btn btn-secondary" onclick="this.closest('dialog').close()">Abbrechen</button>
+        </div>
+    </dialog>
+
+    <dialog id="modal-place" aria-labelledby="modal-place-title">
+        <h3 id="modal-place-title">Neue Station</h3>
+        <div class="dialog-body">
+            <div class="form-group">
+                <label for="p-search">Ort suchen (OpenStreetMap)</label>
+                <div class="input-row"><input type="text" id="p-search" placeholder="z.B. Osaka"><button class="btn btn-inline" onclick="searchPlace()" aria-label="Ort suchen"><i class="ph-light ph-magnifying-glass" data-fb="🔍" aria-hidden="true"></i></button></div>
+                <div id="searchResults"></div>
+            </div>
+            <div class="form-group"><label for="p-name">Name</label><input type="text" id="p-name"></div>
+            <div class="form-group"><label for="p-nights">Nächte</label><input type="number" id="p-nights" value="1" min="0"></div>
+            <input type="hidden" id="p-lat"><input type="hidden" id="p-lng">
+        </div>
+        <div class="dialog-actions">
+            <button class="btn" onclick="savePlace()">Hinzufügen</button>
+            <button class="btn btn-secondary" onclick="this.closest('dialog').close()">Abbrechen</button>
+        </div>
+    </dialog>
+
+    <dialog id="modal-transport" aria-labelledby="modal-transport-title">
+        <h3 id="modal-transport-title">Transportmittel</h3>
+        <div class="dialog-body">
+            <p class="tr-route" id="tr-route"></p>
+            <div class="chip-group tr-modes" id="tr-modes" role="radiogroup" aria-label="Transportmittel wählen"></div>
+            <div class="form-group"><label for="tr-detail">Details (optional)</label><input type="text" id="tr-detail" maxlength="80" placeholder="z. B. Nozomi 10:03, Gleis 14"></div>
+        </div>
+        <div class="dialog-actions">
+            <button class="btn" onclick="saveTransport()">Speichern</button>
+            <button class="btn btn-secondary" onclick="this.closest('dialog').close()">Abbrechen</button>
+        </div>
+    </dialog>
+
+    <!-- ROUTEN-ASSISTENT: Freitext-Wünsche + Nächte, die KI plant daraus die Route. -->
+    <dialog id="modal-routewizard" aria-labelledby="modal-routewizard-title">
+        <h3 id="modal-routewizard-title">Route vorschlagen</h3>
+        <div class="dialog-body">
+            <div class="form-group">
+                <label for="rw-prompt">Deine Wünsche für die Route</label>
+                <textarea id="rw-prompt" maxlength="1000" rows="8" aria-describedby="rw-count" placeholder="Beschreibe hier deine Reise, z. B.:&#10;• ungefähre Reiseroute (Start, Ende, grobe Richtung)&#10;• was du unbedingt sehen oder erleben willst&#10;• Vorlieben: Städte oder Natur, Tempo, Unterkünfte, Essen&#10;• was du vermeiden möchtest"></textarea>
+                <div class="rw-count" id="rw-count" aria-live="off">0/1000</div>
+            </div>
+            <div class="form-group"><label for="rw-nights">Nächte insgesamt</label><input type="number" id="rw-nights" min="1" max="365" step="1" inputmode="numeric" required value="7" aria-describedby="rw-nights-err"><div class="rw-error" id="rw-nights-err" role="alert" hidden></div></div>
+            <div class="rw-hint" id="rw-hint"></div>
+            <p class="form-hint rw-privacy">🔒 Deine Wünsche und die aktuelle Route werden zur Verarbeitung an KI-Dienste (Pollinations, ggf. Puter) gesendet. Bitte keine persönlichen Daten wie Namen, Adressen oder Buchungsnummern eintragen.</p>
+        </div>
+        <div class="dialog-actions">
+            <button class="btn" id="rwSubmitBtn" onclick="submitRouteWizard()">
+                <span class="rw-spinner" id="rwSpinner" hidden></span>
+                <span id="rwSubmitLabel">Route erstellen</span>
+            </button>
+            <button class="btn btn-secondary" id="rwCancelBtn" onclick="this.closest('dialog').close()">Abbrechen</button>
+        </div>
+    </dialog>
+
+    <dialog id="modal-puter" aria-labelledby="modal-puter-title">
+        <h3 id="modal-puter-title">Zusätzliche KI-Quelle</h3>
+        <div class="dialog-body" id="puterFrameHost"></div>
+        <div class="dialog-actions">
+            <button class="btn btn-secondary" onclick="this.closest('dialog').close()">Ohne Puter fortfahren</button>
+        </div>
+    </dialog>
+
+    <dialog id="modal-activity" aria-labelledby="modal-activity-title">
+        <h3 id="modal-activity-title">Aktivität hinzufügen</h3>
+        <div class="dialog-body">
+            <p class="form-hint" id="a-noplaces" hidden>Lege zuerst unter „Stationen“ einen Ort an – Aktivitäten gehören immer zu einer Station.</p>
+            <div class="form-group"><label for="a-city">Ort</label><select id="a-city"></select></div>
+            <div class="form-group"><label for="a-type">Art</label><select id="a-type"><option>🏯 Sehenswürdigkeit</option><option>🍣 Restaurant</option><option>🏔️ Ausflug</option><option>🛍️ Shopping</option></select></div>
+            <div class="form-group"><label for="a-title">Titel</label><input type="text" id="a-title" required oninput="syncActivitySave()"></div>
+            <div class="form-group"><label for="a-desc">Beschreibung</label><textarea id="a-desc" rows="3"></textarea></div>
+            <div class="form-group"><label for="a-notes">Notizen</label><textarea id="a-notes" rows="2" placeholder="z. B. Tickets vorab buchen, Öffnungszeiten …"></textarea></div>
+            <div id="a-hours-box"></div>
+            <div class="form-group">
+                <label for="a-loc">Standort (optional)</label>
+                <div class="input-row"><input type="search" id="a-loc" placeholder="Ort oder Adresse suchen…" class="input-grow" onkeydown="if(event.key==='Enter'){event.preventDefault();searchActivityLocation()}"><button type="button" class="btn-icon" onclick="searchActivityLocation()">Suchen</button></div>
+                <div id="a-loc-results"></div>
+                <div class="form-hint" id="a-loc-status"></div>
+            </div>
+        </div>
+        <div class="dialog-actions">
+            <button class="btn" id="a-save" onclick="saveActivityManual()">Speichern</button>
+            <button class="btn btn-secondary" onclick="this.closest('dialog').close()">Abbrechen</button>
+        </div>
+    </dialog>
+
+    <dialog id="modal-budget" aria-labelledby="modal-budget-title">
+        <h3 id="modal-budget-title">Ausgabe hinzufügen</h3>
+        <div class="dialog-body">
+            <div class="form-group"><label for="b-cat">Kategorie</label><select id="b-cat"></select></div>
+            <div class="form-group"><label for="b-place">Ort</label><select id="b-place"></select></div>
+            <div class="form-group"><label for="b-desc">Beschreibung</label><input type="text" id="b-desc" placeholder="z. B. Zug Nagoya → Tokio"></div>
+            <div class="form-group"><label for="b-amount">Betrag</label><div class="input-row"><input type="text" id="b-amount" inputmode="decimal" placeholder="0,00" class="input-grow"><select id="b-cur" aria-label="Währung"></select></div></div>
+            <div id="b-split" hidden></div>
+        </div>
+        <div class="dialog-actions">
+            <button class="btn" onclick="addBudgetEntry()">Speichern</button>
+            <button class="btn btn-secondary" onclick="this.closest('dialog').close()">Abbrechen</button>
+        </div>
+    </dialog>
+
+    <dialog id="modal-journal" aria-labelledby="modal-journal-title">
+        <h3 id="modal-journal-title">Tagebuch-Eintrag</h3>
+        <div class="dialog-body">
+            <div class="form-group"><label for="j-date">Datum</label><input type="date" id="j-date"></div>
+            <div class="form-group"><label for="j-place">Ort (optional)</label><select id="j-place"></select></div>
+            <div class="form-group"><label for="j-text">Eintrag</label><textarea id="j-text" rows="4" placeholder="Was hast du erlebt?"></textarea></div>
+        </div>
+        <div class="dialog-actions">
+            <button class="btn" onclick="saveJournalEntry()">Speichern</button>
+            <button class="btn btn-secondary" onclick="this.closest('dialog').close()">Abbrechen</button>
+        </div>
+    </dialog>
+</div>
+
+<script src="vendor/leaflet/leaflet.js" defer></script>
+<script src="version.js"></script>
+<script src="app.js" defer></script>
+<script src="features/calendar.js" defer></script>
+<script src="features/taxicard.js" defer></script>
+<script src="features/share.js" defer></script>
+<script src="features/weather.js" defer></script>
+<script src="features/transit.js" defer></script>
+<script src="features/emergency.js" defer></script>
+<script src="features/splitcosts.js" defer></script>
+<script src="features/openinghours.js" defer></script>
+<script src="features/documents.js" defer></script>
+<script src="features/journalplus.js" defer></script>
+<script src="features/reminders.js" defer></script>
+<script src="sync.js" defer></script><script>
+  // Nach einem Reload prüfen, ob das angestoßene Update tatsächlich griff
+  (function checkUpdateResult() {
+    var from = localStorage.getItem('pendingUpdateFrom');
+    if (from === null) return;
+    localStorage.removeItem('pendingUpdateFrom');
+    var now = self.APP_VERSION;
+    if (now !== from) {
+      showResultToast('✅ Update erfolgreich – jetzt ' + now, 'ok');
+    } else {
+      showResultToast('⚠️ Update fehlgeschlagen – weiterhin ' + now, 'err');
+    }
+  })();
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').then(reg => {
+        console.log('SW registered:', reg.scope);
+        // Neue Version im Hintergrund gefunden -> Hinweis anzeigen, sobald bereit
+        reg.addEventListener('updatefound', () => {
+          const sw = reg.installing;
+          if (!sw) return;
+          sw.addEventListener('statechange', () => {
+            // Nur wenn schon eine alte Version lief (echtes Update, keine Erstinstallation)
+            if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+              showUpdateToast(reg);
+            }
+          });
+        });
+        if (reg.waiting && navigator.serviceWorker.controller) showUpdateToast(reg);
+      }).catch(err => console.warn('SW registration failed:', err));
+      // Reload, sobald der neue SW die Kontrolle übernimmt
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      });
+    });
+
+    // Stille Update-Prüfung: beim Zurückkehren in die App und alle 10 Minuten.
+    // Findet reg.update() eine neue Version, zeigt 'updatefound' den Update-Hinweis.
+    let lastSilentCheck = 0;
+    function silentUpdateCheck() {
+      if (Date.now() - lastSilentCheck < 60 * 1000) return;
+      lastSilentCheck = Date.now();
+      navigator.serviceWorker.getRegistration().then(reg => {
+        if (!reg) return;
+        if (reg.waiting && navigator.serviceWorker.controller) { showUpdateToast(reg); return; }
+        return reg.update();
+      }).catch(() => {});
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') silentUpdateCheck();
+    });
+    window.addEventListener('online', silentUpdateCheck);
+    setInterval(() => { if (document.visibilityState === 'visible') silentUpdateCheck(); }, 10 * 60 * 1000);
+
+    async function registerBackgroundUpdateCheck() {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (!reg) return;
+      if (reg.periodicSync) {
+        try {
+          const st = await navigator.permissions.query({ name: 'periodic-background-sync' });
+          if (st.state === 'granted') await reg.periodicSync.register('check-update', { minInterval: 6 * 60 * 60 * 1000 });
+        } catch (e) { console.warn('periodicSync:', e); }
+      }
+      if (reg.sync) reg.sync.register('check-online').catch(() => {});
+    }
+
+    window.enableUpdateNotifications = async function () {
+      if (!('Notification' in window)) {
+        showResultToast('Benachrichtigungen werden hier nicht unterstützt', 'err');
+        return;
+      }
+      let perm = Notification.permission;
+      if (perm === 'default') perm = await Notification.requestPermission();
+      updateNotifyButton();
+      if (perm === 'granted') {
+        await registerBackgroundUpdateCheck();
+        showResultToast('🔔 Du wirst über neue Versionen benachrichtigt', 'ok');
+      } else {
+        showResultToast('Benachrichtigungen blockiert – in den Browser-Einstellungen erlauben', 'err');
+      }
+    };
+
+    function updateNotifyButton() {
+      const b = document.getElementById('btnNotifyUpdates');
+      if (!b) return;
+      const on = 'Notification' in window && Notification.permission === 'granted';
+      b.textContent = on ? '🔔 Update-Benachrichtigungen aktiv' : '🔕 Bei neuer Version benachrichtigen';
+      b.setAttribute('aria-pressed', String(on));
+    }
+    window.addEventListener('load', () => {
+      updateNotifyButton();
+      if ('Notification' in window && Notification.permission === 'granted') registerBackgroundUpdateCheck();
+    });
+  }
+
+  function showUpdateToast(reg) {
+    if (document.getElementById('updateToast')) return;
+    const t = document.createElement('div');
+    t.id = 'updateToast';
+    t.textContent = '🔄 Update verfügbar – tippen zum Aktualisieren';
+    t.className = 'sys-toast sys-toast--update';
+    t.addEventListener('click', () => {
+      // Aktuelle (alte) Version merken, um nach dem Reload den Erfolg zu prüfen
+      localStorage.setItem('pendingUpdateFrom', self.APP_VERSION);
+      // Wartenden SW aktivieren -> controllerchange -> reload
+      if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      t.remove();
+    });
+    document.body.appendChild(t);
+  }
+
+  function waitInstalled(sw) {
+    if (!sw) return Promise.resolve(null);
+    if (sw.state === 'installed') return Promise.resolve(sw);
+    return new Promise(function (resolve) {
+      sw.addEventListener('statechange', function on() {
+        if (sw.state === 'installed' || sw.state === 'redundant') {
+          sw.removeEventListener('statechange', on);
+          resolve(sw.state === 'installed' ? sw : null);
+        }
+      });
+    });
+  }
+
+  async function checkForUpdate() {
+    var btn = document.getElementById('btnCheckUpdate');
+    if (btn && btn.disabled) return;
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    try {
+      if (!('serviceWorker' in navigator)) {
+        showResultToast('Updates nicht verfügbar', 'err');
+        return;
+      }
+      var reg = await navigator.serviceWorker.getRegistration();
+      if (!reg) {
+        showResultToast('Kein Service Worker', 'err');
+        return;
+      }
+      if (reg.waiting) { showUpdateToast(reg); return; }
+      if (reg.installing) {
+        var sw = await waitInstalled(reg.installing);
+        if (sw && navigator.serviceWorker.controller) { showUpdateToast(reg); return; }
+      }
+      await reg.update();
+      if (reg.waiting) { showUpdateToast(reg); return; }
+      if (reg.installing) {
+        var sw2 = await waitInstalled(reg.installing);
+        if (sw2 && navigator.serviceWorker.controller) { showUpdateToast(reg); return; }
+      }
+      showResultToast('Du bist bereits auf der aktuellsten Version (' + self.APP_VERSION + ')', 'ok');
+    } catch (e) {
+      showResultToast('Update-Prüfung fehlgeschlagen', 'err');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Prüfen'; }
+    }
+  }
+
+  // variant: 'ok' (Erfolg) | 'err' (Fehler)
+  function showResultToast(msg, variant) {
+    const t = document.createElement('div');
+    t.textContent = msg;
+    t.className = 'sys-toast sys-toast--' + (variant === 'ok' ? 'ok' : 'err');
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+/* ── Taxi-Karte („Zeig dem Taxifahrer“) – features/taxicard.js ── */
+#modal-taxi, body #modal-taxi { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; inset: 0;
+    border-radius: 0; padding: max(14px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+    overflow-y: auto; overflow-x: hidden; box-shadow: none; background: var(--bg-elevated); color: var(--label); }
+#modal-taxi[open] { display: flex; flex-direction: column; gap: 14px; max-height: 100dvh; overflow-y: auto; animation: none; }
+#modal-taxi .taxi-top { display: flex; justify-content: flex-end; }
+#modal-taxi .taxi-close { width: 48px; height: 48px; border: 0; border-radius: 999px; background: var(--bg-secondary); color: var(--label);
+    font-size: 22px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: inset 0 0 0 1px var(--shell-ring); }
+#modal-taxi .taxi-card { flex: 1 0 auto; display: flex; flex-direction: column; justify-content: center; gap: 10px; text-align: center; min-width: 0; }
+#modal-taxi .taxi-phrase-local { font-size: 26px; font-weight: 700; line-height: 1.3; margin: 0; overflow-wrap: anywhere; }
+#modal-taxi .taxi-phrase-de { font-size: 14px; color: var(--muted); margin: 0 0 12px; }
+#modal-taxi .taxi-dest { font-size: clamp(34px, 11vw, 64px); font-weight: 800; line-height: 1.2; letter-spacing: 0; overflow-wrap: anywhere;
+    word-break: break-word; padding: 18px 8px; border-radius: 24px; background: var(--bg-secondary); box-shadow: inset 0 0 0 2px var(--border); }
+#modal-taxi .taxi-dest.is-orig { font-size: clamp(26px, 8vw, 44px); }
+#modal-taxi .taxi-orig { font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+#modal-taxi .taxi-status { font-size: 12.5px; color: var(--label-tertiary); min-height: 1.2em; }
+#modal-taxi .taxi-tools { display: flex; flex-direction: column; gap: 10px; }
+#modal-taxi .taxi-hint { font-size: 12.5px; color: var(--muted); margin: 0; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; justify-content: center; text-align: center; }
+#modal-taxi .taxi-maps { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+#modal-taxi .taxi-maps::after { display: none; }
+#modal-taxi .taxi-edit { background: var(--bg-secondary); border-radius: 18px; padding: 10px 14px; box-shadow: inset 0 0 0 1px var(--shell-ring); }
+#modal-taxi .taxi-edit summary { cursor: pointer; font-size: 13.5px; font-weight: 600; min-height: 32px; display: flex; align-items: center; }
+#modal-taxi .taxi-edit .form-group { margin-top: 8px; }
+#modal-taxi .taxi-edit textarea { width: 100%; box-sizing: border-box; font-size: 16px; background: var(--bg-elevated); }
+#modal-taxi .taxi-edit-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+#modal-taxi .taxi-edit-btns .btn-icon { flex: 1 1 auto; justify-content: center; min-height: 44px; background: var(--bg-elevated); }
+
+/* Einstiegs-Buttons */
+.place-card .taxi-open { margin-top: 8px; min-height: 36px; padding: 7px 12px; }
+.act-btns .btn-taxi-act { flex: 0 0 48px; font-size: 0; gap: 0; } /* nur Icon – fünf Buttons passen sonst nicht in 390px */
+.act-btns .btn-taxi-act i { font-size: 18px; }
+.home-next .taxi-home { align-self: stretch; justify-content: flex-start; margin-top: 10px; min-height: 48px; max-width: 100%; overflow: hidden;
+    background: var(--primary-fill); color: var(--on-primary); font-size: 14px; border-radius: 999px; padding: 10px 18px; }
+.home-next .taxi-home .taxi-home-sub { font-weight: 500; opacity: .85; overflow: hidden; text-overflow: ellipsis; min-width: 0; }

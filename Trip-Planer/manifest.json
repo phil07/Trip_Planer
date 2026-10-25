@@ -1,0 +1,84 @@
+{
+  "name": "Trip Planer",
+  "short_name": "Trip Planer",
+  "description": "Interaktive Reise-App für beliebige Reiseziele – Routen, Aktivitäten, Karte",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#D70015",
+  "lang": "de",
+  "icons": [
+    {
+      "src": "icons/icon-192-v2.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512-v2.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-192-maskable-v2.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-512-maskable-v2.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["travel", "navigation"],
+  "shortcuts": [
+    {
+      "name": "Start",
+      "short_name": "Start",
+      "description": "Zur Startseite",
+      "url": "./?view=home"
+    },
+    {
+      "name": "Karte & Route",
+      "short_name": "Karte",
+      "description": "Zur Karte mit Reiseroute",
+      "url": "./?view=map"
+    },
+    {
+      "name": "Aktivitäten & Essen",
+      "short_name": "Aktivitäten",
+      "description": "Aktivitäten und Restaurants",
+      "url": "./?view=activities"
+    },
+    {
+      "name": "Sprachführer",
+      "short_name": "Sprache",
+      "description": "Sprachführer fürs Reiseland",
+      "url": "./?view=phrases"
+    }
+  ],
+  "protocol_handlers": [
+    {
+      "url": "tripplanner://open",
+      "description": "Öffne die Trip Planer-App"
+    }
+  ],
+  "periodic_sync": {
+    "min_interval": 43200,
+    "max_interval": 43200
+  },
+  "handle_links": {
+    "android_app_link_targets": [
+      {
+        "url": "https://japan.iphilipp07-869.workers.dev/*",
+        "rel": [
+          "launch_handler"
+        ]
+      }
+    ]
+  }
+}

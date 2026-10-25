@@ -1,0 +1,11 @@
+// Eigenes Mini-Projekt für die Puter-KI-Brücke. Läuft bewusst auf einer
+// ANDEREN Adresse als die App (japan-ki.… statt japan.…): der Browser trennt
+// dadurch Speicher und Skripte vollständig – Puters fremdes SDK kommt nicht an
+// Reise-, Tagebuch- oder Budget-Daten der App heran.
+{
+  "name": "japan-ki",
+  "compatibility_date": "2026-09-18",
+  "assets": {
+    "directory": "./public"
+  }
+}

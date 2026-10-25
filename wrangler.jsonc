@@ -1,0 +1,8 @@
+{
+  "name": "japan",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-09-18",
+  "assets": { "directory": "./Trip-Planer", "binding": "ASSETS" },
+  // Speicher für verschlüsselte Kurzlinks („Reise teilen“). Ohne "id" legt Wrangler den Namespace beim Deploy selbst an.
+  "kv_namespaces": [{ "binding": "SHARES" }]
+}

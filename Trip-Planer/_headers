@@ -1,0 +1,10 @@
+# Sicherheits-Header für alle Antworten (Cloudflare Workers Static Assets liest diese Datei).
+# Die CSP ist bewusst nur eine Grund-Härtung: Skripte/Styles bleiben erlaubt, weil die App
+# Inline-Handler (onclick) nutzt. Sie verbietet aber Plugins, fremde <base>-Umleitungen,
+# Formular-Ziele außerhalb der App und das Einbetten der App in fremde Seiten.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), payment=(), usb=(), geolocation=(self)
+  Content-Security-Policy: object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests

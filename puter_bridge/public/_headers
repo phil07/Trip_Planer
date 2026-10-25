@@ -1,0 +1,5 @@
+/*
+  Content-Security-Policy: frame-ancestors https://japan.iphilipp07-869.workers.dev; object-src 'none'; base-uri 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: geolocation=(), camera=(), microphone=()

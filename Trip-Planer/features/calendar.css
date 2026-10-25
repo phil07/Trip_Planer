@@ -1,0 +1,12 @@
+/* ─── Kalender-Export (.ics) ─────────────────────────────────────────── */
+.btn-icon.cal-export-btn { width: 100%; justify-content: center; margin-bottom: var(--sp-2); }
+.cal-dayplan-bar { margin: 0 0 var(--sp-4); }
+.cal-dayplan-bar .cal-export-btn { margin-bottom: 0; }
+#modal-calendar .cal-hint { color: var(--muted); font-size: 14px; margin: 0 0 12px; }
+.cal-options { display: flex; flex-direction: column; gap: 8px; }
+.cal-option { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: 16px;
+    background: var(--bg-secondary); border: 1px solid var(--border); cursor: pointer; }
+.cal-option:has(input:checked) { border-color: var(--primary-fill); }
+.cal-option input { margin-top: 3px; accent-color: var(--primary-fill); flex-shrink: 0; }
+.cal-option span { display: flex; flex-direction: column; gap: 2px; min-width: 0; color: var(--label); }
+.cal-option small { color: var(--muted); font-size: 13px; }

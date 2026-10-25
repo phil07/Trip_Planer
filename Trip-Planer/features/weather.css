@@ -1,0 +1,32 @@
+/* ─── Wetter pro Station (features/weather.js) ─── */
+.home-weather { grid-column: 1 / -1; grid-row: 6; min-width: 0; padding: clamp(12px, 2dvh, 18px) 18px;
+    background: var(--bg-elevated); border-radius: 26px;
+    box-shadow: var(--hl), 0 0 0 6px var(--shell), 0 0 0 7px var(--shell-ring), var(--amb); }
+.home-weather[hidden] { display: none; }
+.wx-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; min-width: 0; }
+.wx-title { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font-size: 14px; font-weight: 700; color: var(--label); }
+.wx-title > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wx-title i { font-size: 18px; color: var(--muted); flex-shrink: 0; }
+.wx-meta { font-size: 11px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+.wx-days { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 6px; }
+.wx-day { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; padding: 8px 2px;
+    border-radius: 16px; background: var(--bg-secondary); text-align: center; }
+.wx-day-rain { box-shadow: inset 0 0 0 1.5px var(--accent-soft); }
+.wx-day-lbl { font-size: 11px; font-weight: 700; color: var(--muted); }
+.wx-ico { font-size: 22px; line-height: 1; color: var(--label); }
+.wx-temp { font-size: 12.5px; color: var(--label); white-space: nowrap; }
+.wx-temp span { color: var(--muted); }
+.wx-pop { display: inline-flex; align-items: center; gap: 2px; font-size: 11px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.wx-pop i { font-size: 12px; }
+.wx-day-rain .wx-pop { color: var(--primary-text); }
+.wx-note { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.wx-rain-hint { display: flex; align-items: center; gap: 6px; margin-top: 10px; padding: 8px 12px; border-radius: 14px;
+    background: var(--accent-soft); color: var(--primary-text); font-size: 12.5px; font-weight: 600; }
+.wx-rain-hint i { font-size: 16px; flex-shrink: 0; }
+/* Tagesplan-Karte */
+.wx-dayplan { margin: -2px 0 12px; }
+.wx-line { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 14px; background: var(--bg-secondary); min-width: 0; }
+.wx-line .wx-ico { font-size: 20px; }
+.wx-line-txt { flex: 1; min-width: 0; font-size: 13px; color: var(--label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wx-dayplan .wx-rain-hint { margin-top: 6px; }
+@media (max-height: 740px) { .home-weather .wx-pop i { display: none; } }

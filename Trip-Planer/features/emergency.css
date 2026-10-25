@@ -1,0 +1,77 @@
+/* ─── Notfall-Infos (features/emergency.js) ─── */
+:root { --em-red: #C40013; --em-on-red: #FFFFFF; }
+:root[data-theme="dark"] { --em-red: #FF4D5E; --em-on-red: #1A0003; }
+
+/* SOS-Schnellzugriff rechts in der Kopfzeile */
+.header-btn.sos-btn { font-size: 12px; font-weight: 800; letter-spacing: .06em; background: var(--em-red); color: var(--em-on-red); }
+.header-btn.sos-btn:hover { background: var(--em-red); filter: brightness(1.08); }
+
+.em-intro { display: flex; gap: 12px; align-items: flex-start; padding: 4px 4px 14px; font-size: var(--fs-footnote); color: var(--muted); line-height: 1.45; }
+.em-intro strong { color: var(--label); font-size: var(--fs-callout); }
+.em-intro-ico { flex-shrink: 0; width: 40px; height: 40px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+    background: var(--accent-soft); color: var(--primary-text); font-size: 22px; }
+
+.em-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.em-call { display: flex; flex-direction: column; gap: 4px; padding: 16px 14px; border-radius: 22px; text-decoration: none;
+    background: var(--em-red); color: var(--em-on-red); box-shadow: var(--amb-accent); min-width: 0; }
+.em-call:active { transform: scale(.97); }
+.em-call-num { font-size: 40px; font-weight: 800; letter-spacing: -.02em; line-height: 1; }
+.em-call-title { font-size: 13px; font-weight: 650; line-height: 1.3; overflow-wrap: anywhere; }
+
+.em-card { background: var(--bg-elevated); border-radius: 26px; padding: 14px 16px; margin: 0 0 20px;
+    box-shadow: var(--hl), 0 0 0 6px var(--shell), 0 0 0 7px var(--shell-ring), var(--amb); }
+.em-card > .home-card-title { margin-bottom: 8px; }
+.em-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.em-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; min-height: 52px; text-decoration: none; color: var(--label);
+    border-top: 1px solid var(--border); }
+.em-row:first-of-type { border-top: 0; }
+.em-row-ico { flex-shrink: 0; width: 36px; height: 36px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+    background: var(--bg-secondary); color: var(--muted); font-size: 18px; }
+.em-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.em-row-title { font-size: var(--fs-subhead); font-weight: 650; }
+.em-row-sub { font-size: 12px; color: var(--muted); }
+.em-row-num { flex-shrink: 0; font-size: 13.5px; font-weight: 700; color: var(--primary-text); white-space: nowrap; }
+.em-note, .em-hint { font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+.em-note { padding-top: 8px; border-top: 1px solid var(--border); }
+.em-hint { margin: 0 0 8px; }
+.em-note a, .em-dl a { color: var(--primary-text); font-weight: 650; }
+
+.em-phrase { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; padding: 10px 12px;
+    margin: 0 0 8px; border: 0; border-radius: 16px; background: var(--bg-secondary); color: var(--label); font-family: inherit; cursor: pointer; }
+.em-phrase:active { background: var(--bg-secondary-press); }
+.em-phrase-jp { font-size: 17px; font-weight: 650; }
+.em-phrase-de { font-size: 13px; color: var(--muted); }
+
+.em-edit-btn { border: 0; border-radius: 999px; padding: 0 14px; min-height: 36px; background: var(--bg-secondary); color: var(--label);
+    font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.em-dl { margin: 0; }
+.em-dl-row { padding: 7px 0; border-top: 1px solid var(--border); }
+.em-dl-row:first-child { border-top: 0; }
+.em-dl dt { font-size: 12px; color: var(--muted); font-weight: 600; }
+.em-dl dd { margin: 1px 0 0; font-size: var(--fs-callout); white-space: pre-wrap; overflow-wrap: anywhere; }
+.em-empty { font-size: var(--fs-footnote); color: var(--muted); line-height: 1.5; }
+.em-foot { font-size: 12px; color: var(--label-tertiary); text-align: center; padding: 0 8px; }
+
+/* Großanzeige: nahezu Vollbild, damit man das Display zeigen kann */
+dialog.em-big { width: calc(100% - 24px); max-width: 560px; padding: 20px; }
+dialog.em-big[open] { max-height: calc(var(--vh, 1vh) * 94); }
+.em-big-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px 2px; }
+.em-big-jp { font-size: clamp(30px, 9vw, 48px); font-weight: 800; line-height: 1.3; color: var(--label); overflow-wrap: anywhere; }
+.em-big-ro { margin-top: 14px; font-size: 17px; color: var(--muted); font-style: italic; }
+.em-big-de { margin-top: 6px; font-size: 19px; font-weight: 650; color: var(--label); }
+.em-big-actions { flex-shrink: 0; display: flex; gap: 8px; }
+.em-big-actions .btn { margin-top: 12px; }
+.em-allergens { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+.em-allergen { border: 0; border-radius: 999px; font: inherit; font-size: 13px; color: var(--label); cursor: pointer; }
+.em-allergen span { color: var(--muted); font-size: 11.5px; }
+.em-allergen.active { background: var(--em-red); color: var(--em-on-red); }
+.em-allergen.active span { color: inherit; }
+.em-id-head { font-size: 28px; font-weight: 800; }
+.em-id-sub { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+.em-id-row { padding: 8px 0; border-top: 1px solid var(--border); }
+.em-id-label { font-size: 13px; color: var(--muted); font-weight: 600; }
+.em-id-val { font-size: 21px; font-weight: 700; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* ruhiger: Haarlinie statt doppeltem Außenring, Rot bleibt nur für die Notrufnummern */
+.em-card { box-shadow: 0 0 0 1px var(--shell-ring), 0 10px 24px -16px rgba(30,41,59,.18); margin-bottom: 16px; }
+.em-call { box-shadow: 0 10px 22px -12px rgba(215,0,21,.5); }

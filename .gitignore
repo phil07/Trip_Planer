@@ -1,0 +1,18 @@
+# GitNexus index & caches (regenerate on demand)
+.gitnexus/
+
+# Local Claude settings (per-user, contains permissions)
+.claude/settings.local.json
+.claude/worktrees/
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
+Trip-Planer/graft/
+
+# Abhängigkeiten der Browser-Tests
+node_modules/
+.pw-browsers/
