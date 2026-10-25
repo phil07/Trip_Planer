@@ -13,7 +13,7 @@
 (function () {
 'use strict';
 
-const TP_SYNC_CLIENT_ID = '436496117220-8cd29e34c3pqstaiuas3lv1brv14osrd.apps.googleusercontent.com';
+const TP_SYNC_CLIENT_ID = '892793329409-u0v9ku7011acd7vss7imbumcrbgjmlhr.apps.googleusercontent.com';
 
 // Konfiguration
 const SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
