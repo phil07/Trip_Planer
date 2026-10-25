@@ -762,6 +762,9 @@ body .menu-icon {
 body .menu-item.active .menu-icon { color: var(--primary-text); }
 .menu-footer { border-top: 1px solid var(--border); color: var(--muted); padding: 18px 28px calc(18px + env(safe-area-inset-bottom)); }
 .menu-footer .btn-icon { min-height: 44px; }
+.menu-footer .btn-row { flex-wrap: wrap; }
+.menu-footer .btn-row > .btn-icon { flex: 1 1 auto; min-width: 0; }
+.menu-footer .sync-status { flex-basis: 100%; margin-left: 0 !important; text-align: center; }
 .theme-switcher { background: var(--bg-secondary); border-radius: 999px; padding: 4px; gap: 2px; box-shadow: inset 0 0 0 1px var(--shell-ring); }
 body .theme-btn { min-width: 52px; height: 36px; border: 0; border-radius: 999px; background: transparent; box-shadow: none; color: var(--muted);
     display: inline-flex; align-items: center; justify-content: center; font-size: 12px; transition: background .4s var(--ease-out), color .4s; }
