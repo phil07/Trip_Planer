@@ -135,7 +135,10 @@ async function drive(url, opts = {}) {
 async function findFileId() {
   const q = encodeURIComponent(`name='${FILE_NAME}' and trashed=false`);
   const r = await drive(`${API}?q=${q}&spaces=appDataFolder&fields=files(id,name)`);
-  if (!r.ok) throw new Error('Drive abfrage fehlgeschlagen');
+  if (!r.ok) {
+    const detail = await r.json().then(j => j?.error?.message).catch(() => '');
+    throw new Error('Drive abfrage fehlgeschlagen (' + r.status + ')' + (detail ? ': ' + detail : ''));
+  }
   const j = await r.json();
   return j.files && j.files[0] ? j.files[0].id : null;
 }
