@@ -5,7 +5,7 @@
 // Nutzt Helfer aus app.js: esc(), showToast(), showUndoToast(), haptic().
 (function () {
     'use strict';
-    const DB_NAME = 'jp26_documents', DB_VERSION = 1, STORE = 'docs';
+    const DB_NAME = tripDbName('jp26_documents'), DB_VERSION = 1, STORE = 'docs';
     const MAX_FILE = 15 * 1024 * 1024;      // PDFs (und fertig verkleinerte Bilder) max. 15 MB
     const MAX_IMG_IN = 50 * 1024 * 1024;    // Bild-Rohdatei vor dem Verkleinern
     const MAX_DIM = 2000, THUMB_DIM = 320, JPEG_Q = 0.85, THUMB_Q = 0.7;

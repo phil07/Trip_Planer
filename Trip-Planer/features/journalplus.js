@@ -8,7 +8,7 @@
 // Nutzt Helfer aus app.js: esc, showToast, haptic, fmtDateLong, todayISO, journal, places, …
 (function () {
     'use strict';
-    const DB_NAME = 'jp26_journal_photos', STORE = 'photos';
+    const DB_NAME = tripDbName('jp26_journal_photos'), STORE = 'photos';
     const MAX_EDGE = 1600, THUMB_EDGE = 360, QUALITY = 0.8, MAX_PHOTOS = 20;
     const LAYER_KEY = 'tp_journal_layer'; // Geräte-Einstellung (kein Reisedatum → nicht im Backup)
     const ID_RE = /^p[a-z0-9]{6,40}$/;

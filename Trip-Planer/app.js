@@ -2612,7 +2612,11 @@ function saveData() { const ok = persist(); calculateDates(); renderPlaces(); re
 
 function appReset() {
     if (!confirm('App zurücksetzen?')) return;
+    // Die Reiseliste und die gespeicherten Stände anderer Reisen bleiben erhalten.
+    const keep = {};
+    Object.keys(localStorage).forEach(k => { if (k === 'tp_trips' || k === 'tp_active_trip' || k.startsWith('tp_trip_data:')) keep[k] = localStorage.getItem(k); });
     localStorage.clear();
+    Object.keys(keep).forEach(k => localStorage.setItem(k, keep[k]));
     if (otmKey) localStorage.setItem('tp_otm_key', otmKey); // API-Key ist kein Reisedaten-Feld
     if (googleKey) localStorage.setItem('tp_google_key', googleKey);
     if (yelpKey) localStorage.setItem('tp_yelp_key', yelpKey);
@@ -4698,3 +4702,144 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isFirstRun) setTimeout(() => { showToast('👋 Willkommen! Leg zuerst deine Reise an.'); openSettings(); }, 400);
     setTimeout(runCrawler, 300);
 });
+
+// ─── MEHRERE REISEN (lokal) ─────────────────────────────────────────────────
+// Die aktive Reise liegt live unter den Reisedaten-Schlüsseln (EXPORT_KEYS).
+// Jede andere Reise ist ein Snapshot unter 'tp_trip_data:<id>'. Wechseln heißt:
+// aktuellen Stand sichern, Snapshot der Ziel-Reise einspielen, neu laden.
+// Die erste Reise hat die ID 'main' und nutzt die bisherigen IndexedDB-Namen,
+// damit vorhandene Fotos und Dokumente erhalten bleiben.
+const TRIP_EXTRA_KEYS = ['tp_daily_budget', 'tp_crawled'];
+const TRIP_DATA_KEYS = EXPORT_KEYS.concat(TRIP_EXTRA_KEYS);
+const TRIP_LIST_KEY = 'tp_trips', TRIP_ACTIVE_KEY = 'tp_active_trip', TRIP_SNAP_PREFIX = 'tp_trip_data:';
+
+function tripsLoad() { try { return JSON.parse(localStorage.getItem(TRIP_LIST_KEY) || 'null') || []; } catch (e) { return []; } }
+function tripsSave(list) { localStorage.setItem(TRIP_LIST_KEY, JSON.stringify(list)); }
+function tripActiveId() { return localStorage.getItem(TRIP_ACTIVE_KEY) || 'main'; }
+function tripDbName(base) { const id = tripActiveId(); return id === 'main' ? base : base + '_' + id; }
+
+function tripSnapshotSave(id) {
+    const data = {};
+    TRIP_DATA_KEYS.forEach(k => { const v = localStorage.getItem(k); if (v !== null) data[k] = v; });
+    localStorage.setItem(TRIP_SNAP_PREFIX + id, JSON.stringify(data));
+}
+function tripLiveClear() { TRIP_DATA_KEYS.forEach(k => localStorage.removeItem(k)); }
+function tripSnapshotLoad(id) {
+    tripLiveClear();
+    let data = {};
+    try { data = JSON.parse(localStorage.getItem(TRIP_SNAP_PREFIX + id) || '{}') || {}; } catch (e) {}
+    Object.keys(data).forEach(k => { if (TRIP_DATA_KEYS.includes(k)) localStorage.setItem(k, data[k]); });
+}
+
+// Einmalig: bestehende Daten werden die Reise 'main'.
+function tripsMigrate() {
+    if (tripsLoad().length) return;
+    const name = localStorage.getItem('tp_tripname') || 'Meine Reise';
+    tripsSave([{ id: 'main', name, created: new Date().toISOString() }]);
+    localStorage.setItem(TRIP_ACTIVE_KEY, 'main');
+}
+tripsMigrate();
+
+function tripSwitch(id) {
+    if (id === tripActiveId()) return;
+    tripSnapshotSave(tripActiveId());
+    tripSnapshotLoad(id);
+    localStorage.setItem(TRIP_ACTIVE_KEY, id);
+    location.reload();
+}
+
+function tripCreate(name) {
+    const trimmed = (name || '').trim();
+    if (!trimmed) { showToast('Bitte einen Namen eingeben'); return; }
+    tripSnapshotSave(tripActiveId());
+    const id = 't' + Date.now().toString(36);
+    tripsSave(tripsLoad().concat([{ id, name: trimmed, created: new Date().toISOString() }]));
+    tripLiveClear();
+    localStorage.setItem('tp_tripname', trimmed);
+    localStorage.setItem(TRIP_ACTIVE_KEY, id);
+    location.reload();
+}
+
+function tripDelete(id) {
+    const list = tripsLoad();
+    const target = list.find(t => t.id === id);
+    if (!target) return;
+    if (list.length <= 1) { showToast('Die letzte Reise kann nicht gelöscht werden'); return; }
+    if (!confirm('Reise „' + target.name + '“ endgültig löschen? Ihre Fotos und Dokumente gehen verloren.')) return;
+    const rest = list.filter(t => t.id !== id);
+    localStorage.removeItem(TRIP_SNAP_PREFIX + id);
+    tripsSave(rest);
+    ['jp26_documents', 'jp26_journal_photos'].forEach(base => {
+        try { indexedDB.deleteDatabase(id === 'main' ? base : base + '_' + id); } catch (e) {}
+    });
+    if (id !== tripActiveId()) { tripsOpenRender(); return; }
+    tripSnapshotLoad(rest[0].id);
+    localStorage.setItem(TRIP_ACTIVE_KEY, rest[0].id);
+    location.reload();
+}
+
+function tripsOpen() {
+    let ov = document.getElementById('tripsOverlay');
+    if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'tripsOverlay';
+        ov.className = 'trips-overlay';
+        ov.addEventListener('click', e => { if (e.target === ov) tripsClose(); });
+        document.body.appendChild(ov);
+    }
+    ov.style.display = 'flex';
+    tripsOpenRender();
+}
+function tripsClose() {
+    const ov = document.getElementById('tripsOverlay');
+    if (ov) ov.style.display = 'none';
+}
+function tripsOpenRender() {
+    const ov = document.getElementById('tripsOverlay');
+    if (!ov) return;
+    const active = tripActiveId();
+    const box = document.createElement('div');
+    box.className = 'trips-box';
+    const h = document.createElement('h3');
+    h.textContent = 'Meine Reisen';
+    box.appendChild(h);
+    // Der Name der aktiven Reise kann in den Einstellungen geändert worden sein.
+    const list = tripsLoad();
+    const current = list.find(t => t.id === active);
+    const liveName = (localStorage.getItem('tp_tripname') || '').trim();
+    if (current && liveName && current.name !== liveName) { current.name = liveName; tripsSave(list); }
+    list.forEach(t => {
+        const isActive = t.id === active;
+        const row = document.createElement('div');
+        row.className = 'trips-row' + (isActive ? ' active' : '');
+        const name = document.createElement('span');
+        name.className = 'trips-name';
+        name.textContent = t.name + (isActive ? ' (aktiv)' : '');
+        row.appendChild(name);
+        if (!isActive) {
+            const go = document.createElement('button');
+            go.type = 'button'; go.className = 'btn-icon'; go.textContent = 'Öffnen';
+            go.addEventListener('click', () => tripSwitch(t.id));
+            row.appendChild(go);
+        }
+        const del = document.createElement('button');
+        del.type = 'button'; del.className = 'btn-icon'; del.textContent = 'Löschen';
+        del.addEventListener('click', () => tripDelete(t.id));
+        row.appendChild(del);
+        box.appendChild(row);
+    });
+    const form = document.createElement('div');
+    form.className = 'trips-new';
+    const input = document.createElement('input');
+    input.type = 'text'; input.maxLength = 60; input.placeholder = 'Name der neuen Reise';
+    const add = document.createElement('button');
+    add.type = 'button'; add.className = 'btn-icon'; add.textContent = 'Neue Reise';
+    add.addEventListener('click', () => tripCreate(input.value));
+    form.append(input, add);
+    box.appendChild(form);
+    const close = document.createElement('button');
+    close.type = 'button'; close.className = 'link-btn'; close.textContent = 'Schließen';
+    close.addEventListener('click', tripsClose);
+    box.appendChild(close);
+    ov.replaceChildren(box);
+}

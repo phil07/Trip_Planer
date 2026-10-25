@@ -185,6 +185,10 @@ async function downloadFile(fileId) {
 // Sync durchführen
 async function syncNow({ interactive = false } = {}) {
   if (!TP_SYNC_CLIENT_ID) throw new Error('Client-ID nicht gesetzt');
+  // Bis zur Sync-Stufe 2 hat jede Reise noch keine eigene Datei. Ohne Sperre würde
+  // die Hauptreise mit dem Stand einer anderen überschrieben.
+  const activeTrip = localStorage.getItem('tp_active_trip');
+  if (activeTrip && activeTrip !== 'main') throw new Error('Online-Sync gibt es für diese Reise noch nicht');
 
   const meta = getMeta();
   let fileId = meta.fileId;
