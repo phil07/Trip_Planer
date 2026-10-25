@@ -4745,24 +4745,36 @@ function tripsMigrate() {
 }
 tripsMigrate();
 
+// Vor dem Reisewechsel die aktuelle Reise in Drive sichern (falls Sync aktiv ist).
+// Fehler (z. B. Konflikt) stoppen den Wechsel nicht; der lokale Stand bleibt im Snapshot.
+function tripFlushSync(next) {
+    const s = window.TripPlannerSync;
+    if (!s || !s.isEnabled()) return next();
+    s.syncNow().catch(() => {}).then(next);
+}
+
 function tripSwitch(id) {
     if (id === tripActiveId()) return;
-    tripSnapshotSave(tripActiveId());
-    tripSnapshotLoad(id);
-    localStorage.setItem(TRIP_ACTIVE_KEY, id);
-    location.reload();
+    tripFlushSync(() => {
+        tripSnapshotSave(tripActiveId());
+        tripSnapshotLoad(id);
+        localStorage.setItem(TRIP_ACTIVE_KEY, id);
+        location.reload();
+    });
 }
 
 function tripCreate(name) {
     const trimmed = (name || '').trim();
     if (!trimmed) { showToast('Bitte einen Namen eingeben'); return; }
-    tripSnapshotSave(tripActiveId());
-    const id = 't' + Date.now().toString(36);
-    tripsSave(tripsLoad().concat([{ id, name: trimmed, created: new Date().toISOString() }]));
-    tripLiveClear();
-    localStorage.setItem('tp_tripname', trimmed);
-    localStorage.setItem(TRIP_ACTIVE_KEY, id);
-    location.reload();
+    tripFlushSync(() => {
+        tripSnapshotSave(tripActiveId());
+        const id = 't' + Date.now().toString(36);
+        tripsSave(tripsLoad().concat([{ id, name: trimmed, created: new Date().toISOString() }]));
+        tripLiveClear();
+        localStorage.setItem('tp_tripname', trimmed);
+        localStorage.setItem(TRIP_ACTIVE_KEY, id);
+        location.reload();
+    });
 }
 
 function tripDelete(id) {
@@ -4770,17 +4782,23 @@ function tripDelete(id) {
     const target = list.find(t => t.id === id);
     if (!target) return;
     if (list.length <= 1) { showToast('Die letzte Reise kann nicht gelöscht werden'); return; }
-    if (!confirm('Reise „' + target.name + '“ endgültig löschen? Ihre Fotos und Dokumente gehen verloren.')) return;
-    const rest = list.filter(t => t.id !== id);
-    localStorage.removeItem(TRIP_SNAP_PREFIX + id);
-    tripsSave(rest);
-    ['jp26_documents', 'jp26_journal_photos'].forEach(base => {
-        try { indexedDB.deleteDatabase(id === 'main' ? base : base + '_' + id); } catch (e) {}
-    });
-    if (id !== tripActiveId()) { tripsOpenRender(); return; }
-    tripSnapshotLoad(rest[0].id);
-    localStorage.setItem(TRIP_ACTIVE_KEY, rest[0].id);
-    location.reload();
+    if (!confirm('Reise „' + target.name + '“ endgültig löschen? Ihre Fotos und Dokumente gehen verloren und die Sicherung in Google Drive wird entfernt.')) return;
+    const finish = () => {
+        const rest = tripsLoad().filter(t => t.id !== id);
+        localStorage.removeItem(TRIP_SNAP_PREFIX + id);
+        tripsSave(rest);
+        ['jp26_documents', 'jp26_journal_photos'].forEach(base => {
+            try { indexedDB.deleteDatabase(id === 'main' ? base : base + '_' + id); } catch (e) {}
+        });
+        if (id !== tripActiveId()) { tripsOpenRender(); return; }
+        tripSnapshotLoad(rest[0].id);
+        localStorage.setItem(TRIP_ACTIVE_KEY, rest[0].id);
+        location.reload();
+    };
+    const s = window.TripPlannerSync;
+    if (!s || !s.isEnabled()) return finish();
+    // Erst in Drive löschen. Scheitert das, bleibt die Reise lokal erhalten.
+    s.deleteRemote(id).then(finish, e => showToast('Löschen in Google Drive fehlgeschlagen: ' + e.message, 6000));
 }
 
 function tripsOpen() {

@@ -1,6 +1,8 @@
 // Trip Planer – Google Drive Sync (appDataFolder)
 // Läuft komplett clientseitig, nutzt Google Identity Services.
-// Synchronisiert die EXPORT_KEYS aus app.js, ohne API-Keys.
+// Jede Reise hat eine eigene Datei im App-Ordner:
+//   Hauptreise: trip-planer-sync.json (bisherige Datei bleibt erhalten)
+//   weitere:    trip-planer-<id>.json
 //
 // Einrichtung:
 // 1. Google Cloud Console -> OAuth Client ID für Web App anlegen
@@ -17,9 +19,13 @@ const TP_SYNC_CLIENT_ID = '892793329409-u0v9ku7011acd7vss7imbumcrbgjmlhr.apps.go
 
 // Konfiguration
 const SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
-const FILE_NAME = 'trip-planer-sync.json';
-const META_KEY = 'tp_sync_meta';   // {enabled, fileId, lastSync}
+const FILE_PREFIX = 'trip-planer-';
+const MAIN_FILE_NAME = 'trip-planer-sync.json';
+const META_KEY = 'tp_sync_meta';   // {enabled, lastSync, fileIds, remoteSeen, syncedHash}
 const TOKEN_KEY = 'tp_sync_token'; // {token, exp}
+const TRIPS_KEY = 'tp_trips';      // Reiseliste aus app.js
+const ACTIVE_KEY = 'tp_active_trip';
+const SNAP_PREFIX = 'tp_trip_data:';
 
 // Drive API Endpunkte
 const API = 'https://www.googleapis.com/drive/v3/files';
@@ -39,17 +45,25 @@ const getToken = () => {
 };
 const setToken = (token, expiresIn) => write(TOKEN_KEY, { token, exp: Date.now() + (expiresIn * 1000) - 5000 });
 
-// EXPORT_KEYS aus app.js – hier dupliziert, damit sync.js standalone ist
+// Reisedaten-Schlüssel aus app.js – hier dupliziert, damit sync.js standalone ist
 const EXPORT_KEYS = [
   'tp_places','tp_acts','tp_budget','tp_journal','tp_pack',
   'tp_start','tp_tripname','tp_tripcountry','tp_tripcountry_manual','tp_return','tp_arrival',
-  'tp_theme','tp_fx_ccy','tp_emergency'
+  'tp_theme','tp_fx_ccy','tp_emergency','tp_daily_budget'
 ];
 
 // App-Version aus app.js lesen (global)
 const APP_VERSION = window.APP_VERSION || 'unknown';
 
-// Payload zusammenbauen
+const activeTripId = () => localStorage.getItem(ACTIVE_KEY) || 'main';
+const fileNameFor = (tripId) => tripId === 'main' ? MAIN_FILE_NAME : FILE_PREFIX + tripId + '.json';
+function tripIdFromFileName(name) {
+  if (name === MAIN_FILE_NAME) return 'main';
+  const m = /^trip-planer-(.+)\.json$/.exec(name);
+  return m ? m[1] : null;
+}
+
+// Payload zusammenbauen (Daten der aktiven Reise)
 function buildPayload() {
   const data = {};
   EXPORT_KEYS.forEach(k => {
@@ -64,7 +78,15 @@ function buildPayload() {
   };
 }
 
-// Payload aus Datei laden
+// Fingerabdruck der Daten: zeigt, ob sich etwas geändert hat
+function hashData(data) {
+  const s = JSON.stringify(Object.keys(data).sort().map(k => [k, data[k]]));
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+  return String(h);
+}
+
+// Payload in die aktive Reise schreiben
 function applyPayload(payload) {
   if (!payload || payload.app !== 'trip-planer' || !payload.data) return false;
   // Nur bekannte Keys schreiben
@@ -137,112 +159,172 @@ async function driveError(r, what) {
   return new Error(what + ' fehlgeschlagen (' + r.status + ')' + (detail ? ': ' + detail : ''));
 }
 
-// Datei finden
-async function findFileId() {
-  const q = encodeURIComponent(`name='${FILE_NAME}' and trashed=false`);
-  const r = await drive(`${API}?q=${q}&spaces=appDataFolder&fields=files(id,name)`);
+// Datei im App-Ordner suchen
+async function findFile(name) {
+  const q = encodeURIComponent(`name='${name}' and trashed=false`);
+  const r = await drive(`${API}?q=${q}&spaces=appDataFolder&fields=files(id,name,modifiedTime)`);
   if (!r.ok) throw await driveError(r, 'Drive abfrage');
   const j = await r.json();
-  return j.files && j.files[0] ? j.files[0].id : null;
+  return j.files && j.files[0] ? j.files[0] : null;
 }
 
-// Datei hochladen / aktualisieren
-async function uploadFile(payload) {
-  const meta = getMeta();
-  const body = JSON.stringify(payload);
-  const fileId = meta.fileId;
-
-  const metadata = { name: FILE_NAME };
-  const form = new FormData();
-  form.append('metadata', new Blob([JSON.stringify({ name: FILE_NAME })], { type: 'application/json' }));
-  form.append('file', new Blob([body], { type: 'application/json' }));
-
-  if (fileId) {
-    // Update
-    const r = await drive(`${UPLOAD}/${fileId}?uploadType=multipart`, {
-      method: 'PATCH',
-      body: form
-    });
-    if (!r.ok) throw await driveError(r, 'Update');
-    return fileId;
-  } else {
-    // Create: ohne parents landet die Datei außerhalb des App-Ordners, und
-    // drive.appdata darf dort nicht schreiben (403 "insufficient permissions").
-    const createForm = new FormData();
-    createForm.append('metadata', new Blob([JSON.stringify({ name: FILE_NAME, parents: ['appDataFolder'] })], { type: 'application/json' }));
-    createForm.append('file', new Blob([body], { type: 'application/json' }));
-    const r = await drive(`${UPLOAD}?uploadType=multipart`, {
-      method: 'POST',
-      body: createForm
-    });
-    if (!r.ok) throw await driveError(r, 'Erstellen');
-    const j = await r.json();
-    setMeta({ fileId: j.id });
-    return j.id;
-  }
+// Änderungszeit einer Datei
+async function fileModified(fileId) {
+  const r = await drive(`${METADATA}${fileId}?fields=modifiedTime`);
+  if (!r.ok) throw await driveError(r, 'Drive abfrage');
+  return (await r.json()).modifiedTime;
 }
 
 // Datei herunterladen
 async function downloadFile(fileId) {
-  const r = await drive(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`);
-  if (!r.ok) throw new Error('Download fehlgeschlagen');
+  const r = await drive(`${METADATA}${fileId}?alt=media`);
+  if (!r.ok) throw await driveError(r, 'Download');
   return await r.json();
 }
 
-// Sync durchführen
+// Datei anlegen oder aktualisieren
+async function writeFile(tripId, payload, fileId) {
+  const body = JSON.stringify(payload);
+  const fields = '&fields=id,modifiedTime';
+  if (fileId) {
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify({ name: fileNameFor(tripId) })], { type: 'application/json' }));
+    form.append('file', new Blob([body], { type: 'application/json' }));
+    const r = await drive(`${UPLOAD}/${fileId}?uploadType=multipart${fields}`, { method: 'PATCH', body: form });
+    if (!r.ok) throw await driveError(r, 'Update');
+    return await r.json();
+  }
+  // Create: ohne parents landet die Datei außerhalb des App-Ordners, und
+  // drive.appdata darf dort nicht schreiben (403 "insufficient permissions").
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify({ name: fileNameFor(tripId), parents: ['appDataFolder'] })], { type: 'application/json' }));
+  form.append('file', new Blob([body], { type: 'application/json' }));
+  const r = await drive(`${UPLOAD}?uploadType=multipart${fields}`, { method: 'POST', body: form });
+  if (!r.ok) throw await driveError(r, 'Erstellen');
+  return await r.json();
+}
+
+// Merkt sich pro Reise: Datei-ID, zuletzt gesehene Änderungszeit in Drive, Fingerabdruck
+function rememberFile(tripId, fileId, modifiedTime, data) {
+  const m = getMeta();
+  setMeta({
+    fileIds: Object.assign({}, m.fileIds, { [tripId]: fileId }),
+    remoteSeen: Object.assign({}, m.remoteSeen, { [tripId]: modifiedTime }),
+    syncedHash: Object.assign({}, m.syncedHash, { [tripId]: hashData(data) }),
+    lastSync: new Date().toISOString()
+  });
+}
+
+async function pullRemote(tripId, fileId, remoteModified, remote) {
+  if (!applyPayload(remote)) throw new Error('Ungültige Datei in Google Drive');
+  rememberFile(tripId, fileId, remoteModified, buildPayload().data);
+  return { action: 'pulled' };
+}
+
+async function pushLocal(tripId, fileId, local) {
+  const updated = await writeFile(tripId, local, fileId);
+  rememberFile(tripId, fileId, updated.modifiedTime, local.data);
+  return { action: 'pushed' };
+}
+
+// Sync der aktiven Reise
 async function syncNow({ interactive = false } = {}) {
   if (!TP_SYNC_CLIENT_ID) throw new Error('Client-ID nicht gesetzt');
-  // Bis zur Sync-Stufe 2 hat jede Reise noch keine eigene Datei. Ohne Sperre würde
-  // die Hauptreise mit dem Stand einer anderen überschrieben.
-  const activeTrip = localStorage.getItem('tp_active_trip');
-  if (activeTrip && activeTrip !== 'main') throw new Error('Online-Sync gibt es für diese Reise noch nicht');
 
-  const meta = getMeta();
-  let fileId = meta.fileId;
+  const tripId = activeTripId();
+  const m = getMeta();
+  const local = buildPayload();
+  const localHash = hashData(local.data);
+  // Ohne gemerkten Fingerabdruck weiß die App nicht, was sich geändert hat -> als geändert behandeln
+  const localChanged = (m.syncedHash || {})[tripId] !== localHash;
 
+  let fileId = (m.fileIds || {})[tripId] || null;
   if (!fileId) {
-    fileId = await findFileId();
-    if (fileId) setMeta({ fileId });
-  }
-
-  // Lokalen Stand hochladen
-  const localPayload = buildPayload();
-
-  if (fileId) {
-    // Remote laden
-    const remote = await downloadFile(fileId);
-
-    // Konfliktlösung: neueres exportedAt gewinnt
-    const localTime = new Date(localPayload.exportedAt).getTime();
-    const remoteTime = new Date(remote.exportedAt).getTime();
-
-    if (remoteTime > localTime) {
-      // Remote ist neuer -> übernehmen
-      if (interactive) {
-        const ok = confirm('Remote-Daten sind neuer. Überschreiben?');
-        if (ok) {
-          applyPayload(remote);
-          setMeta({ lastSync: new Date().toISOString() });
-          return { action: 'pulled' };
-        }
-      } else {
-        applyPayload(remote);
-        setMeta({ lastSync: new Date().toISOString() });
-        return { action: 'pulled' };
-      }
-    } else {
-      // Lokal ist neuer oder gleich -> hochladen
-      await uploadFile(localPayload);
-      setMeta({ lastSync: new Date().toISOString() });
-      return { action: 'pushed' };
+    const found = await findFile(fileNameFor(tripId));
+    if (!found) {
+      const created = await writeFile(tripId, local, null);
+      rememberFile(tripId, created.id, created.modifiedTime, local.data);
+      return { action: 'created' };
     }
-  } else {
-    // Keine Datei -> erstellen
-    await uploadFile(localPayload);
-    setMeta({ lastSync: new Date().toISOString() });
-    return { action: 'created' };
+    fileId = found.id;
   }
+
+  const remoteModified = await fileModified(fileId);
+  const remoteChanged = (m.remoteSeen || {})[tripId] !== remoteModified;
+
+  if (!remoteChanged && !localChanged) return { action: 'unchanged' };
+  if (!remoteChanged) return pushLocal(tripId, fileId, local);
+
+  const remote = await downloadFile(fileId);
+  if (!localChanged) return pullRemote(tripId, fileId, remoteModified, remote);
+
+  // Beide Seiten geändert: sind die Stände gleich, ist nichts zu tun
+  if (hashData(remote.data || {}) === localHash) {
+    rememberFile(tripId, fileId, remoteModified, local.data);
+    return { action: 'unchanged' };
+  }
+
+  if (interactive) {
+    const useDrive = confirm(
+      'Auf diesem Gerät und in Google Drive gibt es unterschiedliche Stände.\n\n' +
+      'OK: Stand aus Google Drive übernehmen\n' +
+      'Abbrechen: diesen Stand nach Google Drive hochladen'
+    );
+    return useDrive ? pullRemote(tripId, fileId, remoteModified, remote) : pushLocal(tripId, fileId, local);
+  }
+  throw new Error('Unterschiedliche Stände. Bitte „Jetzt synchronisieren“ antippen.');
 }
+
+// Reisen übernehmen, die es nur in Drive gibt (z. B. auf einem neuen Gerät)
+async function importRemoteTrips() {
+  const q = encodeURIComponent(`name contains '${FILE_PREFIX}' and trashed=false`);
+  const r = await drive(`${API}?q=${q}&spaces=appDataFolder&fields=files(id,name,modifiedTime)`);
+  if (!r.ok) throw await driveError(r, 'Drive abfrage');
+  const files = (await r.json()).files || [];
+
+  let trips = [];
+  try { trips = JSON.parse(localStorage.getItem(TRIPS_KEY) || '[]') || []; } catch (e) {}
+  const known = new Set(trips.map(t => t.id));
+
+  let count = 0;
+  for (const f of files) {
+    const tripId = tripIdFromFileName(f.name);
+    if (!tripId || known.has(tripId)) continue;
+    const remote = await downloadFile(f.id);
+    if (!remote || remote.app !== 'trip-planer' || !remote.data) continue;
+    const name = (remote.data.tp_tripname || '').trim() || 'Reise aus Drive';
+    trips.push({ id: tripId, name, created: remote.exportedAt || new Date().toISOString() });
+    // Der Stand aus Drive wird der gespeicherte Stand dieser Reise
+    localStorage.setItem(SNAP_PREFIX + tripId, JSON.stringify(remote.data));
+    rememberFile(tripId, f.id, f.modifiedTime, remote.data);
+    known.add(tripId);
+    count++;
+  }
+  if (count) localStorage.setItem(TRIPS_KEY, JSON.stringify(trips));
+  return count;
+}
+
+// Datei einer Reise in Drive löschen (beim Löschen der Reise)
+async function deleteRemote(tripId) {
+  const m = getMeta();
+  const fileId = (m.fileIds || {})[tripId];
+  if (!fileId) return;
+  const r = await drive(`${METADATA}${fileId}`, { method: 'DELETE' });
+  if (!r.ok && r.status !== 404) throw await driveError(r, 'Löschen');
+  const fileIds = Object.assign({}, m.fileIds);
+  const remoteSeen = Object.assign({}, m.remoteSeen);
+  const syncedHash = Object.assign({}, m.syncedHash);
+  delete fileIds[tripId]; delete remoteSeen[tripId]; delete syncedHash[tripId];
+  setMeta({ fileIds, remoteSeen, syncedHash });
+}
+
+// Alte Einzeldatei aus Stufe 1 in die neue Struktur übernehmen
+(function migrateMeta() {
+  const m = getMeta();
+  if (m.fileId) {
+    setMeta({ fileIds: Object.assign({ main: m.fileId }, m.fileIds), fileId: null });
+  }
+})();
 
 // UI Helper
 function syncStatusText() {
@@ -265,17 +347,20 @@ window.TripPlannerSync = {
       await requestToken();
       setMeta({ enabled: true });
       await syncNow({ interactive: true });
-      if (typeof showToast === 'function') showToast('Mit Google Drive verbunden', 'ok');
+      const n = await importRemoteTrips();
+      if (typeof showToast === 'function') showToast(n ? 'Mit Google Drive verbunden, ' + n + ' Reise(n) übernommen' : 'Mit Google Drive verbunden', 'ok');
     } catch (e) {
       if (typeof showToast === 'function') showToast('Verbindung fehlgeschlagen: ' + e.message, 'err');
     }
   },
   disconnect: () => {
-    setMeta({ enabled: false, fileId: null });
+    setMeta({ enabled: false });
     localStorage.removeItem(TOKEN_KEY);
     if (typeof showToast === 'function') showToast('Sync getrennt', 'ok');
   },
   syncNow,
+  importRemoteTrips,
+  deleteRemote,
   statusText: syncStatusText,
   isEnabled: () => !!getMeta().enabled
 };
