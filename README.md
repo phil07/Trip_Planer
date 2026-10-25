@@ -32,12 +32,12 @@ Route, Stationen, Aktivitäten, Tagesplan, Budget und Notfall-Infos in einer ins
 
 ## 🌍 Warum Trip Planer?
 
-Entstanden für eine Japan-Reise, funktioniert Trip Planer inzwischen für **jedes Reiseland**: Sprache, Währung, Notrufnummern und Routenvorschläge folgen dem gewählten Land. Alles läuft im Browser – keine Registrierung, keine Cloud, kein Build-Schritt. Einmal geladen, steht die App auch ohne Internet zur Verfügung.
+Entstanden für eine Japan-Reise, funktioniert Trip Planer inzwischen für **jedes Reiseland**: Sprache, Währung, Notrufnummern und Routenvorschläge folgen dem gewählten Land. Alles läuft im Browser – keine Registrierung, kein Build-Schritt. Die Reise liegt lokal; ein Abgleich über den eigenen Google Drive ist optional. Einmal geladen, steht die App auch ohne Internet zur Verfügung.
 
 | | |
 | --- | --- |
 | 📴 **Offline zuerst** | Service Worker und lokale Speicherung: Plan, Sprachführer und Notfall-Infos funktionieren im Flugmodus |
-| 🔒 **Deine Daten bleiben bei dir** | Keine Konten, keine Cloud-Synchronisierung – Export und Import als JSON |
+| 🔒 **Deine Daten bleiben bei dir** | Lokal im Browser. Optionaler Abgleich nur im versteckten App-Ordner deines Google Drive – kein Server des Entwicklers. Export und Import als JSON |
 | 🌐 **Für jedes Land** | Sprachführer, Währung, Notrufnummern und Routen passen sich dem Reiseland an |
 | ⚡ **Ohne Build** | Reines HTML, CSS und JavaScript – ein statischer Server genügt |
 
@@ -52,12 +52,16 @@ Entstanden für eine Japan-Reise, funktioniert Trip Planer inzwischen für **jed
 | **Sprachführer & Taxi-Karte** | Wichtige Sätze und Zieladresse groß in der Landessprache |
 | **Budget** | Ausgaben erfassen, auf Mitreisende aufteilen, Währungsrechner |
 | **Tagebuch & Packlisten** | Einträge mit Fotos, mehrere Packlisten |
+| **Mehrere Reisen** | Beliebig viele Reisen anlegen, wechseln und einzeln löschen; der Teilen-Link zeigt die aktive Reise |
+| **Google-Drive-Abgleich (optional)** | Reisen im App-Ordner deines Google-Kontos sichern und auf anderen Geräten laden. Gleichzeitige Änderungen werden erkannt, nichts wird stillschweigend überschrieben |
 | **Export & Import** | Alle Daten lokal, Sicherung als JSON |
 
 <details open>
 <summary><b>Alle Menüpunkte im Überblick</b></summary>
 
-Reihenfolge wie im Menü: Start, Karte, Stationen, Aktivitäten, Tagesplan, Währungsrechner, Reisekosten, Sprachführer, Dokumente, Tagebuch, Notfall.
+Das Menü ist nach Themen gruppiert: Reise, Daten, Cloud und App. Reihenfolge der Ansichten wie im Menü: Start, Karte, Stationen, Aktivitäten, Tagesplan, Währungsrechner, Reisekosten, Sprachführer, Dokumente, Tagebuch, Notfall.
+
+<img src="docs/screenshots/menu.jpg" width="140" alt="Menü mit Gruppen"/>
 
 <img src="docs/screenshots/home.jpg" width="140" alt="Start"/>
 <img src="docs/screenshots/karte.jpg" width="140" alt="Karte &amp; Route"/>
@@ -91,6 +95,8 @@ Anschließend `http://localhost:8080` öffnen. Service Worker und PWA-Installati
 | --- | --- |
 | `Trip-Planer/` | Die App: `index.html`, `app.js`, `style.css`, `sw.js`, `manifest.json`, `version.js` |
 | `Trip-Planer/features/` | Funktionsmodule (Wetter, Notfall, Taxi-Karte, Kostenaufteilung, Kalender, Erinnerungen …) |
+| `Trip-Planer/sync.js` | Optionaler Abgleich über Google Drive (Scope `drive.appdata`) |
+| `Trip-Planer/datenschutz.html`, `nutzungsbedingungen.html` | Rechtliche Seiten |
 | `worker/` | Cloudflare-Worker: verschlüsselte Kurzlinks fürs Teilen (`/api/share`, KV wird beim Deploy automatisch angelegt) und optional Web-Push ([Einrichtung](docs/push-setup.md)) |
 | `puter_bridge/` | Eigener Worker für die zusätzliche KI-Quelle, getrennt von der App ([README](puter_bridge/README.md)) |
 | `tests/` | Node-Tests (Kalender, Kostenaufteilung, Datenspeicherung, Datenaufbereitung, Verbindungen, Notfall, Öffnungszeiten, Wetter, Erinnerungen, Teilen, Startseite) |
@@ -128,12 +134,13 @@ Die App kommt ohne eigene Server aus. Für aktuelle Inhalte ruft sie bei Bedarf 
 | Wechselkurse | Frankfurter |
 | Übersetzung des Sprachführers | Google Translate |
 | KI-Routen | Pollinations, Puter |
+| Optionaler Abgleich | Google Drive (nur mit deiner Anmeldung) |
 
 Es gelten die jeweiligen Datenschutzregeln der Dienste. Ohne Verbindung bleiben gespeicherte Daten und bereits geladene Inhalte nutzbar.
 
 ## 🔐 Datenschutz und Sicherung
 
-Reisedaten verbleiben im lokalen Speicher des Browsers – es gibt keine Cloud-Synchronisierung. Das Löschen von Browserdaten oder das Zurücksetzen des Geräts entfernt sie. Installierte App und Browser-Tab können getrennte Speicher haben. **Exportiere die Reise deshalb regelmäßig** (Menü → Einstellungen) und behandle Exportdateien wie persönliche Reisedokumente.
+Reisedaten verbleiben im lokalen Speicher des Browsers. Wenn du den Google-Drive-Abgleich einschaltest, wird zusätzlich eine Datei im versteckten App-Ordner deines Google-Kontos gespeichert; es gibt keinen Server des Entwicklers mit Zugriff darauf. Das Löschen von Browserdaten oder das Zurücksetzen des Geräts entfernt die lokalen Daten. Installierte App und Browser-Tab können getrennte Speicher haben. **Exportiere die Reise deshalb regelmäßig** (Menü → Einstellungen) und behandle Exportdateien wie persönliche Reisedokumente.
 
 > Notrufnummern und Notfall-Sätze sind ohne Gewähr; im Zweifel gilt der lokale Notruf.
 

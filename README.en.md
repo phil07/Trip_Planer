@@ -32,12 +32,12 @@ Route, stops, activities, daily plan, budget, and emergency info in one installa
 
 ## 🌍 Why Trip Planer?
 
-Built for a trip to Japan, Trip Planer now works for **any destination**: language, currency, emergency numbers, and route suggestions follow the selected country. Everything runs in the browser – no sign-up, no cloud, no build step. Once loaded, the app stays available without internet.
+Built for a trip to Japan, Trip Planer now works for **any destination**: language, currency, emergency numbers, and route suggestions follow the selected country. Everything runs in the browser – no sign-up, no build step. Trips are stored locally; syncing with your own Google Drive is optional. Once loaded, the app stays available without internet.
 
 | | |
 | --- | --- |
 | 📴 **Offline first** | Service worker and local storage: plan, phrase guide, and emergency info work in airplane mode |
-| 🔒 **Your data stays with you** | No accounts, no cloud sync – JSON export and import |
+| 🔒 **Your data stays with you** | Stored locally in the browser. Optional sync only in the hidden app folder of your Google Drive – no server of the developer. JSON export and import |
 | 🌐 **Any country** | Phrase guide, currency, emergency numbers, and routes adapt to the destination |
 | ⚡ **No build** | Plain HTML, CSS, and JavaScript – a static server is enough |
 
@@ -52,12 +52,16 @@ Built for a trip to Japan, Trip Planer now works for **any destination**: langua
 | **Phrase guide & taxi card** | Key phrases and destination address in large local script |
 | **Budget** | Track expenses, split among travelers, currency converter |
 | **Journal & packing lists** | Entries with photos, multiple packing lists |
+| **Multiple trips** | Create, switch and delete any number of trips; the share link shows the active trip |
+| **Google Drive sync (optional)** | Back up trips to the app folder of your Google account and load them on other devices. Simultaneous changes are detected, nothing is overwritten silently |
 | **Export & import** | All data stays local, JSON backup |
 
 <details open>
 <summary><b>All menu items at a glance</b></summary>
 
-In menu order: Home, Map, Stops, Activities, Daily plan, Currency converter, Trip costs, Phrase guide, Documents, Journal, Emergency.
+The menu is grouped by topic: Trip, Data, Cloud and App. Views in menu order: Home, Map, Stops, Activities, Daily plan, Currency converter, Trip costs, Phrase guide, Documents, Journal, Emergency.
+
+<img src="docs/screenshots/menu.jpg" width="140" alt="Menu with groups"/>
 
 <img src="docs/screenshots/home.jpg" width="140" alt="Home"/>
 <img src="docs/screenshots/karte.jpg" width="140" alt="Map &amp; route"/>
@@ -91,6 +95,8 @@ Then open `http://localhost:8080`. Service workers and PWA installation require 
 | --- | --- |
 | `Trip-Planer/` | The app: `index.html`, `app.js`, `style.css`, `sw.js`, `manifest.json`, `version.js` |
 | `Trip-Planer/features/` | Feature modules (weather, emergency, taxi card, cost splitting, calendar, reminders …) |
+| `Trip-Planer/sync.js` | Optional sync via Google Drive (scope `drive.appdata`) |
+| `Trip-Planer/datenschutz.html`, `nutzungsbedingungen.html` | Legal pages (German) |
 | `worker/` | Optional Cloudflare Worker for web push ([setup](docs/push-setup.md), German) |
 | `puter_bridge/` | Separate worker for the additional AI source, isolated from the app ([README](puter_bridge/README.md)) |
 | `tests/` | Node tests (calendar, cost splitting, data storage, data normalization, connections, emergency, opening hours, weather, reminders, sharing, home screen) |
@@ -128,12 +134,13 @@ The app needs no servers of its own. For current content it calls public service
 | Exchange rates | Frankfurter |
 | Phrase-guide translation | Google Translate |
 | AI routes | Pollinations, Puter |
+| Optional sync | Google Drive (only with your sign-in) |
 
 Each service's own privacy terms apply. Without a connection, stored data and already loaded content remain usable.
 
 ## 🔐 Privacy and backup
 
-Trip data stays in the browser's local storage – there is no cloud sync. Clearing browser data or resetting the device removes it. The installed app and a browser tab may use separate storage. **Export your trip regularly** (menu → settings) and treat export files like personal travel documents.
+Trip data stays in the browser's local storage. If you turn on Google Drive sync, a file is additionally stored in the hidden app folder of your Google account; no server of the developer has access to it. Clearing browser data or resetting the device removes the local data. The installed app and a browser tab may use separate storage. **Export your trip regularly** (menu → settings) and treat export files like personal travel documents.
 
 > Emergency numbers and phrases are provided without warranty; when in doubt, use the local emergency number.
 
