@@ -166,10 +166,14 @@ async function uploadFile(payload) {
     if (!r.ok) throw await driveError(r, 'Update');
     return fileId;
   } else {
-    // Create
+    // Create: ohne parents landet die Datei außerhalb des App-Ordners, und
+    // drive.appdata darf dort nicht schreiben (403 "insufficient permissions").
+    const createForm = new FormData();
+    createForm.append('metadata', new Blob([JSON.stringify({ name: FILE_NAME, parents: ['appDataFolder'] })], { type: 'application/json' }));
+    createForm.append('file', new Blob([body], { type: 'application/json' }));
     const r = await drive(`${UPLOAD}?uploadType=multipart`, {
       method: 'POST',
-      body: form
+      body: createForm
     });
     if (!r.ok) throw await driveError(r, 'Erstellen');
     const j = await r.json();
