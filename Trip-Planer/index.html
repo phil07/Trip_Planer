@@ -638,7 +638,8 @@
       }
       showResultToast('Du bist bereits auf der aktuellsten Version (' + self.APP_VERSION + ')', 'ok');
     } catch (e) {
-      showResultToast('Update-Prüfung fehlgeschlagen', 'err');
+      console.error('Update-Prüfung:', e);
+      showResultToast('Update-Prüfung fehlgeschlagen: ' + String(e && e.message || e).slice(0, 120), 'err');
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = 'Prüfen'; }
     }
