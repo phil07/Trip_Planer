@@ -277,44 +277,19 @@
                 <button type="button" id="appVersion" class="link-btn version-btn" onclick="tapVersionForLogs()">–</button>
                 <button type="button" id="btnCheckUpdate" onclick="checkForUpdate()" aria-label="Auf Update prüfen">Prüfen</button>
             </div>
-            <details class="menu-acc" name="menu-acc">
-                <summary>Reise</summary>
-                <div class="menu-acc-body">
-                    <div class="btn-row">
-                        <button type="button" class="btn-icon" onclick="tripsOpen()"><i class="ph-light ph-suitcase-rolling" aria-hidden="true"></i> Meine Reisen</button>
-                    </div>
-                    <button type="button" class="btn-icon cal-export-btn" onclick="calendarExport.open()"><i class="ph-light ph-calendar-plus" data-fb="📅" aria-hidden="true"></i> In Kalender exportieren</button>
-                </div>
-            </details>
-            <details class="menu-acc" name="menu-acc">
-                <summary>Daten</summary>
-                <div class="menu-acc-body">
-                    <div class="btn-row">
-                        <button type="button" class="btn-icon" onclick="exportTripData()"><i class="ph-light ph-download-simple" aria-hidden="true"></i> Backup</button>
-                        <button type="button" class="btn-icon" onclick="document.getElementById('importFileInput').click()"><i class="ph-light ph-upload-simple" aria-hidden="true"></i> Wiederherstellen</button>
-                        <input type="file" id="importFileInput" accept="application/json" hidden onchange="importTripData(this.files[0])">
-                    </div>
-                </div>
-            </details>
-            <details class="menu-acc" name="menu-acc">
-                <summary>Cloud</summary>
-                <div class="menu-acc-body">
-                    <div class="btn-row">
-                        <button type="button" class="btn-icon js-sync" id="btnSync" onclick="toggleSync()"><i class="ph-light ph-cloud-arrow-up" aria-hidden="true"></i> <span id="sync-label">Cloud verbinden</span></button>
-                        <button type="button" class="btn-icon" id="btnSyncNow" onclick="syncNowUi()" style="display:none"><i class="ph-light ph-arrows-clockwise" aria-hidden="true"></i> Jetzt synchronisieren</button>
-                        <span id="sync-status" class="sync-status" style="font-size:0.8rem;opacity:0.7;margin-left:8px"></span>
-                    </div>
-                </div>
-            </details>
-            <details class="menu-acc" name="menu-acc">
-                <summary>App</summary>
-                <div class="menu-acc-body">
-                    <button type="button" id="btnNotifyUpdates" class="btn-icon btn-notify" onclick="enableUpdateNotifications()" aria-pressed="false">🔕 Bei neuer Version benachrichtigen</button>
-                    <a href="datenschutz.html" target="_blank" class="menu-acc-item">Datenschutz</a>
-                    <a href="nutzungsbedingungen.html" target="_blank" class="menu-acc-item">Nutzungsbedingungen</a>
-                    <a href="impressum.html" target="_blank" class="menu-acc-item">Impressum</a>
-                </div>
-            </details>
+            <div class="btn-row">
+                <button type="button" class="btn-icon" onclick="tripsOpen()"><i class="ph-light ph-suitcase-rolling" aria-hidden="true"></i> Meine Reisen</button>
+            </div>
+            <div class="btn-row">
+                <button type="button" class="btn-icon" onclick="exportTripData()"><i class="ph-light ph-download-simple" aria-hidden="true"></i> Backup</button>
+                <button type="button" class="btn-icon" onclick="document.getElementById('importFileInput').click()"><i class="ph-light ph-upload-simple" aria-hidden="true"></i> Wiederherstellen</button>
+                <input type="file" id="importFileInput" accept="application/json" hidden onchange="importTripData(this.files[0])">
+            </div>
+            <div class="btn-row">
+                <button type="button" class="btn-icon js-sync" id="btnSync" onclick="toggleSync()"><i class="ph-light ph-cloud-arrow-up" aria-hidden="true"></i> <span id="sync-label">Cloud verbinden</span></button>
+                <button type="button" class="btn-icon" id="btnSyncNow" onclick="syncNowUi()" style="display:none"><i class="ph-light ph-arrows-clockwise" aria-hidden="true"></i> Jetzt synchronisieren</button>
+                <span id="sync-status" class="sync-status" style="font-size:0.8rem;opacity:0.7;margin-left:8px"></span>
+            </div>
             <button type="button" id="btnUndoImport" class="link-btn undo-import-btn" hidden onclick="restorePreImportBackup()">Letzten Import rückgängig machen</button>
             Gespeichert im LocalStorage · <button type="button" class="link-btn" onclick="appReset()">Zurücksetzen</button>
         </div>
@@ -561,7 +536,6 @@
       }
       let perm = Notification.permission;
       if (perm === 'default') perm = await Notification.requestPermission();
-      updateNotifyButton();
       if (perm === 'granted') {
         await registerBackgroundUpdateCheck();
         showResultToast('🔔 Du wirst über neue Versionen benachrichtigt', 'ok');
@@ -570,16 +544,16 @@
       }
     };
 
-    function updateNotifyButton() {
-      const b = document.getElementById('btnNotifyUpdates');
-      if (!b) return;
-      const on = 'Notification' in window && Notification.permission === 'granted';
-      b.textContent = on ? '🔔 Update-Benachrichtigungen aktiv' : '🔕 Bei neuer Version benachrichtigen';
-      b.setAttribute('aria-pressed', String(on));
-    }
+    // Browser verlangen für die Erlaubnis eine Geste: einmal beim ersten Tippen fragen, danach nie wieder.
     window.addEventListener('load', () => {
-      updateNotifyButton();
       if ('Notification' in window && Notification.permission === 'granted') registerBackgroundUpdateCheck();
+    });
+    document.addEventListener('click', function askUpdateNotifyOnce() {
+      document.removeEventListener('click', askUpdateNotifyOnce);
+      if (!('Notification' in window) || Notification.permission !== 'default') return;
+      if (localStorage.getItem('tp_notify_asked')) return;
+      try { localStorage.setItem('tp_notify_asked', '1'); } catch (e) {}
+      window.enableUpdateNotifications();
     });
   }
 

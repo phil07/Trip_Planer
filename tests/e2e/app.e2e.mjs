@@ -277,7 +277,6 @@ t('Reise teilen: Kurzlink (verschlüsselt) mit QR-Code, Empfänger sieht die Rei
         return b ? r.fulfill({ contentType: 'application/octet-stream', body: b }) : r.fulfill({ status: 404, body: '{}' });
     });
     await page.click('#menuBtn');
-    await page.click('.menu-acc > summary:has-text("Reise")');
     await page.click('#btnShareTrip');
     await page.waitForFunction(() => document.getElementById('share-link')?.value.includes('#s='));
     const link = await page.locator('#share-link').inputValue();
