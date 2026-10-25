@@ -1135,7 +1135,7 @@ dialog > h3 { font-size: 22px; font-weight: 800; letter-spacing: -.025em; }
 
 /* Puter-KI-Brücke (fremde Herkunft, im Dialog eingebettet) */
 .puter-frame { display: block; width: 100%; height: 205px; border: 0; background: transparent; color-scheme: normal; }
-.undo-import-btn { display: block; margin: 8px 0 4px; }
+.undo-import-btn { display: block; margin: 8px auto 4px; }
 
 /* Packliste: eigene Einträge */
 .pack-add { display: flex; gap: 8px; margin: 0 0 8px; }

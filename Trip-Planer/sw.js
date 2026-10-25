@@ -1,4 +1,4 @@
-// Trip Planer PWA – Service Worker (Build v209: bei jedem Release mitziehen, sonst erkennt der Browser kein SW-Update)
+// Trip Planer PWA – Service Worker (Build v210: bei jedem Release mitziehen, sonst erkennt der Browser kein SW-Update)
 importScripts('version.js'); // sets self.APP_VERSION – single source of truth
 importScripts('features/reminders-sw.js'); // Erinnerungen vor Stationswechseln (Periodic Sync)
 const CACHE = 'trip-planer-' + self.APP_VERSION;

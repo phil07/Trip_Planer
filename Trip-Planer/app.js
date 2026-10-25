@@ -4817,6 +4817,37 @@ function tripsClose() {
     const ov = document.getElementById('tripsOverlay');
     if (ov) ov.style.display = 'none';
 }
+async function tripsOpenDrivePicker(box) {
+    const host = box.querySelector('#tripsDrivePick');
+    if (!host || !window.TripPlannerSync) return;
+    host.textContent = 'Lade Reisen aus Google Drive …';
+    try {
+        const list = await window.TripPlannerSync.listRemoteTrips();
+        host.replaceChildren();
+        if (!list.length) { host.textContent = 'Keine Reisen in Google Drive gefunden.'; return; }
+        list.forEach(t => {
+            const row = document.createElement('div');
+            row.className = 'trips-row';
+            const name = document.createElement('span');
+            name.className = 'trips-name';
+            name.textContent = t.name + ' · ' + new Date(t.modifiedTime).toLocaleString('de-DE') + (t.known ? ' (schon auf diesem Gerät)' : '');
+            row.appendChild(name);
+            if (!t.known) {
+                const go = document.createElement('button');
+                go.type = 'button'; go.className = 'btn-icon'; go.textContent = 'Übernehmen';
+                go.addEventListener('click', () => {
+                    window.TripPlannerSync.adoptRemoteTrip(t);
+                    showToast('Reise „' + t.name + '“ übernommen');
+                    tripsOpenRender();
+                });
+                row.appendChild(go);
+            }
+            host.appendChild(row);
+        });
+    } catch (e) {
+        host.textContent = 'Fehler beim Laden aus Google Drive: ' + e.message;
+    }
+}
 function tripsOpenRender() {
     const ov = document.getElementById('tripsOverlay');
     if (!ov) return;
@@ -4827,7 +4858,11 @@ function tripsOpenRender() {
     h.textContent = 'Meine Reisen';
     box.appendChild(h);
     // Der Name der aktiven Reise kann in den Einstellungen geändert worden sein.
-    const list = tripsLoad();
+    let list = tripsLoad();
+    if (!list.length) { // Reiseliste fehlt: aktive Reise wieder eintragen, damit sie nicht verschwindet
+        list = [{ id: active, name: (localStorage.getItem('tp_tripname') || '').trim() || 'Meine Reise', created: new Date().toISOString() }];
+        tripsSave(list);
+    }
     const current = list.find(t => t.id === active);
     const liveName = (localStorage.getItem('tp_tripname') || '').trim();
     if (current && liveName && current.name !== liveName) { current.name = liveName; tripsSave(list); }
@@ -4862,6 +4897,15 @@ function tripsOpenRender() {
     box.appendChild(form);
     const close = document.createElement('button');
     close.type = 'button'; close.className = 'link-btn'; close.textContent = 'Schließen';
+    if (window.TripPlannerSync && window.TripPlannerSync.isEnabled()) {
+        const drv = document.createElement('button');
+        drv.type = 'button'; drv.className = 'btn-icon'; drv.textContent = 'Aus Google Drive laden…';
+        drv.addEventListener('click', () => tripsOpenDrivePicker(box));
+        box.appendChild(drv);
+        const pick = document.createElement('div');
+        pick.id = 'tripsDrivePick';
+        box.appendChild(pick);
+    }
     close.addEventListener('click', tripsClose);
     box.appendChild(close);
     ov.replaceChildren(box);
