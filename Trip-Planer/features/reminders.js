@@ -300,17 +300,6 @@
         check();
     }
 
-    // Einstieg im Reise-Daten-Dialog
-    function injectSettingsEntry() {
-        const body = document.querySelector('#modal-settings .dialog-body');
-        if (!body || document.getElementById('btnReminders')) return;
-        const b = document.createElement('button');
-        b.type = 'button'; b.id = 'btnReminders'; b.className = 'btn btn-secondary rem-entry';
-        b.innerHTML = `${ico('bell', '🔔')} Erinnerungen & Check-out-Zeiten`;
-        b.addEventListener('click', openDialog); // öffnet über dem Reise-Daten-Dialog, dessen Eingaben bleiben erhalten
-        body.appendChild(b);
-    }
-
     window.reminders = { render, check, open: openDialog, buildEvents: () => buildEvents(loadSettings()) };
 
     document.addEventListener('DOMContentLoaded', () => {

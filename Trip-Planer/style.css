@@ -320,15 +320,6 @@
             width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
             display: flex; align-items: center; justify-content: center; font-size: 15px;
         }
-        .menu-icon.tint-red { background: #FF3B30; }
-        .menu-icon.tint-blue { background: #007AFF; }
-        .menu-icon.tint-orange { background: #FF9500; }
-        .menu-icon.tint-green { background: #34C759; }
-        .menu-icon.tint-purple { background: #AF52DE; }
-        .menu-icon.tint-teal { background: #30B0C7; }
-        .menu-icon.tint-yellow { background: #FFCC00; }
-        .menu-icon.tint-pink { background: #FF2D55; }
-        .menu-icon.tint-gray { background: #8E8E93; }
 
         /* Day Plan */
         .dayplan-card { background: var(--glass); border-radius: var(--radius-lg); border: 1px solid var(--glass-border); box-shadow: var(--shadow-sm), inset 0 0 0 .5px rgba(255,255,255,.3); padding: 14px; margin-bottom: var(--sp-4); -webkit-backdrop-filter: saturate(180%) blur(18px); backdrop-filter: saturate(180%) blur(18px); }
