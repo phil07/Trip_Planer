@@ -88,13 +88,11 @@ function hashData(data) {
 
 // Payload in die aktive Reise schreiben
 function applyPayload(payload) {
-  if (!payload || payload.app !== 'trip-planer' || !payload.data) return false;
-  // Nur bekannte Keys schreiben
-  Object.keys(payload.data).forEach(k => {
-    if (EXPORT_KEYS.includes(k)) {
-      localStorage.setItem(k, payload.data[k]);
-    }
-  });
+  if (typeof validateBackup !== 'function') return false;
+  // Gleiche Prüfung wie beim Import: Typen, bekannte Keys, Format
+  const data = validateBackup(payload);
+  if (!data) return false;
+  Object.keys(data).forEach(k => localStorage.setItem(k, data[k]));
   // UI nachladen
   if (typeof saveData === 'function') saveData();
   return true;
