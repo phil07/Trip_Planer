@@ -724,7 +724,7 @@ body .drawer {
     opacity: 0; pointer-events: none; transition: opacity .5s var(--ease-out);
 }
 body .menu-open .drawer { left: 0; opacity: 1; pointer-events: auto; }
-.menu-header { position: sticky; top: 0; z-index: 2; margin-top: calc(-72px - env(safe-area-inset-top)); padding: calc(72px + env(safe-area-inset-top) + var(--sp-3)) 28px var(--sp-2); background: var(--bg); color: var(--label); }
+.menu-header { background: none; color: var(--label); padding: var(--sp-3) 28px var(--sp-2); }
 .menu-title { font-size: 34px !important; line-height: 1.05; font-weight: 800; letter-spacing: -.035em; }
 .menu-title-btn { display: block; max-width: 100%; margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
 .menu-dates { margin-top: 8px; font-size: 13px; color: var(--muted); opacity: 1; min-height: 44px; }
