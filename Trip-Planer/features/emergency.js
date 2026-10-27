@@ -15,7 +15,7 @@
         { icon: 'headset', fb: '☎️', title: 'Japan Visitor Hotline', sub: 'JNTO · 24/7 · Englisch', show: '050-3816-2787', tel: '+815038162787' },
         { icon: 'bank', fb: '🏛️', title: 'Deutsche Botschaft Tokio', sub: 'Konsularische Hilfe, Passverlust', show: '+81 3 5791 7700', tel: '+81357917700' },
         { icon: 'bank', fb: '🏛️', title: 'Generalkonsulat Osaka-Kobe', sub: 'Westjapan (Kansai)', show: '+81 6 6440 5070', tel: '+81664405070' },
-        { icon: 'siren', fb: '🆘', title: 'Notfall-Bereitschaft Botschaft/Konsulat', sub: 'Außerhalb der Öffnungszeiten · keine Visa-/Terminfragen', show: '+81 90 1708 4823', tel: '+819017084823' },
+        { icon: 'siren', fb: '🆘', title: 'Notfall-Bereitschaft', sub: 'Botschaft, außerhalb der Öffnungszeiten', show: '+81 90 1708 4823', tel: '+819017084823' },
         { icon: 'credit-card', fb: '💳', title: 'Sperr-Notruf Karten', sub: 'Aus dem Ausland · in DE: 116 116', show: '+49 116 116', tel: '+49116116' }
     ];
 
