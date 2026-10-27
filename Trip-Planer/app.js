@@ -1471,7 +1471,7 @@ function fxConvert(from) {
     if (!rate) return;
     const fromEl = document.getElementById('fxFromAmt'), toEl = document.getElementById('fxToAmt');
     if (!fromEl || !toEl) return;
-    const out = n => isNaN(n) ? '' : (Math.round(n * 100) / 100).toLocaleString('de-DE', { maximumFractionDigits: 2, useGrouping: false });
+    const out = n => isNaN(n) ? '' : (Math.round(n * 100) / 100).toLocaleString('de-DE', { maximumFractionDigits: 2 });
     if (from === 'from') toEl.value = out(parseDeNumber(fromEl.value) * rate);
     else fromEl.value = out(parseDeNumber(toEl.value) / rate);
 }
@@ -2015,7 +2015,7 @@ function renderJournal() {
         <div class="dayplan-card">
             <div class="dayplan-header">
                 <h3>${d.date === today ? 'Heute' : fmtDateLong(d.date)}</h3>
-                <span class="dayplan-count">${d.items.length} Eintrag${d.items.length === 1 ? '' : 'e'}</span>
+                <span class="dayplan-count">${d.items.length} ${d.items.length === 1 ? 'Eintrag' : 'Einträge'}</span>
             </div>
             ${d.items.map(e => `
             <div class="journal-entry">

@@ -361,7 +361,7 @@
         sorted.forEach(e => { const last = days[days.length - 1]; if (last && last.date === e.date) last.items.push(e); else days.push({ date: e.date, items: [e] }); });
         const nPhotos = sorted.reduce((s, e) => s + (e.photos || []).length, 0);
         const body = review.querySelector('#jp-review-body');
-        body.innerHTML = `<p class="jp-review-sum">${esc(sorted.length)} Eintrag${sorted.length === 1 ? '' : 'e'} · ${esc(days.length)} Tag${days.length === 1 ? '' : 'e'} · ${esc(nPhotos)} Foto${nPhotos === 1 ? '' : 's'}</p>` +
+        body.innerHTML = `<p class="jp-review-sum">${esc(sorted.length)} ${sorted.length === 1 ? 'Eintrag' : 'Einträge'} · ${esc(days.length)} Tag${days.length === 1 ? '' : 'e'} · ${esc(nPhotos)} Foto${nPhotos === 1 ? '' : 's'}</p>` +
             days.map(d => {
                 const no = tripDayNo(d.date), st = stationForDate(d.date);
                 return `<section class="jp-rv-day">
