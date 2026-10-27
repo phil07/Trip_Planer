@@ -484,7 +484,6 @@
             -webkit-user-select: none; user-select: none;
         }
         .pack-handle:active { transform: translateX(-50%) scale(.96); }
-        #view-home { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
         .pack-handle:hover { box-shadow: 0 6px 24px rgba(20,10,5,.18), inset 0 0 0 .5px rgba(255,255,255,.3), 0 0 0 2px var(--accent-soft); }
         .pack-handle-icon { font-size: 13px; transition: transform .3s var(--ease-spring); line-height: 1; }
         .pack-handle.open .pack-handle-icon { transform: rotate(180deg); }
