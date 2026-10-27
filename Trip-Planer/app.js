@@ -1570,7 +1570,7 @@ async function refreshFxHistory() {
         if (cached) { drawFxHistory(cached.points); meta.textContent += ' · offline, letzter Verlauf'; return; }
         box.hidden = false;
         document.getElementById('fxHistoryChart').innerHTML = '';
-        meta.textContent = 'Verlauf nicht verfügbar – offline?';
+        meta.textContent = 'Verlauf gerade nicht abrufbar.';
     }
 }
 function fxOnCcyChange() {
