@@ -2,10 +2,12 @@
 // Fotos/PDFs von Pass, Tickets, Hotelbuchungen, JR-Pass, Versicherung … liegen als
 // Blobs in IndexedDB (localStorage wäre mit ~5 MB viel zu klein). Sie sind bewusst
 // NICHT Teil des JSON-Backups (EXPORT_KEYS) und werden nirgendwohin übertragen.
+// Verschlüsselt mit AES-256-GCM. Der Schlüssel wird ohne Passwort beim ersten Speichern
+// erzeugt, ist nicht exportierbar und liegt nur in dieser IndexedDB (Store „keys“).
 // Nutzt Helfer aus app.js: esc(), showToast(), showUndoToast(), haptic().
 (function () {
     'use strict';
-    const DB_NAME = tripDbName('jp26_documents'), DB_VERSION = 1, STORE = 'docs';
+    const DB_NAME = tripDbName('jp26_documents'), DB_VERSION = 2, STORE = 'docs', KEY_STORE = 'keys';
     const MAX_FILE = 15 * 1024 * 1024;      // PDFs (und fertig verkleinerte Bilder) max. 15 MB
     const MAX_IMG_IN = 50 * 1024 * 1024;    // Bild-Rohdatei vor dem Verkleinern
     const MAX_DIM = 2000, THUMB_DIM = 320, JPEG_Q = 0.85, THUMB_Q = 0.7;
@@ -64,6 +66,7 @@
             req.onupgradeneeded = () => {
                 const db = req.result;
                 if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id' });
+                if (!db.objectStoreNames.contains(KEY_STORE)) db.createObjectStore(KEY_STORE, { keyPath: 'id' });
             };
             req.onsuccess = () => {
                 clearTimeout(timer);
@@ -77,11 +80,11 @@
         dbP.catch(() => { dbP = null; }); // nächster Versuch darf neu öffnen
         return dbP;
     }
-    async function withStore(mode, fn) {
+    async function withStore(mode, fn, store = STORE) {
         const db = await openDb();
         return new Promise((resolve, reject) => {
             let tx, req;
-            try { tx = db.transaction(STORE, mode); req = fn(tx.objectStore(STORE)); }
+            try { tx = db.transaction(store, mode); req = fn(tx.objectStore(store)); }
             catch (e) { dbP = null; reject(dbError(e)); return; }
             tx.oncomplete = () => resolve(req ? req.result : undefined);
             tx.onabort = tx.onerror = () => reject(dbError(tx.error || (req && req.error)));
@@ -90,6 +93,46 @@
     const dbGetAll = () => withStore('readonly', st => st.getAll());
     const dbPut = rec => withStore('readwrite', st => st.put(rec));
     const dbDelete = id => withStore('readwrite', st => st.delete(id));
+
+    // ─── Verschlüsselung ohne Passwort ──────────────────────────────────────
+    // AES-256-GCM. Der Schlüssel entsteht beim ersten Speichern und bleibt als CryptoKey
+    // (nicht exportierbar) im Browser. Der Nutzer muss nichts festlegen.
+    let keyP = null;
+    function getKey() {
+        if (keyP) return keyP;
+        if (!(window.crypto && crypto.subtle)) return Promise.reject(dbError({ name: 'unsupported' }));
+        keyP = (async () => {
+            const existing = await withStore('readonly', st => st.get('doc-key'), KEY_STORE);
+            if (existing && existing.key) return existing.key;
+            const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+            await withStore('readwrite', st => st.put({ id: 'doc-key', key }), KEY_STORE);
+            return key;
+        })();
+        keyP.catch(() => { keyP = null; });
+        return keyP;
+    }
+    async function enc(bytes) {
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        return { iv, ct: await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await getKey(), bytes) };
+    }
+    async function dec(box) {
+        return crypto.subtle.decrypt({ name: 'AES-GCM', iv: box.iv }, await getKey(), box.ct);
+    }
+    // Datensatz für IndexedDB: Titel, Bild und Vorschau sind verschlüsselt.
+    // Im Klartext bleiben nur Kategorie, Typ und Datum für Sortierung und Anzeige.
+    async function sealRecord(d) {
+        const title = await enc(new TextEncoder().encode(JSON.stringify({ title: d.title })));
+        const blob = await enc(await d.blob.arrayBuffer());
+        const thumb = d.thumb ? Object.assign(await enc(await d.thumb.arrayBuffer()), { type: d.thumb.type }) : null;
+        return { id: d.id, cat: d.cat, kind: d.kind, created: d.created, v: 2,
+            title, blob: Object.assign(blob, { type: d.blob.type }), thumb };
+    }
+    async function openRecord(row) {
+        const { title } = JSON.parse(new TextDecoder().decode(await dec(row.title)));
+        const blob = new Blob([await dec(row.blob)], { type: row.blob.type || '' });
+        const thumb = row.thumb ? new Blob([await dec(row.thumb)], { type: row.thumb.type || '' }) : null;
+        return { id: row.id, title, cat: row.cat, kind: row.kind, created: row.created, blob, thumb };
+    }
 
     // ─── Normalisieren (Datenbank-Inhalte nie ungeprüft anzeigen) ───────────
     const cleanTitle = t => (typeof t === 'string' ? t : '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, TITLE_MAX);
@@ -105,13 +148,23 @@
             thumb: d.thumb instanceof Blob ? d.thumb : null
         };
     }
-    const toRecord = d => ({ id: d.id, title: d.title, cat: d.cat, kind: d.kind, created: d.created, blob: d.blob, thumb: d.thumb });
 
     async function load() {
         state = 'loading';
         try {
             const rows = await dbGetAll();
-            docs = (Array.isArray(rows) ? rows : []).map(normDoc).filter(Boolean);
+            const loaded = [], legacy = [];
+            for (const row of (Array.isArray(rows) ? rows : [])) {
+                try {
+                    if (row && row.v === 2) loaded.push(normDoc(await openRecord(row)));
+                    else if (row && row.blob instanceof Blob) { const d = normDoc(row); if (d) { loaded.push(d); legacy.push(d); } }
+                } catch (e) { console.warn('Dokument nicht lesbar', row && row.id, e); }
+            }
+            docs = loaded.filter(Boolean);
+            // Altbestand (unverschlüsselt, vor dieser Version) nachträglich verschlüsseln
+            for (const d of legacy) {
+                try { await dbPut(await sealRecord(d)); } catch (e) { console.warn('Verschlüsselung fehlgeschlagen', d.id, e); }
+            }
             state = 'ready'; loadError = null;
         } catch (e) {
             state = 'error'; loadError = e;
@@ -217,7 +270,7 @@
         if (state === 'idle') { load(); }
         listUrls.forEach(u => URL.revokeObjectURL(u));
         listUrls = [];
-        const note = `<div class="doc-note">${icon('lock-simple', '🔒')}<div><b>Nur auf diesem Gerät gespeichert.</b> Dokumente sind offline verfügbar, werden nicht hochgeladen und sind <b>nicht im JSON-Backup</b> enthalten – Originale also zusätzlich sicher aufbewahren.<span class="doc-storage" id="docStorageInfo"></span></div></div>`;
+        const note = `<div class="doc-note">${icon('lock-simple', '🔒')}<div><b>Verschlüsselt, nur auf diesem Gerät.</b> Kein Passwort nötig. Dokumente sind offline verfügbar, werden nicht hochgeladen und sind <b>nicht im JSON-Backup</b> enthalten. Löschst du die Website-Daten des Browsers, sind sie weg – Originale also zusätzlich sicher aufbewahren.<span class="doc-storage" id="docStorageInfo"></span></div></div>`;
         const fab = document.getElementById('docFab');
         if (fab) fab.hidden = state === 'error';
         if (state === 'idle' || state === 'loading') { list.innerHTML = note + '<div class="empty-acts">Lade Dokumente …</div>'; return; }
@@ -344,14 +397,14 @@
                 const d = docs.find(x => x.id === editId);
                 if (!d) throw new Error('Dokument nicht gefunden.');
                 const next = Object.assign({}, d, { title, cat });
-                await dbPut(toRecord(next));
+                await dbPut(await sealRecord(next));
                 Object.assign(d, { title, cat });
                 showToast('✅ Dokument aktualisiert');
             } else {
                 if (!pending) { showToast('⚠️ Bitte zuerst ein Foto oder PDF wählen'); return; }
                 const { blob, thumb } = pending.kind === 'pdf' ? await processPdf(pending.file) : await processImage(pending.file);
                 const rec = { id: 'doc' + Date.now() + Math.random().toString(36).slice(2, 7), title, cat, kind: pending.kind, created: Date.now(), blob, thumb };
-                await dbPut(rec);
+                await dbPut(await sealRecord(rec));
                 docs.push(normDoc(rec));
                 showToast('✅ Dokument gespeichert');
                 askPersist();
@@ -377,7 +430,7 @@
         render();
         showUndoToast(`🗑️ „${d.title.slice(0, 40)}“ gelöscht`, async () => {
             if (docs.some(x => x.id === id)) return;
-            try { await dbPut(toRecord(d)); docs.push(d); render(); }
+            try { await dbPut(await sealRecord(d)); docs.push(d); render(); }
             catch (e) { showToast('⚠️ Wiederherstellen fehlgeschlagen: ' + e.message); }
         });
     }
