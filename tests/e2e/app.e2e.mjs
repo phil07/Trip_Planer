@@ -188,6 +188,21 @@ t('Tagesplan: eigene Punkte anlegen, abhaken – erledigte rutschen nach unten',
     assert.match(await page.locator('#dayPlanList').innerText(), /Frühstück am Bahnhof/);
 });
 
+t('Tagesplan: eigener Punkt umbenennen', async () => {
+    await open();
+    await go('view-dayplan', 'Tagesplan');
+    await page.click('#view-dayplan .fab-add-act');
+    await page.fill('#pl-text', 'Alt');
+    await page.click('#modal-plan .btn:not(.btn-secondary)');
+    await page.click('#dayPlanList .edit-btn >> nth=0');
+    await page.waitForFunction(() => document.getElementById('modal-plan').open);
+    await page.fill('#pl-text', 'Neu');
+    await page.click('#modal-plan .btn:not(.btn-secondary)');
+    const txt = await page.locator('#dayPlanList').innerText();
+    assert.match(txt, /Neu/);
+    assert.doesNotMatch(txt, /\bAlt\b/);
+});
+
 t('Währungsrechner: 250 EUR → 40.000 JPY mit gestubbtem Kurs, Rückrichtung', async () => {
     await open();
     await go('view-currency', 'Währungsrechner');

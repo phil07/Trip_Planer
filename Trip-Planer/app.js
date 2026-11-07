@@ -3907,7 +3907,8 @@ function dayEntryHtml(e, inDay, entries, i) {
             ${inDay ? `<div class="dayplan-order">
                 <button class="reorder-btn" data-kind="${e.kind}" data-id="${id}" data-d="-1" onclick="moveDayEntry(this.dataset.kind, +this.dataset.id, +this.dataset.d)" aria-label="${safeTitle} nach oben" ${canUp ? '' : 'disabled'}>↑</button>
                 <button class="reorder-btn" data-kind="${e.kind}" data-id="${id}" data-d="1" onclick="moveDayEntry(this.dataset.kind, +this.dataset.id, +this.dataset.d)" aria-label="${safeTitle} nach unten" ${canDown ? '' : 'disabled'}>↓</button>
-                ${a ? '' : `<button class="del-btn" data-id="${id}" onclick="delPlanPoint(+this.dataset.id)" aria-label="${safeTitle} entfernen">✕</button>`}
+                ${a ? '' : `<button class="edit-btn" data-id="${id}" onclick="openPlanModal(+this.dataset.id)" aria-label="${safeTitle} bearbeiten">✏️</button>
+                <button class="del-btn" data-id="${id}" onclick="delPlanPoint(+this.dataset.id)" aria-label="${safeTitle} entfernen">✕</button>`}
             </div>` : ''}
             ${a ? (window.openingHours?.warnHtml(a) || '') : ''}
         </div>`;
@@ -4003,22 +4004,29 @@ function moveDayEntry(kind, id, d) {
     ([...btns].find(b => +b.dataset.d === d && !b.disabled) || [...btns].find(b => !b.disabled))?.focus({ preventScroll: true });
 }
 
-// Eigene Punkte für den Tagesplan (+ im Tagesplan). Station und Tag kommen aus den Reisedaten.
-function openPlanModal() {
+// Eigene Punkte für den Tagesplan (+ im Tagesplan, ✏️ zum Umbenennen und Umlegen).
+// Station und Tag kommen aus den Reisedaten.
+let planEditId = null;
+function openPlanModal(editId = null) {
     const seen = new Set();
     const cities = places.map((p, i) => ({ city: clean(p.name), label: displayName(p.name, i) }))
         .filter(c => !seen.has(c.city) && seen.add(c.city) && placeDays(c.city).length);
     if (!cities.length) { showToast('Noch keine Reisetage für eine Station – zuerst Stationen anlegen'); return; }
+    const edit = editId == null ? null : planPoints.find(p => p.id === editId);
+    planEditId = edit ? edit.id : null;
+    document.getElementById('modal-plan-title').textContent = edit ? 'Tagesplan-Punkt bearbeiten' : 'Tagesplan-Punkt';
     document.getElementById('pl-city').innerHTML = cities.map(c => `<option value="${esc(c.city)}">${esc(c.label)}</option>`).join('');
-    fillPlanDays();
-    document.getElementById('pl-text').value = '';
+    if (edit) document.getElementById('pl-city').value = edit.city;
+    fillPlanDays(edit?.day);
+    document.getElementById('pl-text').value = edit ? edit.text : '';
     document.getElementById('modal-plan').showModal();
     document.getElementById('pl-text').focus();
 }
-function fillPlanDays() {
+function fillPlanDays(selected) {
     const days = placeDays(document.getElementById('pl-city').value);
     const today = todayISO();
-    document.getElementById('pl-day').innerHTML = days.map(d => `<option value="${d}" ${d === (days.includes(today) ? today : days[0]) ? 'selected' : ''}>${esc(fmtDayLong(d))}</option>`).join('');
+    const preset = selected && days.includes(selected) ? selected : (days.includes(today) ? today : days[0]);
+    document.getElementById('pl-day').innerHTML = days.map(d => `<option value="${d}" ${d === preset ? 'selected' : ''}>${esc(fmtDayLong(d))}</option>`).join('');
 }
 function savePlanPoint() {
     const text = document.getElementById('pl-text').value.trim();
@@ -4026,8 +4034,17 @@ function savePlanPoint() {
     if (!text) { showToast('⚠️ Bitte einen Punkt eintragen'); return; }
     if (!city || !day) { showToast('⚠️ Bitte Station und Tag wählen'); return; }
     haptic();
-    const order = Math.max(-1, ...dayEntries(day).map(e => e.order)) + 1;
-    planPoints.push({ id: Date.now() + Math.floor(Math.random() * 1000), city, day, text: text.slice(0, 300), done: false, dayOrder: order });
+    const edit = planEditId == null ? null : planPoints.find(p => p.id === planEditId);
+    if (edit) {
+        const moved = edit.day !== day;
+        Object.assign(edit, { city, day, text: text.slice(0, 300) });
+        // Beim Umlegen auf einen anderen Tag ans Ende dieses Tages sortieren.
+        if (moved) edit.dayOrder = Math.max(-1, ...dayEntries(day).filter(e => !(e.kind === 'pt' && e.id === edit.id)).map(e => e.order)) + 1;
+    } else {
+        const order = Math.max(-1, ...dayEntries(day).map(e => e.order)) + 1;
+        planPoints.push({ id: Date.now() + Math.floor(Math.random() * 1000), city, day, text: text.slice(0, 300), done: false, dayOrder: order });
+    }
+    planEditId = null;
     persist(); renderDayPlan();
     document.getElementById('modal-plan').close();
 }
