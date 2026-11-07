@@ -38,7 +38,7 @@ function makeEnv(initial = {}, failWhen = () => false) {
         globalThis.testFns = { snapshotTripData, writeTripData, savePreImportBackup, persist };`;
     const context = {
         localStorage: ls,
-        places: [], acts: [], startDate: '', tripName: '', tripCountry: '', tripCountryManual: false,
+        places: [], acts: [], planPoints: [], startDate: '', tripName: '', tripCountry: '', tripCountryManual: false,
         clean: x => x, console: { error() {} },
     };
     vm.runInNewContext(code, context);
@@ -90,6 +90,7 @@ test('persist: Speicherfehler stellt den vollst√§ndigen alten Stand wieder her',
     const { m, persist, context } = makeEnv(previous, k => k === 'tp_tripcountry');
     context.places = [{ name: 'Neu' }];
     context.acts = [{ title: 'Neu' }];
+    context.planPoints = [{ id: 1, city: 'Tokyo', day: '2026-10-15', text: 'Neu', done: false }];
     context.startDate = '2026-11-01'; context.tripName = 'Neu'; context.tripCountry = 'Italien';
     context.tripCountryManual = true; context.returnTransport = 'Auto'; context.arrivalTransport = 'Zug';
     assert.equal(persist(), false);
@@ -106,7 +107,7 @@ test('saveSettings stellt bei Speicherfehler den alten Zustand wieder her und l√
         clearTripForCountryChange: () => true,
         updateUndoImportBtn() {}, renderPlaces() {}, renderActs() {}, drawMap() {},
         startDate: '2026-01-01', tripName: 'Alt', tripCountry: 'Japan', tripCountryManual: false,
-        tripLangCode: 'ja', tripLangName: 'Japanisch', places: [{ name: 'Tokyo' }], acts: [],
+        tripLangCode: 'ja', tripLangName: 'Japanisch', places: [{ name: 'Tokyo' }], acts: [], planPoints: [],
         returnTransport: 'Zug', arrivalTransport: 'Flug', crawlerDone: true,
         localStorage: { setItem() {}, getItem() { return null; }, removeItem() {} },
         sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
@@ -132,4 +133,12 @@ test('saveSettings stellt bei Speicherfehler den alten Zustand wieder her und l√
     assert.deepEqual(toasts, []);
     assert.deepEqual(timers, []);
     assert.equal(closed, false);
+});
+
+test('persist schreibt eigene Tagesplan-Punkte unter tp_plan', () => {
+    const { m, persist, context } = makeEnv({});
+    context.planPoints = [{ id: 7, city: 'Kyoto', day: '2026-10-16', text: 'Fr√ºhst√ºck', done: true, dayOrder: 0 }];
+    Object.assign(context, { returnTransport: '', arrivalTransport: '', tripCountry: '', tripCountryManual: false, tripName: '' });
+    persist();
+    assert.deepEqual(JSON.parse(m.get('tp_plan')), context.planPoints);
 });

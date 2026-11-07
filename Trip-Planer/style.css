@@ -1250,3 +1250,8 @@ dialog > h3 { font-size: 22px; font-weight: 800; letter-spacing: -.025em; }
 
 .legal-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; font-size: 12px; margin: var(--sp-2) 0; }
 .legal-links a { color: var(--label-tertiary); }
+
+/* Tagesplan: eigene Punkte, Erledigt-Checkbox, erledigte Punkte nach unten */
+.plan-check { width: 22px; height: 22px; flex: 0 0 auto; margin: 0 2px 0 0; accent-color: var(--primary-text, #d70015); cursor: pointer; }
+.dayplan-item.is-done { opacity: .55; }
+.dayplan-item.is-done .dayplan-item-title { text-decoration: line-through; }

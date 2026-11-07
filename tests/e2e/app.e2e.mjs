@@ -166,6 +166,28 @@ t('Tagesplan: nur Favoriten – geplante unter ihrem Tag, ungeplante getrennt', 
     assert.ok(await page.locator('#dayPlanList .dayplan-card[data-day]').count() >= 1);
 });
 
+t('Tagesplan: eigene Punkte anlegen, abhaken – erledigte rutschen nach unten', async () => {
+    await open();
+    await go('view-dayplan', 'Tagesplan');
+    await page.click('#view-dayplan .fab-add-act');
+    await page.waitForFunction(() => document.getElementById('modal-plan').open);
+    await page.fill('#pl-text', 'Frühstück am Bahnhof');
+    await page.click('#modal-plan .btn:not(.btn-secondary)');
+    await page.click('#view-dayplan .fab-add-act');
+    await page.fill('#pl-text', 'Tempelbesuch');
+    await page.click('#modal-plan .btn:not(.btn-secondary)');
+    const order = async () => (await page.locator('#dayPlanList .dayplan-item-title').allInnerTexts());
+    let titles = await order();
+    assert.ok(titles.indexOf('Frühstück am Bahnhof') < titles.indexOf('Tempelbesuch'));
+    await page.locator('#dayPlanList .plan-check[data-kind="pt"]:not(:checked)').first().click({ force: true });
+    await page.waitForFunction(() => document.querySelector('#dayPlanList .dayplan-item.is-done') !== null);
+    titles = await order();
+    assert.ok(titles.indexOf('Tempelbesuch') < titles.indexOf('Frühstück am Bahnhof'), 'erledigter Punkt rutscht nach unten');
+    await page.reload();
+    await go('view-dayplan', 'Tagesplan');
+    assert.match(await page.locator('#dayPlanList').innerText(), /Frühstück am Bahnhof/);
+});
+
 t('Währungsrechner: 250 EUR → 40.000 JPY mit gestubbtem Kurs, Rückrichtung', async () => {
     await open();
     await go('view-currency', 'Währungsrechner');

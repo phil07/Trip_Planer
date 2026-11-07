@@ -160,6 +160,7 @@
     <!-- DAY PLAN -->
     <div class="view" id="view-dayplan">
         <div class="scroll-content" id="dayPlanList"></div>
+        <button class="fab fab-add-act" onclick="openPlanModal()" aria-label="Tagesplan-Punkt hinzufügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
     </div>
 
     <!-- CURRENCY CONVERTER -->
@@ -432,6 +433,19 @@
         </div>
         <div class="dialog-actions">
             <button class="btn" onclick="addBudgetEntry()">Speichern</button>
+            <button class="btn btn-secondary" onclick="this.closest('dialog').close()">Abbrechen</button>
+        </div>
+    </dialog>
+
+    <dialog id="modal-plan" aria-labelledby="modal-plan-title">
+        <h3 id="modal-plan-title">Tagesplan-Punkt</h3>
+        <div class="dialog-body">
+            <div class="form-group"><label for="pl-city">Station</label><select id="pl-city" onchange="fillPlanDays()"></select></div>
+            <div class="form-group"><label for="pl-day">Tag</label><select id="pl-day"></select></div>
+            <div class="form-group"><label for="pl-text">Punkt</label><input type="text" id="pl-text" maxlength="300" placeholder="z. B. Frühstück am Bahnhof"></div>
+        </div>
+        <div class="dialog-actions">
+            <button class="btn" onclick="savePlanPoint()">Hinzufügen</button>
             <button class="btn btn-secondary" onclick="this.closest('dialog').close()">Abbrechen</button>
         </div>
     </dialog>

@@ -164,7 +164,7 @@ function nightsWord(n) { return n === 1 ? 'Nacht' : 'Nächte'; }
 // Single source of truth: version.js (geladen vor app.js) setzt self.APP_VERSION.
 // Nur dort hochzählen – sw.js (Cache) und diese Anzeige leiten sich davon ab.
 const APP_VERSION = self.APP_VERSION;
-let places = [], acts = [], startDate = defaultStartDate(), computedData = [], currentFilter = "Alle", currentTypeFilter = "Alle";
+let places = [], acts = [], planPoints = [], startDate = defaultStartDate(), computedData = [], currentFilter = "Alle", currentTypeFilter = "Alle";
 // Reisename frei wählbar (Anzeige im Menü); Reiseland steuert Suchanfragen-Zusatz,
 // Nominatim-Ländereinschränkung und Sprachführer/Sprachausgabe. Beides leer, bis die
 // Person ihre eigene Reise in den Einstellungen anlegt – die App ist auf kein
@@ -321,7 +321,12 @@ function normAct(a, i) {
         rating: normRating(a.rating), imgUrl: typeof a.imgUrl === 'string' && /^https?:\/\//i.test(a.imgUrl) ? a.imgUrl : null,
         favorite: !!a.favorite, locLabel: a.locLabel == null ? '' : String(a.locLabel).slice(0, 200),
         taxiAddr: taxiStr(a.taxiAddr), taxiFor: taxiStr(a.taxiFor),
-        hours: normHours(a.hours), time: isHHMM(a.time) ? a.time : '' };
+        hours: normHours(a.hours), time: isHHMM(a.time) ? a.time : '', dayDone: !!a.dayDone };
+}
+// Eigener Punkt im Tagesplan (+ im Tagesplan): Station, Tag und Text, abhakbar.
+function normPlanPoint(p, i) {
+    return { id: finiteOr(p.id, Date.now() + i), city: String(p.city ?? ''), day: typeof p.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.day) ? p.day : '',
+        text: String(p.text ?? '').trim().slice(0, 300), done: !!p.done, dayOrder: finiteOr(p.dayOrder, 0) };
 }
 // Öffnungszeiten einer Aktivität (features/openinghours.js): Ruhetage als Wochentage
 // 0–6 (0 = Sonntag, wie Date.getDay()) und EIN Zeitfenster von–bis (HH:MM). Streng
@@ -396,6 +401,7 @@ function loadState() {
     const validPlaces = (p || []).filter(isObj).map(normPlace);
     places = validPlaces.length ? validPlaces : JSON.parse(JSON.stringify(INITIAL_PLACES));
     acts = readJsonKey('tp_acts', Array.isArray, []).filter(isObj).map(normAct);
+    planPoints = readJsonKey('tp_plan', Array.isArray, []).filter(isObj).map(normPlanPoint).filter(p => p.day && p.text);
     try {
         startDate = localStorage.getItem('tp_start') || defaultStartDate();
         // Schutz vor korrumpiertem/ungültigem Datum im Storage – ohne diesen Check wirft
@@ -2529,6 +2535,7 @@ function persist() {
     const values = {
         tp_places: JSON.stringify(places),
         tp_acts: JSON.stringify(acts),
+        tp_plan: JSON.stringify(planPoints),
         tp_start: startDate,
         tp_tripname: tripName,
         tp_tripcountry: tripCountry,
@@ -2630,7 +2637,7 @@ function appReset() {
     if (mapboxKey) localStorage.setItem('tp_mapbox_key', mapboxKey);
     if (geoapifyKey) localStorage.setItem('tp_geoapify_key', geoapifyKey);
     places = JSON.parse(JSON.stringify(INITIAL_PLACES));
-    acts = []; startDate = defaultStartDate(); crawlerDone = false; returnTransport = ''; arrivalTransport = '';
+    acts = []; planPoints = []; startDate = defaultStartDate(); crawlerDone = false; returnTransport = ''; arrivalTransport = '';
     actsGen++; catsLoading.clear();
     Object.keys(actsFill).forEach(k => delete actsFill[k]);
     Object.keys(cityBooted).forEach(k => delete cityBooted[k]);
@@ -2688,7 +2695,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // sie bei Browser-Daten löschen, Geräte-/App-Wechsel verloren. Export/Import
 // sichert genau die Reisedaten (keine API-Keys – die sind gerätespezifisch
 // und sollen nicht in einer geteilten Datei landen).
-const EXPORT_KEYS = ['tp_places', 'tp_acts', 'tp_budget', 'tp_journal', 'tp_pack',
+const EXPORT_KEYS = ['tp_places', 'tp_acts', 'tp_plan', 'tp_budget', 'tp_journal', 'tp_pack',
     'tp_start', 'tp_tripname', 'tp_tripcountry', 'tp_tripcountry_manual', 'tp_return', 'tp_arrival', 'tp_theme', 'tp_fx_ccy',
     'tp_emergency'];
 // Browser-Tab und installierte App teilen sich den Speicher. Ändert das andere
@@ -2730,7 +2737,7 @@ function validateBackup(payload) {
     Object.keys(payload.data).forEach(k => { data[k.startsWith('jp26_') ? 'tp_' + k.slice(5) : k] = payload.data[k]; });
     const keys = Object.keys(data).filter(k => EXPORT_KEYS.includes(k));
     if (!keys.length || !keys.every(k => typeof data[k] === 'string')) return null;
-    const json = { tp_places: Array.isArray, tp_acts: Array.isArray, tp_journal: Array.isArray, tp_pack: isObj,
+    const json = { tp_places: Array.isArray, tp_acts: Array.isArray, tp_plan: Array.isArray, tp_journal: Array.isArray, tp_pack: isObj,
         tp_budget: v => isObj(v) && Array.isArray(v.entries) && (v.travelers === undefined || Array.isArray(v.travelers)),
         tp_emergency: v => isObj(v) && Object.values(v).every(x => typeof x === 'string') };
     for (const k of keys) {
@@ -2842,7 +2849,7 @@ function clearTripForCountryChange(newCountry) {
         return null;
     }
     updateUndoImportBtn();
-    places = []; acts = []; returnTransport = ''; arrivalTransport = '';
+    places = []; acts = []; planPoints = []; returnTransport = ''; arrivalTransport = '';
     crawlerDone = false; actsGen++; catsLoading.clear();
     Object.keys(actsFill).forEach(k => delete actsFill[k]);
     Object.keys(cityBooted).forEach(k => delete cityBooted[k]);
@@ -2850,7 +2857,7 @@ function clearTripForCountryChange(newCountry) {
     return true;
 }
 function saveSettings() {
-    const state = { startDate, tripName, tripCountry, tripCountryManual, places, acts,
+    const state = { startDate, tripName, tripCountry, tripCountryManual, places, acts, planPoints,
         returnTransport, arrivalTransport, crawlerDone,
         crawled: localStorage.getItem('tp_crawled'), crawledSession: sessionStorage.getItem('tp_crawled_session') };
     const cleared = clearTripForCountryChange(document.getElementById('s-tripcountry')?.value);
@@ -2866,7 +2873,7 @@ function saveSettings() {
         renderPhrases();
         if (!saveData()) {
             startDate = state.startDate; tripName = state.tripName; tripCountryManual = state.tripCountryManual;
-            places = state.places; acts = state.acts; returnTransport = state.returnTransport;
+            places = state.places; acts = state.acts; planPoints = state.planPoints; returnTransport = state.returnTransport;
             arrivalTransport = state.arrivalTransport; crawlerDone = state.crawlerDone;
             if (state.crawled === null) localStorage.removeItem('tp_crawled'); else localStorage.setItem('tp_crawled', state.crawled);
             if (state.crawledSession === null) sessionStorage.removeItem('tp_crawled_session'); else sessionStorage.setItem('tp_crawled_session', state.crawledSession);
@@ -3437,6 +3444,7 @@ function delPlace(id) {
     if (!places.some(x => clean(x.name) === key)) {
         removedActs = acts.map((a, i) => [i, a]).filter(([, a]) => a.topPlace === key);
         if (removedActs.length) acts = acts.filter(a => a.topPlace !== key);
+        planPoints = planPoints.filter(p => p.city !== key);
         forgetCity(key);
     }
     saveData();
@@ -3863,38 +3871,54 @@ function placeDays(city) {
 }
 const fmtDayLong = iso => parseISODate(iso).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
 const fmtDayShort = iso => parseISODate(iso).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
-function dayplanItemHtml(a, days, idx, count) {
-    return `
-        <div class="dayplan-item">
-            ${a.imgUrl
-                ? `<img src="${escHtml(a.imgUrl)}" class="dayplan-thumb" alt="">`
-                : `<div class="dayplan-thumb dayplan-thumb-ph">${escHtml((a.type||'🏯').split(' ')[0])}</div>`}
-            <div class="dayplan-item-text">
-                <div class="dayplan-item-title">${escHtml(a.title)}</div>
-                <div class="dayplan-item-type">${escHtml(a.type||'')}${a.day ? ` · ${escHtml(a.topPlace)}` : ''}</div>
-            </div>
-            <select class="dayplan-day-select" data-id="${esc(String(a.id))}" onchange="setActDay(+this.dataset.id, this.value)" aria-label="Tag für ${esc(a.title)} wählen">
-                <option value="">Kein Tag</option>
-                ${days.map(d => `<option value="${d}" ${a.day === d ? 'selected' : ''}>${esc(fmtDayShort(d))}</option>`).join('')}
-            </select>
-            ${a.day ? `<div class="dayplan-order">
-                <button class="reorder-btn" data-id="${esc(String(a.id))}" data-d="-1" onclick="moveDayItem(+this.dataset.id, +this.dataset.d)" aria-label="${esc(a.title)} nach oben" ${idx === 0 ? 'disabled' : ''}>↑</button>
-                <button class="reorder-btn" data-id="${esc(String(a.id))}" data-d="1" onclick="moveDayItem(+this.dataset.id, +this.dataset.d)" aria-label="${esc(a.title)} nach unten" ${idx === count - 1 ? 'disabled' : ''}>↓</button>
-            </div>` : ''}
-            ${window.openingHours?.warnHtml(a) || ''}
-        </div>`;
+// Ein Eintrag im Tagesplan: ein Favorit (Aktivität) oder ein eigener Punkt. Erledigte
+// Einträge bleiben sichtbar, rutschen aber unter die offenen.
+function dayEntries(day) {
+    const fromActs = acts.filter(a => a.favorite && a.day === day && placeDays(a.topPlace).includes(day))
+        .map(a => ({ kind: 'act', id: a.id, ref: a, city: a.topPlace, order: a.dayOrder || 0, done: !!a.dayDone }));
+    const fromPoints = planPoints.filter(p => p.day === day)
+        .map(p => ({ kind: 'pt', id: p.id, ref: p, city: p.city, order: p.dayOrder || 0, done: !!p.done }));
+    return [...fromActs, ...fromPoints].sort((x, y) => (x.done - y.done) || (x.order - y.order));
 }
-function dayItems(day) {
-    return acts.filter(a => a.favorite && a.day === day && placeDays(a.topPlace).includes(day))
-        .sort((x, y) => (x.dayOrder || 0) - (y.dayOrder || 0));
+function dayEntryHtml(e, inDay, entries, i) {
+    const a = e.kind === 'act' ? e.ref : null;
+    const title = a ? a.title : e.ref.text;
+    const id = esc(String(e.id)), safeTitle = escHtml(title);
+    const canUp = i > 0 && entries[i - 1].done === e.done;
+    const canDown = i < entries.length - 1 && entries[i + 1].done === e.done;
+    const thumb = a
+        ? (a.imgUrl
+            ? `<img src="${escHtml(a.imgUrl)}" class="dayplan-thumb" alt="">`
+            : `<div class="dayplan-thumb dayplan-thumb-ph">${escHtml((a.type||'🏯').split(' ')[0])}</div>`)
+        : `<div class="dayplan-thumb dayplan-thumb-ph" aria-hidden="true">${ico('note-pencil', '📝')}</div>`;
+    const sub = a ? `${escHtml(a.type||'')}${a.day ? ` · ${escHtml(a.topPlace)}` : ''}` : escHtml(e.city);
+    return `
+        <div class="dayplan-item${e.done ? ' is-done' : ''}">
+            ${inDay ? `<input type="checkbox" class="plan-check" data-kind="${e.kind}" data-id="${id}" ${e.done ? 'checked' : ''} onchange="toggleDayDone(this.dataset.kind, +this.dataset.id, this.checked)" aria-label="${safeTitle} erledigt">` : ''}
+            ${thumb}
+            <div class="dayplan-item-text">
+                <div class="dayplan-item-title">${safeTitle}</div>
+                <div class="dayplan-item-type">${sub}</div>
+            </div>
+            ${a ? `<select class="dayplan-day-select" data-id="${id}" onchange="setActDay(+this.dataset.id, this.value)" aria-label="Tag für ${safeTitle} wählen">
+                <option value="">Kein Tag</option>
+                ${placeDays(a.topPlace).map(d => `<option value="${d}" ${a.day === d ? 'selected' : ''}>${escHtml(fmtDayShort(d))}</option>`).join('')}
+            </select>` : ''}
+            ${inDay ? `<div class="dayplan-order">
+                <button class="reorder-btn" data-kind="${e.kind}" data-id="${id}" data-d="-1" onclick="moveDayEntry(this.dataset.kind, +this.dataset.id, +this.dataset.d)" aria-label="${safeTitle} nach oben" ${canUp ? '' : 'disabled'}>↑</button>
+                <button class="reorder-btn" data-kind="${e.kind}" data-id="${id}" data-d="1" onclick="moveDayEntry(this.dataset.kind, +this.dataset.id, +this.dataset.d)" aria-label="${safeTitle} nach unten" ${canDown ? '' : 'disabled'}>↓</button>
+                ${a ? '' : `<button class="del-btn" data-id="${id}" onclick="delPlanPoint(+this.dataset.id)" aria-label="${safeTitle} entfernen">✕</button>`}
+            </div>` : ''}
+            ${a ? (window.openingHours?.warnHtml(a) || '') : ''}
+        </div>`;
 }
 function renderDayPlan() {
     const list = document.getElementById('dayPlanList');
     if (!list) return;
 
     const favs = acts.filter(a => a.favorite);
-    if (!favs.length) {
-        list.innerHTML = `<div class="empty-acts">♡ Noch keine Favoriten.<br>Markiere Aktivitäten in „Aktivitäten & Essen“ mit ♡ – hier kannst du sie dann einzelnen Reisetagen zuordnen und als Route in Google Maps öffnen.<br><button type="button" class="btn empty-cta" onclick="switchView('view-activities','Aktivitäten')">Aktivitäten entdecken</button></div>`;
+    if (!favs.length && !planPoints.length) {
+        list.innerHTML = `<div class="empty-acts">♡ Noch keine Favoriten.<br>Markiere Aktivitäten in „Aktivitäten & Essen“ mit ♡ – hier kannst du sie dann einzelnen Reisetagen zuordnen und als Route in Google Maps öffnen.<br>Eigene Punkte legst du mit <b>+</b> an.<br><button type="button" class="btn empty-cta" onclick="switchView('view-activities','Aktivitäten')">Aktivitäten entdecken</button></div>`;
         window.calendarExport?.decorateDayPlan(list);
         window.transit?.renderDayPlan(list);
         return;
@@ -3902,16 +3926,16 @@ function renderDayPlan() {
     const daysOf = {};
     const cityDays = city => (daysOf[city] ??= placeDays(city));
     const isPlanned = a => a.day && cityDays(a.topPlace).includes(a.day);
-    const planned = [...new Set(favs.filter(isPlanned).map(a => a.day))].sort();
+    const planned = [...new Set([...favs.filter(isPlanned).map(a => a.day), ...planPoints.map(p => p.day)])].sort();
     const cities = [...new Set([...places.map(p => clean(p.name)), ...favs.map(a => a.topPlace)])];
     const loose = cities.map(city => ({ city, favs: favs.filter(a => a.topPlace === city && !isPlanned(a)) })).filter(g => g.favs.length);
 
     list.innerHTML = '';
-    const addCard = (title, items, sub, onRoute, isDay) => {
-        const withGeo = items.filter(a => a.lat != null && a.lng != null).length;
+    const addCard = (title, entries, sub, onRoute, isDay, city) => {
+        const withGeo = entries.filter(e => e.kind === 'act' && e.ref.lat != null && e.ref.lng != null).length;
         const card = document.createElement('div');
         card.className = 'dayplan-card';
-        if (isDay) { card.dataset.wxDay = isDay; card.dataset.wxCity = items[0]?.topPlace || ''; } // Wetter-Hook (features/weather.js)
+        if (isDay) { card.dataset.wxDay = isDay; card.dataset.wxCity = city; } // Wetter-Hook (features/weather.js)
         if (isDay) card.dataset.day = isDay;
         card.innerHTML = `
             <div class="dayplan-header">
@@ -3919,7 +3943,7 @@ function renderDayPlan() {
                 <span class="dayplan-count">${escHtml(sub)}</span>
             </div>
             <div class="dayplan-items">
-                ${items.map((a, i) => dayplanItemHtml(a, cityDays(a.topPlace), i, items.length)).join('')}
+                ${entries.map((e, i) => dayEntryHtml(e, !!isDay, entries, i)).join('')}
             </div>
             <button class="btn btn-accent" ${withGeo < 1 ? 'disabled' : ''}>Route planen (${withGeo} Stopp${withGeo === 1 ? '' : 's'})</button>`;
         card.querySelector('button.btn-accent').addEventListener('click', onRoute);
@@ -3930,16 +3954,18 @@ function renderDayPlan() {
         list.appendChild(h);
     }
     planned.forEach(day => {
-        const items = dayItems(day);
-        const cs = [...new Set(items.map(a => a.topPlace))].join(', ');
-        addCard(fmtDayLong(day), items, cs, () => planDayRoute(items[0]?.topPlace, items, true), day);
+        const entries = dayEntries(day);
+        const routeActs = entries.filter(e => e.kind === 'act').map(e => e.ref);
+        const cs = [...new Set(entries.map(e => e.city))].join(', ');
+        addCard(fmtDayLong(day), entries, cs, () => planDayRoute(routeActs[0]?.topPlace, routeActs, true), day, routeActs[0]?.topPlace || entries[0]?.city || '');
     });
     if (loose.length) {
         const h = document.createElement('div'); h.className = 'dayplan-section';
         h.textContent = planned.length ? 'Noch keinem Tag zugeordnet' : 'Favoriten – wähle einen Tag, um sie einzuplanen';
         list.appendChild(h);
     }
-    loose.forEach(g => addCard(g.city, g.favs, `${g.favs.length} Favorit${g.favs.length === 1 ? '' : 'en'}`, () => planDayRoute(g.city, g.favs, false)));
+    loose.forEach(g => addCard(g.city, g.favs.map(a => ({ kind: 'act', id: a.id, ref: a, city: a.topPlace, order: 0, done: false })),
+        `${g.favs.length} Favorit${g.favs.length === 1 ? '' : 'en'}`, () => planDayRoute(g.city, g.favs, false), null, g.city));
     window.calendarExport?.decorateDayPlan(list);
     window.weatherFeature?.renderDayPlan(list);
     window.transit?.renderDayPlan(list);
@@ -3949,21 +3975,69 @@ function setActDay(id, day) {
     if (!a) return;
     haptic();
     a.day = day || '';
-    a.dayOrder = day ? Math.max(0, ...dayItems(day).filter(x => x.id !== id).map(x => (x.dayOrder || 0) + 1)) : 0;
+    a.dayOrder = day ? Math.max(0, ...dayEntries(day).filter(x => !(x.kind === 'act' && x.id === id)).map(x => x.order + 1)) : 0;
     persist(); renderDayPlan();
 }
-function moveDayItem(id, d) {
-    const a = acts.find(x => x.id === id);
-    if (!a || !a.day) return;
-    const items = dayItems(a.day);
-    const i = items.indexOf(a), j = i + d;
-    if (i < 0 || !items[j]) return;
+function findDayEntry(kind, id) {
+    return kind === 'act' ? acts.find(a => a.id === id) : planPoints.find(p => p.id === id);
+}
+function toggleDayDone(kind, id, done) {
+    const item = findDayEntry(kind, id);
+    if (!item) return;
     haptic();
-    [items[i], items[j]] = [items[j], items[i]];
-    items.forEach((x, k) => { x.dayOrder = k; });
+    if (kind === 'act') item.dayDone = !!done; else item.done = !!done;
     persist(); renderDayPlan();
-    const btns = document.querySelectorAll(`#dayPlanList .reorder-btn[data-id="${id}"]`);
+    document.querySelector(`#dayPlanList .plan-check[data-kind="${kind}"][data-id="${id}"]`)?.focus({ preventScroll: true });
+}
+function moveDayEntry(kind, id, d) {
+    const item = findDayEntry(kind, id);
+    if (!item || !item.day) return;
+    const entries = dayEntries(item.day);
+    const i = entries.findIndex(e => e.kind === kind && e.id === id), j = i + d;
+    if (i < 0 || !entries[j] || entries[j].done !== entries[i].done) return;
+    haptic();
+    [entries[i], entries[j]] = [entries[j], entries[i]];
+    entries.forEach((e, k) => { e.ref.dayOrder = k; });
+    persist(); renderDayPlan();
+    const btns = document.querySelectorAll(`#dayPlanList .reorder-btn[data-id="${id}"][data-kind="${kind}"]`);
     ([...btns].find(b => +b.dataset.d === d && !b.disabled) || [...btns].find(b => !b.disabled))?.focus({ preventScroll: true });
+}
+
+// Eigene Punkte für den Tagesplan (+ im Tagesplan). Station und Tag kommen aus den Reisedaten.
+function openPlanModal() {
+    const seen = new Set();
+    const cities = places.map((p, i) => ({ city: clean(p.name), label: displayName(p.name, i) }))
+        .filter(c => !seen.has(c.city) && seen.add(c.city) && placeDays(c.city).length);
+    if (!cities.length) { showToast('Noch keine Reisetage für eine Station – zuerst Stationen anlegen'); return; }
+    document.getElementById('pl-city').innerHTML = cities.map(c => `<option value="${esc(c.city)}">${esc(c.label)}</option>`).join('');
+    fillPlanDays();
+    document.getElementById('pl-text').value = '';
+    document.getElementById('modal-plan').showModal();
+    document.getElementById('pl-text').focus();
+}
+function fillPlanDays() {
+    const days = placeDays(document.getElementById('pl-city').value);
+    const today = todayISO();
+    document.getElementById('pl-day').innerHTML = days.map(d => `<option value="${d}" ${d === (days.includes(today) ? today : days[0]) ? 'selected' : ''}>${esc(fmtDayLong(d))}</option>`).join('');
+}
+function savePlanPoint() {
+    const text = document.getElementById('pl-text').value.trim();
+    const city = document.getElementById('pl-city').value, day = document.getElementById('pl-day').value;
+    if (!text) { showToast('⚠️ Bitte einen Punkt eintragen'); return; }
+    if (!city || !day) { showToast('⚠️ Bitte Station und Tag wählen'); return; }
+    haptic();
+    const order = Math.max(-1, ...dayEntries(day).map(e => e.order)) + 1;
+    planPoints.push({ id: Date.now() + Math.floor(Math.random() * 1000), city, day, text: text.slice(0, 300), done: false, dayOrder: order });
+    persist(); renderDayPlan();
+    document.getElementById('modal-plan').close();
+}
+function delPlanPoint(id) {
+    const p = planPoints.find(x => x.id === id);
+    if (!p) return;
+    haptic();
+    planPoints = planPoints.filter(x => x.id !== id);
+    persist(); renderDayPlan();
+    showToast(`„${p.text}“ entfernt`);
 }
 
 // Nearest-neighbor Heuristik: baut ab `start` die kürzeste Kette durch alle `points`,
