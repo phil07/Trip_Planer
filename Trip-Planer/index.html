@@ -632,8 +632,24 @@
     t.id = 'updateToast';
     t.textContent = '🔄 Version ' + version + ' verfügbar – tippen zum Herunterladen';
     t.className = 'sys-toast sys-toast--update';
-    t.addEventListener('click', () => { window.open(url, '_blank'); t.remove(); });
+    t.addEventListener('click', () => { t.remove(); installApkUpdate(version, url); });
     document.body.appendChild(t);
+  }
+  // Lädt die APK in der App herunter und startet die Installation über den Android-Dialog.
+  async function installApkUpdate(version, url) {
+    if (!(window.Capacitor && window.Capacitor.nativePromise)) { window.open(url, '_blank'); return; }
+    showResultToast('Lade ' + version + ' herunter …', 'ok');
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Download: HTTP ' + res.status);
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      await window.Capacitor.nativePromise('ApkInstaller', 'saveAndInstall', { base64: btoa(bin) });
+      showResultToast('Installation gestartet – bestätige sie im Android-Dialog', 'ok');
+    } catch (e) {
+      showResultToast('Update fehlgeschlagen: ' + String(e && e.message || e).slice(0, 120), 'err');
+    }
   }
   async function checkApkUpdateNow(btn) {
     if (btn) { btn.disabled = true; btn.textContent = '…'; }
