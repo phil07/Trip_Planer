@@ -1,11 +1,15 @@
 name: Android-APK
 
-# Baut bei jeder veröffentlichten Release eine signierte APK und hängt sie an die Release.
-# Die App prüft die neueste Release und bietet diese APK zum Download an.
+# Baut bei jedem Push auf main eine signierte APK und legt dafür eine Release an, getaggt mit der Version aus
+# Trip-Planer/version.js. Gibt es diese Version schon, passiert nichts. Die App prüft die neueste Release.
 on:
-  release:
-    types: [published]
+  push:
+    branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -28,32 +32,54 @@ jobs:
 
       - uses: android-actions/setup-android@v3
 
-      - run: npm ci
+      - name: Version aus version.js lesen und prüfen, ob schon eine Release existiert
+        id: ver
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG=$(sed -n "s/.*APP_VERSION = '\([^']*\)'.*/\1/p" Trip-Planer/version.js)
+          [ -n "$TAG" ] || { echo "::error::APP_VERSION nicht gefunden"; exit 1; }
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "new=false" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG gibt es schon, nichts zu tun."
+          else
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.ver.outputs.new == 'true'
+        run: npm ci
 
       - name: Web-Dateien in das Android-Projekt kopieren
+        if: steps.ver.outputs.new == 'true'
         run: npx cap sync android
 
       - name: Signierschlüssel aus Secret schreiben
+        if: steps.ver.outputs.new == 'true'
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
 
       - name: APK bauen
+        if: steps.ver.outputs.new == 'true'
         working-directory: android
         env:
           KEYSTORE_PATH: ${{ runner.temp }}/release.jks
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          VERSION_NAME: ${{ github.event.release.tag_name || 'dev' }}
+          VERSION_NAME: ${{ steps.ver.outputs.tag }}
           VERSION_CODE: ${{ github.run_number }}
         run: ./gradlew assembleRelease
 
-      - name: APK an die Release hängen
-        if: github.event_name == 'release'
+      - name: Release mit APK anlegen
+        if: steps.ver.outputs.new == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ steps.ver.outputs.tag }}
         run: |
+          set -euo pipefail
           cp android/app/build/outputs/apk/release/app-release.apk "trip-planer-${TAG}.apk"
-          gh release upload "$TAG" "trip-planer-${TAG}.apk" --clobber
+          gh release create "$TAG" "trip-planer-${TAG}.apk" --target "$GITHUB_SHA" \
+            --title "$TAG" --notes "Automatisch gebaut aus Commit ${GITHUB_SHA:0:7}." --latest
