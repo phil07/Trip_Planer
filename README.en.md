@@ -144,8 +144,3 @@ Each service's own privacy terms apply. Without a connection, stored data and al
 Trip data stays in the browser's local storage. If you turn on Google Drive sync, a file is additionally stored in the hidden app folder of your Google account; no server of the developer has access to it. Clearing browser data or resetting the device removes the local data. The installed app and a browser tab may use separate storage. **Export your trip regularly** (menu → settings) and treat export files like personal travel documents.
 
 > Emergency numbers and phrases are provided without warranty; when in doubt, use the local emergency number.
-
-## 🤝 Contributing
-
-- Only the `main` branch exists; commit directly to it, no pull requests.
-- On every push that changes something under `Trip-Planer/`, increase `APP_VERSION` in `Trip-Planer/version.js` by one. The service-worker cache derives from it, and the app shows the version in its menu.

@@ -144,8 +144,3 @@ Es gelten die jeweiligen Datenschutzregeln der Dienste. Ohne Verbindung bleiben 
 Reisedaten verbleiben im lokalen Speicher des Browsers. Wenn du den Google-Drive-Abgleich einschaltest, wird zusätzlich eine Datei im versteckten App-Ordner deines Google-Kontos gespeichert; es gibt keinen Server des Entwicklers mit Zugriff darauf. Das Löschen von Browserdaten oder das Zurücksetzen des Geräts entfernt die lokalen Daten. Installierte App und Browser-Tab können getrennte Speicher haben. **Exportiere die Reise deshalb regelmäßig** (Menü → Daten → Backup) und behandle Exportdateien wie persönliche Reisedokumente.
 
 > Notrufnummern und Notfall-Sätze sind ohne Gewähr; im Zweifel gilt der lokale Notruf.
-
-## 🤝 Mitarbeiten
-
-- Nur der Branch `main` existiert; direkt dorthin committen, keine Pull Requests.
-- Bei jedem Push, der etwas unter `Trip-Planer/` ändert, `APP_VERSION` in `Trip-Planer/version.js` um eins erhöhen. Der Service-Worker-Cache leitet sich davon ab, und die App zeigt die Version im Menü.
