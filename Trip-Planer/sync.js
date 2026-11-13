@@ -125,8 +125,14 @@ function loadNativeLogin() {
 }
 async function requestToken() {
   if (window.Capacitor?.isNativePlatform?.()) {
+    const say = msg => { if (typeof showToast === 'function') showToast(msg); };
+    say('Anmeldung: Modul wird geladen …');
     await loadNativeLogin();
-    const token = await window.tpNativeLogin.accessToken(SCOPE, TP_SYNC_CLIENT_ID);
+    say('Anmeldung: Google wird geöffnet …');
+    // Ohne Antwort nach 25 Sekunden abbrechen, damit nie „nichts passiert“.
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('keine Antwort von Google nach 25 s')), 25000));
+    const token = await Promise.race([window.tpNativeLogin.accessToken(SCOPE, TP_SYNC_CLIENT_ID), timeout]);
+    say('Anmeldung: Zugriff erhalten');
     setToken(token, 3600);
     return token;
   }
