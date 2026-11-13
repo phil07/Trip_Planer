@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity implements ModifiedMainActivity
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(ApkInstallerPlugin.class);
+        registerPlugin(AppPermissionsPlugin.class);
         super.onCreate(savedInstanceState);
     }
 

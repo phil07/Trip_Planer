@@ -680,6 +680,10 @@
     }).catch(() => {});
   }
   window.addEventListener('load', autoApkUpdateCheck);
+  // In der App beim Start die nötigen Berechtigungen anfragen (Standort, Benachrichtigungen).
+  window.addEventListener('load', () => {
+    if (isNativeApp()) window.Capacitor.nativePromise('AppPermissions', 'request', {}).catch(() => {});
+  });
 
   async function checkForUpdate() {
     var btn = document.getElementById('btnCheckUpdate');
