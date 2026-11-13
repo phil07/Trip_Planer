@@ -18,6 +18,11 @@
     const QR_MAX_LEN = 2500;                 // längere Links passen nicht zuverlässig in einen QR-Code
     const MAX_HASH_LEN = 4 * 1024 * 1024;    // kodierte Daten: mehr ist kein echter Export
     const MAX_INFLATED = 5 * 1024 * 1024;    // Schutz vor Dekompressions-Bomben
+    // In der Android-App läuft die Seite unter https://localhost: Links und Server zeigen dann auf die Web-Adresse.
+    const NATIVE_APP = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    const PUBLIC_APP_URL = 'https://japan.iphilipp07-869.workers.dev';
+    const SHARE_API = (NATIVE_APP ? PUBLIC_APP_URL : '') + '/api/share';
+    const appLinkBase = () => NATIVE_APP ? PUBLIC_APP_URL + '/' : location.origin + location.pathname;
     // Persönliche Einstellungen des Empfängers bleiben erhalten, wenn der Link sie nicht enthält.
     const KEEP_LOCAL_KEYS = ['tp_theme', 'tp_journal'];
     const canCompress = typeof CompressionStream === 'function' && typeof DecompressionStream === 'function';
@@ -74,7 +79,7 @@
     }
     async function buildLink(payload) {
         const enc = bytesToB64url(await deflate(JSON.stringify(payload)));
-        return location.origin + location.pathname + HASH_PREFIX + enc;
+        return appLinkBase() + HASH_PREFIX + enc;
     }
 
     // ── Kurzlink: Ende-zu-Ende-verschlüsselt, Server sieht nur Chiffretext ──
@@ -96,16 +101,16 @@
         if (!(window.crypto && crypto.subtle)) throw new Error('Kein WebCrypto');
         const { blob, key } = await encryptBytes(await deflate(JSON.stringify(payload)));
         if (blob.length > SHORT_MAX_BLOB) throw new Error('Zu groß');
-        const res = await fetch('/api/share', { method: 'POST', body: blob, headers: { 'content-type': 'application/octet-stream' } });
+        const res = await fetch(SHARE_API, { method: 'POST', body: blob, headers: { 'content-type': 'application/octet-stream' } });
         if (!res.ok) throw new Error('Server ' + res.status);
         const { id } = await res.json();
         if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{16,32}$/.test(id)) throw new Error('Ungültige Antwort');
-        return location.origin + location.pathname + SHORT_PREFIX + id + '.' + key;
+        return appLinkBase() + SHORT_PREFIX + id + '.' + key;
     }
     async function fetchShort(ref) {
         const m = /^([A-Za-z0-9_-]{16,32})\.([A-Za-z0-9_-]{43})$/.exec(ref);
         if (!m) throw new Error('Ungültig');
-        const res = await fetch('/api/share/' + m[1], { cache: 'no-store' });
+        const res = await fetch(SHARE_API + '/' + m[1], { cache: 'no-store' });
         if (res.status === 404) throw new Error('Abgelaufen');
         if (!res.ok) throw new Error('Server ' + res.status);
         const blob = new Uint8Array(await res.arrayBuffer());

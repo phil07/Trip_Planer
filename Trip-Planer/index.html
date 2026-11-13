@@ -492,7 +492,8 @@
     }
   })();
 
-  if ('serviceWorker' in navigator) {
+  // In der Android-App ohne Service Worker: die Oberfläche liegt in der APK, Updates kommen über neue APKs.
+  if ('serviceWorker' in navigator && !isNativeApp()) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('sw.js').then(reg => {
         console.log('SW registered:', reg.scope);
@@ -605,9 +606,63 @@
     });
   }
 
+  // ─── Android-App: Update-Prüfung über GitHub-Releases (APK als Anhang) ───
+  // Jede Release hat eine APK. Ist die Release-Version neuer als die installierte, erscheint ein
+  // Hinweis, der die APK im Browser lädt. Installieren bestätigt der Nutzer selbst (Android-Vorgabe).
+  const APK_RELEASES_API = 'https://api.github.com/repos/phil07/Japan2026/releases/latest';
+  function isNativeApp() { return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); }
+  function isNewerVersion(remote, local) {
+    const a = (String(remote).match(/\d+/g) || []).map(Number), b = (String(local).match(/\d+/g) || []).map(Number);
+    for (let i = 0; i < Math.max(a.length, b.length); i++) {
+      const d = (a[i] || 0) - (b[i] || 0);
+      if (d) return d > 0;
+    }
+    return false;
+  }
+  async function fetchApkRelease() {
+    const res = await fetch(APK_RELEASES_API, { headers: { Accept: 'application/vnd.github+json' } });
+    if (!res.ok) throw new Error('GitHub antwortet mit ' + res.status);
+    const rel = await res.json();
+    const apk = (rel.assets || []).find(a => /\.apk$/i.test(a.name));
+    return { version: rel.tag_name, url: apk ? apk.browser_download_url : null };
+  }
+  function showApkUpdateToast(version, url) {
+    if (document.getElementById('updateToast')) return;
+    const t = document.createElement('div');
+    t.id = 'updateToast';
+    t.textContent = '🔄 Version ' + version + ' verfügbar – tippen zum Herunterladen';
+    t.className = 'sys-toast sys-toast--update';
+    t.addEventListener('click', () => { window.open(url, '_blank'); t.remove(); });
+    document.body.appendChild(t);
+  }
+  async function checkApkUpdateNow(btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    try {
+      const rel = await fetchApkRelease();
+      if (rel.url && isNewerVersion(rel.version, self.APP_VERSION)) showApkUpdateToast(rel.version, rel.url);
+      else showResultToast('Du bist bereits auf der aktuellsten Version (' + self.APP_VERSION + ')', 'ok');
+    } catch (e) {
+      showResultToast('Update-Prüfung fehlgeschlagen: ' + String(e && e.message || e).slice(0, 120), 'err');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Prüfen'; }
+    }
+  }
+  // Höchstens einmal am Tag im Hintergrund; meldet sich nur, wenn es etwas Neues gibt.
+  function autoApkUpdateCheck() {
+    if (!isNativeApp()) return;
+    const last = +(localStorage.getItem('tp_apk_checked') || 0);
+    if (Date.now() - last < 24 * 60 * 60 * 1000) return;
+    localStorage.setItem('tp_apk_checked', String(Date.now()));
+    fetchApkRelease().then(rel => {
+      if (rel.url && isNewerVersion(rel.version, self.APP_VERSION)) showApkUpdateToast(rel.version, rel.url);
+    }).catch(() => {});
+  }
+  window.addEventListener('load', autoApkUpdateCheck);
+
   async function checkForUpdate() {
     var btn = document.getElementById('btnCheckUpdate');
     if (btn && btn.disabled) return;
+    if (isNativeApp()) return checkApkUpdateNow(btn);
     if (btn) { btn.disabled = true; btn.textContent = '…'; }
     try {
       if (!('serviceWorker' in navigator)) {

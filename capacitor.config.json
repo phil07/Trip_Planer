@@ -1,0 +1,6 @@
+{
+  "appId": "de.phil07.tripplaner",
+  "appName": "Trip Planer",
+  "webDir": "Trip-Planer",
+  "server": { "androidScheme": "https" }
+}

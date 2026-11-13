@@ -16,3 +16,15 @@ Trip-Planer/graft/
 # Abhängigkeiten der Browser-Tests
 node_modules/
 .pw-browsers/
+
+# Android (Capacitor): generierte Web-Dateien, Build-Ausgabe und Signierschlüssel
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/.idea/
+*.jks
+*.keystore

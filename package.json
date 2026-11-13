@@ -6,6 +6,11 @@
     "test:e2e": "node --test tests/e2e/*.e2e.mjs"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.5.3",
     "playwright-core": "^1.55.0"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/core": "8.5.3"
   }
 }
