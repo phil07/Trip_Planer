@@ -38,7 +38,7 @@ function makeEnv(initial = {}, failWhen = () => false) {
         globalThis.testFns = { snapshotTripData, writeTripData, savePreImportBackup, persist };`;
     const context = {
         localStorage: ls,
-        places: [], acts: [], planPoints: [], startDate: '', tripName: '', tripCountry: '', tripCountryManual: false,
+        places: [], acts: [], planPoints: [], returnBooking: null, startDate: '', tripName: '', tripCountry: '', tripCountryManual: false,
         clean: x => x, console: { error() {} },
     };
     vm.runInNewContext(code, context);
@@ -138,7 +138,7 @@ test('saveSettings stellt bei Speicherfehler den alten Zustand wieder her und l�
 test('persist schreibt eigene Tagesplan-Punkte unter tp_plan', () => {
     const { m, persist, context } = makeEnv({});
     context.planPoints = [{ id: 7, city: 'Kyoto', day: '2026-10-16', text: 'Frühstück', done: true, dayOrder: 0 }];
-    Object.assign(context, { returnTransport: '', arrivalTransport: '', tripCountry: '', tripCountryManual: false, tripName: '' });
+    Object.assign(context, { returnTransport: '', arrivalTransport: '', returnBooking: null, tripCountry: '', tripCountryManual: false, tripName: '' });
     persist();
     assert.deepEqual(JSON.parse(m.get('tp_plan')), context.planPoints);
 });
