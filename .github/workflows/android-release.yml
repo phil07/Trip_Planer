@@ -30,7 +30,10 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - uses: android-actions/setup-android@v3
+      # Der Runner hat das Android SDK schon installiert (ANDROID_HOME); nur die Lizenzen müssen akzeptiert werden.
+      - name: Android-Lizenzen akzeptieren
+        if: steps.ver.outputs.new == 'true'
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
       - name: Version aus version.js lesen und prüfen, ob schon eine Release existiert
         id: ver
