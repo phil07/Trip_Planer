@@ -112,6 +112,12 @@ function loadGis() {
 }
 
 // Token anfordern
+// Meldungen als Schnellmeldung oben (showResultToast in index.html). Die Fuß-Leiste (#toast)
+// liegt im geöffneten Menü unter der Oberfläche und bleibt dort unsichtbar.
+function notify(msg, variant) {
+  if (typeof window.showResultToast === 'function') window.showResultToast(msg, variant);
+  else if (typeof showToast === 'function') showToast(msg);
+}
 // In der Android-App über den nativen Google-Login (native/login.js), im Browser über GIS.
 function loadNativeLogin() {
   if (window.tpNativeLogin) return Promise.resolve();
@@ -125,7 +131,7 @@ function loadNativeLogin() {
 }
 async function requestToken() {
   if (window.Capacitor?.isNativePlatform?.()) {
-    const say = msg => { if (typeof showToast === 'function') showToast(msg); };
+    const say = msg => notify(msg, 'ok');
     say('Anmeldung: Modul wird geladen …');
     await loadNativeLogin();
     say('Anmeldung: Google wird geöffnet …');
@@ -371,16 +377,16 @@ window.TripPlannerSync = {
       setMeta({ enabled: true });
       await syncNow({ interactive: true });
       const n = await importRemoteTrips();
-      if (typeof showToast === 'function') showToast(n ? 'Mit Google Drive verbunden, ' + n + ' Reise(n) übernommen' : 'Mit Google Drive verbunden', 'ok');
+      notify(n ? 'Mit Google Drive verbunden, ' + n + ' Reise(n) übernommen' : 'Mit Google Drive verbunden', 'ok');
       if (n && typeof window.tripsOpenRender === 'function') window.tripsOpenRender();
     } catch (e) {
-      if (typeof showToast === 'function') showToast('Verbindung fehlgeschlagen: ' + e.message, 'err');
+      notify('Verbindung fehlgeschlagen: ' + e.message, 'err');
     }
   },
   disconnect: () => {
     setMeta({ enabled: false });
     localStorage.removeItem(TOKEN_KEY);
-    if (typeof showToast === 'function') showToast('Sync getrennt', 'ok');
+    notify('Sync getrennt', 'ok');
   },
   syncNow,
   importRemoteTrips,
