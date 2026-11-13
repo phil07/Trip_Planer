@@ -170,6 +170,9 @@ let places = [], acts = [], planPoints = [], startDate = defaultStartDate(), com
 // Person ihre eigene Reise in den Einstellungen anlegt – die App ist auf kein
 // bestimmtes Land festgelegt.
 let returnTransport = "", arrivalTransport = "";
+// Gebuchte Rückreise (Zug/Flug mit Abfahrt, Sitz, Notiz) – Gegenstück zu places[i].transit für die Anreise/Rückreise.
+let returnBooking = null;
+window.tripBooking = { get return() { return returnBooking; }, set return(v) { returnBooking = v; } };
 // Anreise (vor Station 1) und Rückreise (nach der letzten) sind reiseweit, alle
 // anderen Etappen liegen im transport-Feld ihrer Zielstation.
 const transportInto = i => (i === 0 ? arrivalTransport : places[i]?.transport) || '';
@@ -414,6 +417,7 @@ function loadState() {
         tripName = localStorage.getItem('tp_tripname') || "";
         tripCountryManual = localStorage.getItem('tp_tripcountry_manual') === '1';
         returnTransport = normTransport((localStorage.getItem('tp_return') || '').slice(0, 120));
+        try { returnBooking = normTransit(JSON.parse(localStorage.getItem('tp_return_booking') || 'null')); } catch (e) { returnBooking = null; }
         const storedArrival = localStorage.getItem('tp_arrival');
         if (storedArrival !== null) arrivalTransport = normTransport(storedArrival.slice(0, 120));
         else if (places[0]?.transport && places[0].transport !== 'Ausstehend') {
@@ -2541,6 +2545,7 @@ function persist() {
         tp_tripcountry: tripCountry,
         tp_tripcountry_manual: tripCountryManual ? '1' : '0',
         tp_return: returnTransport,
+        tp_return_booking: JSON.stringify(returnBooking),
         tp_arrival: arrivalTransport,
     };
     const previous = {};
@@ -2637,7 +2642,7 @@ function appReset() {
     if (mapboxKey) localStorage.setItem('tp_mapbox_key', mapboxKey);
     if (geoapifyKey) localStorage.setItem('tp_geoapify_key', geoapifyKey);
     places = JSON.parse(JSON.stringify(INITIAL_PLACES));
-    acts = []; planPoints = []; startDate = defaultStartDate(); crawlerDone = false; returnTransport = ''; arrivalTransport = '';
+    acts = []; planPoints = []; startDate = defaultStartDate(); crawlerDone = false; returnTransport = ''; arrivalTransport = ''; returnBooking = null;
     actsGen++; catsLoading.clear();
     Object.keys(actsFill).forEach(k => delete actsFill[k]);
     Object.keys(cityBooted).forEach(k => delete cityBooted[k]);
@@ -2695,7 +2700,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // sie bei Browser-Daten löschen, Geräte-/App-Wechsel verloren. Export/Import
 // sichert genau die Reisedaten (keine API-Keys – die sind gerätespezifisch
 // und sollen nicht in einer geteilten Datei landen).
-const EXPORT_KEYS = ['tp_places', 'tp_acts', 'tp_plan', 'tp_budget', 'tp_journal', 'tp_pack',
+const EXPORT_KEYS = ['tp_places', 'tp_acts', 'tp_plan', 'tp_return_booking', 'tp_budget', 'tp_journal', 'tp_pack',
     'tp_start', 'tp_tripname', 'tp_tripcountry', 'tp_tripcountry_manual', 'tp_return', 'tp_arrival', 'tp_theme', 'tp_fx_ccy',
     'tp_emergency'];
 // Browser-Tab und installierte App teilen sich den Speicher. Ändert das andere
@@ -2849,7 +2854,7 @@ function clearTripForCountryChange(newCountry) {
         return null;
     }
     updateUndoImportBtn();
-    places = []; acts = []; planPoints = []; returnTransport = ''; arrivalTransport = '';
+    places = []; acts = []; planPoints = []; returnTransport = ''; arrivalTransport = ''; returnBooking = null;
     crawlerDone = false; actsGen++; catsLoading.clear();
     Object.keys(actsFill).forEach(k => delete actsFill[k]);
     Object.keys(cityBooted).forEach(k => delete cityBooted[k]);
@@ -3318,6 +3323,26 @@ document.addEventListener('click', e => {
 });
 
 function buildTransportLeg(target, isArrival, from) {
+    const isReturn = !target && !isArrival;
+    if (!isArrival && !isReturn) return buildLegButton(target, isArrival, from);
+    // Anreise und Rückreise: Transportmittel wie bei den Etappen, zusätzlich die gebuchte Verbindung.
+    {
+        const wrap = document.createElement('div');
+        wrap.className = 'station-leg-wrap';
+        wrap.appendChild(buildLegButton(target, isArrival, from));
+        const booking = isArrival ? places[0]?.transit : returnBooking;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'transit-link transit-edit';
+        const idx = isArrival ? 0 : -1;
+        const kind = isArrival ? 'arrival' : 'return';
+        btn.innerHTML = `${ico(booking ? 'pencil-simple' : 'plus', booking ? '✏️' : '+')}<span>${booking ? 'Gebuchte Verbindung bearbeiten' : 'Gebuchte Verbindung eintragen'}</span>`;
+        btn.onclick = () => window.transit?.openEditor(idx, kind);
+        wrap.appendChild(btn);
+        return wrap;
+    }
+}
+function buildLegButton(target, isArrival, from) {
     const isReturn = !target && !isArrival;
     const leg = document.createElement('button');
     leg.type = 'button';

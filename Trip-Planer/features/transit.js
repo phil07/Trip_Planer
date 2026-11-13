@@ -201,6 +201,17 @@
 
     // ─── Editor für die gebuchte Verbindung ──────────────────────────────
     let editIdx = -1;
+    let editKind = 'leg'; // 'leg' (Etappe nach places[idx+1]) | 'arrival' (Anreise nach places[0]) | 'return' (Rückreise)
+    function bookingOf(kind, idx) {
+        if (kind === 'arrival') return places[0]?.transit || null;
+        if (kind === 'return') return window.tripBooking?.return || null;
+        return places[idx + 1]?.transit || null;
+    }
+    function setBooking(kind, idx, value) {
+        if (kind === 'arrival') places[0].transit = value;
+        else if (kind === 'return') window.tripBooking.return = value;
+        else places[idx + 1].transit = value;
+    }
     function dialog() {
         let d = document.getElementById('modal-transit');
         if (d) return d;
@@ -227,46 +238,54 @@
         d.querySelector('#transit-cancel').addEventListener('click', () => d.close());
         return d;
     }
-    function openEditor(i) {
-        const to = places[i + 1];
-        if (!places[i] || !to) return;
-        editIdx = i;
-        const d = dialog(), t = to.transit || {};
-        d.querySelector('#transit-route').textContent = `${clean(places[i].name)} → ${clean(to.name)}`;
+    // kind: 'leg' (Etappe idx → idx+1), 'arrival' (Anreise nach der ersten Station), 'return' (Rückreise ab der letzten).
+    function openEditor(idx, kind = 'leg') {
+        editIdx = idx; editKind = kind;
+        if (kind === 'leg' && (!places[idx] || !places[idx + 1])) return;
+        if (kind !== 'leg' && !places.length) return;
+        const d = dialog(), t = bookingOf(kind, idx) || {};
+        const route = kind === 'arrival' ? `Anreise nach ${clean(places[0].name)}`
+            : kind === 'return' ? `Rückreise ab ${clean(places[places.length - 1].name)}`
+            : `${clean(places[idx].name)} → ${clean(places[idx + 1].name)}`;
+        d.querySelector('#transit-route').textContent = route;
+        d.querySelector('#modal-transit-title').textContent = kind === 'leg' ? 'Zugverbindung' : kind === 'arrival' ? 'Anreise buchen' : 'Rückreise buchen';
         d.querySelector('#transit-train').value = t.train || '';
         d.querySelector('#transit-dep').value = t.dep || '';
         d.querySelector('#transit-seat').value = t.seat || '';
         d.querySelector('#transit-note').value = t.note || '';
-        d.querySelector('#transit-del').hidden = !to.transit;
+        d.querySelector('#transit-del').hidden = !bookingOf(kind, idx);
         d.showModal();
     }
     function save() {
-        const to = places[editIdx + 1], d = dialog();
-        if (!to) { d.close(); return; }
-        const previous = to.transit;
-        const wasOpen = openLegs.has(String(to.id));
+        const d = dialog();
+        const kind = editKind;
+        if (kind === 'leg' && !places[editIdx + 1]) { d.close(); return; }
+        const previous = bookingOf(kind, editIdx);
+        const leg = kind === 'leg' ? places[editIdx + 1] : null;
+        const wasOpen = leg && openLegs.has(String(leg.id));
         const v = id => d.querySelector(id).value;
-        to.transit = normTransit({ train: v('#transit-train'), dep: v('#transit-dep'), seat: v('#transit-seat'), note: v('#transit-note') });
-        openLegs.add(String(to.id));
+        setBooking(kind, editIdx, normTransit({ train: v('#transit-train'), dep: v('#transit-dep'), seat: v('#transit-seat'), note: v('#transit-note') }));
+        if (leg) openLegs.add(String(leg.id));
+        const current = bookingOf(kind, editIdx);
         if (!saveData()) {
-            to.transit = previous;
-            if (wasOpen) openLegs.add(String(to.id)); else openLegs.delete(String(to.id));
+            setBooking(kind, editIdx, previous);
+            if (leg) { if (wasOpen) openLegs.add(String(leg.id)); else openLegs.delete(String(leg.id)); }
             return;
         }
         d.close(); haptic();
-        showToast(to.transit ? 'Verbindung gespeichert.' : 'Verbindung entfernt.');
+        showToast(current ? 'Verbindung gespeichert.' : 'Verbindung entfernt.');
     }
     function remove() {
-        const to = places[editIdx + 1], d = dialog();
+        const d = dialog(), kind = editKind;
         d.close();
-        if (!to || !to.transit) return;
-        const prev = to.transit;
-        to.transit = null; haptic();
+        const prev = bookingOf(kind, editIdx);
+        if (!prev) return;
+        setBooking(kind, editIdx, null); haptic();
         saveData();
-        showUndoToast('Verbindung entfernt.', () => { to.transit = prev; saveData(); });
+        showUndoToast('Verbindung entfernt.', () => { setBooking(kind, editIdx, prev); saveData(); });
     }
 
-    window.transit = { legEl, renderDayPlan, legInfo };
+    window.transit = { legEl, renderDayPlan, legInfo, openEditor, bookingOf };
     // Skript lädt nach app.js – evtl. schon gerenderte Listen einmal nachziehen.
     if (typeof places !== 'undefined' && places.length) {
         try { window.renderPlaces?.(); window.renderDayPlan?.(); } catch (e) { console.warn('transit:', e); }
