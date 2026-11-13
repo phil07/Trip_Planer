@@ -3295,6 +3295,7 @@ function renderPlaces() {
                 <details class="place-more">
                     <summary class="more-btn" aria-label="${escHtml(clean(p.name))}: Aktionen">${ico('dots-three-vertical', '⋯')}</summary>
                     <div class="more-menu">
+                        <button type="button" onclick="openRenamePlace(${Number(p.id)})">${ico('pencil-simple', '✏️')} Umbenennen</button>
                         <button type="button" data-i="${i}" data-d="-1" onclick="movePlace(+this.dataset.i, +this.dataset.d)" ${i === 0 ? 'disabled' : ''}>${ico('arrow-up', '↑')} Nach oben</button>
                         <button type="button" data-i="${i}" data-d="1" onclick="movePlace(+this.dataset.i, +this.dataset.d)" ${i === places.length - 1 ? 'disabled' : ''}>${ico('arrow-down', '↓')} Nach unten</button>
                         <button type="button" class="danger" onclick="delPlace(${Number(p.id)})">${ico('trash', '✕')} Löschen</button>
@@ -3421,6 +3422,38 @@ function editNights(i, btn) {
     inp.focus(); inp.select();
 }
 function changeNights(i,d) { places[i].nights = clampNights(clampNights(places[i].nights)+d); saveData(); }
+// Station umbenennen: Name ändern und alle Aktivitäten, Tagesplan-Punkte und Tagebucheinträge mitziehen.
+// Koordinaten, Nächte und Daten der Station bleiben.
+let renamePlaceId = null;
+function openRenamePlace(id) {
+    const p = places.find(x => Number(x.id) === Number(id));
+    if (!p) return;
+    renamePlaceId = Number(id);
+    document.getElementById('rn-name').value = clean(p.name);
+    document.getElementById('modal-rename').showModal();
+    document.getElementById('rn-name').focus();
+}
+function saveRenamePlace() {
+    const p = places.find(x => Number(x.id) === renamePlaceId);
+    if (!p) return;
+    const name = document.getElementById('rn-name').value.trim().slice(0, 80);
+    if (!name) { showToast('⚠️ Bitte einen Namen eingeben'); return; }
+    const oldName = clean(p.name);
+    if (name === oldName) { document.getElementById('modal-rename').close(); return; }
+    if (places.some(x => x !== p && clean(x.name) === name)) { showToast('⚠️ Diesen Ort gibt es schon'); return; }
+    haptic();
+    const suffix = (p.name.match(/ \(Ankunft\)| \(Abreise\)/) || [''])[0];
+    p.name = name + suffix;
+    acts.forEach(a => { if (a.topPlace === oldName) a.topPlace = name; });
+    planPoints.forEach(x => { if (x.city === oldName) x.city = name; });
+    journal.forEach(e => { if (e.place && clean(e.place) === oldName) e.place = e.place.replace(oldName, name); });
+    renamePlaceId = null;
+    saveJournal();
+    saveData();
+    renderDayPlan();
+    document.getElementById('modal-rename').close();
+    showToast(`Umbenannt in „${name}“`);
+}
 function movePlace(i, d) {
     const j = i + d;
     if (!places[i] || !places[j]) return;

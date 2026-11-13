@@ -203,6 +203,18 @@ t('Tagesplan: eigener Punkt umbenennen', async () => {
     assert.doesNotMatch(txt, /\bAlt\b/);
 });
 
+t('Stationen: umbenennen behält die Station und ihre Aktivitäten', async () => {
+    await open();
+    await go('view-places', 'Stationen');
+    await page.click('.place-more summary >> nth=0');
+    await page.click('text=Umbenennen >> nth=0');
+    await page.waitForFunction(() => document.getElementById('modal-rename').open);
+    await page.fill('#rn-name', 'Neu Tokio');
+    await page.click('#modal-rename .btn:not(.btn-secondary)');
+    const txt = await page.locator('#view-places').innerText();
+    assert.match(txt, /Neu Tokio/);
+});
+
 t('Währungsrechner: 250 EUR → 40.000 JPY mit gestubbtem Kurs, Rückrichtung', async () => {
     await open();
     await go('view-currency', 'Währungsrechner');

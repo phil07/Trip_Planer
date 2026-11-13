@@ -356,6 +356,17 @@
         </div>
     </dialog>
 
+    <dialog id="modal-rename" aria-labelledby="modal-rename-title">
+        <h3 id="modal-rename-title">Station umbenennen</h3>
+        <div class="dialog-body">
+            <div class="form-group"><label for="rn-name">Name</label><input type="text" id="rn-name" maxlength="80"></div>
+        </div>
+        <div class="dialog-actions">
+            <button class="btn" onclick="saveRenamePlace()">Speichern</button>
+            <button class="btn btn-secondary" onclick="this.closest('dialog').close()">Abbrechen</button>
+        </div>
+    </dialog>
+
     <dialog id="modal-transport" aria-labelledby="modal-transport-title">
         <h3 id="modal-transport-title">Transportmittel</h3>
         <div class="dialog-body">
