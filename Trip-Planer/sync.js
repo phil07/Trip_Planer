@@ -112,7 +112,24 @@ function loadGis() {
 }
 
 // Token anfordern
+// In der Android-App über den nativen Google-Login (native/login.js), im Browser über GIS.
+function loadNativeLogin() {
+  if (window.tpNativeLogin) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'vendor/native-login.js';
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Anmelde-Modul konnte nicht geladen werden'));
+    document.head.appendChild(s);
+  });
+}
 async function requestToken() {
+  if (window.Capacitor?.isNativePlatform?.()) {
+    await loadNativeLogin();
+    const token = await window.tpNativeLogin.accessToken(SCOPE, TP_SYNC_CLIENT_ID);
+    setToken(token, 3600);
+    return token;
+  }
   await loadGis();
   return new Promise((resolve, reject) => {
     const client = window.google.accounts.oauth2.initTokenClient({
