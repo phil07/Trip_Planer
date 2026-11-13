@@ -116,8 +116,30 @@
     }
 
     // Zeitplan für den Service Worker ablegen (nur Ereignisse, die noch in der Zukunft liegen)
+    // In der Android-App: Erinnerungen als lokale Benachrichtigungen fest einplanen, damit sie auch
+    // kommen, wenn die App geschlossen ist. Vorherige Einträge werden vorher gelöscht (IDs 1–60).
+    const NATIVE = () => !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    const NATIVE_MAX = 60;
+    let nativeT = null;
+    function scheduleNative() {
+        clearTimeout(nativeT);
+        nativeT = setTimeout(async () => {
+            const s = loadSettings(), now = Date.now();
+            const events = s.on ? buildEvents(s).filter(e => e.notifyTo > now).slice(0, NATIVE_MAX) : [];
+            try {
+                const ids = Array.from({ length: NATIVE_MAX }, (_, i) => ({ id: i + 1 }));
+                await window.Capacitor.nativePromise('LocalNotifications', 'cancel', { notifications: ids });
+                const notifications = events.map((e, i) => ({
+                    id: i + 1, title: 'Trip Planer – Erinnerung', body: e.text,
+                    schedule: { at: new Date(Math.max(e.notifyFrom, now + 5000)).toISOString() }
+                }));
+                if (notifications.length) await window.Capacitor.nativePromise('LocalNotifications', 'schedule', { notifications });
+            } catch (e) { console.warn('Erinnerungen (App):', e); }
+        }, 300);
+    }
     let syncT = null;
     function scheduleSync() {
+        if (NATIVE()) return scheduleNative();
         clearTimeout(syncT);
         syncT = setTimeout(async () => {
             const s = loadSettings(), now = Date.now();
@@ -128,8 +150,8 @@
     }
 
     // ─── Benachrichtigung ──────────────────────────────────────────────────
-    const notifySupported = () => 'Notification' in window;
-    const notifyGranted = () => notifySupported() && Notification.permission === 'granted';
+    const notifySupported = () => NATIVE() || 'Notification' in window;
+    const notifyGranted = () => NATIVE() || (notifySupported() && Notification.permission === 'granted');
     async function showNote(ev) {
         const title = 'Trip Planer – Erinnerung';
         const opts = { body: ev.text, tag: 'trip-planer-rem-' + ev.key.slice(0, 60), icon: './icons/icon-192-v2.png',
@@ -146,6 +168,7 @@
     let checking = false;
     async function check() {
         render();
+        if (NATIVE()) return; // in der App übernimmt der geplante Alarm (scheduleNative)
         const s = loadSettings();
         if (!s.on || !notifyGranted() || checking) return;
         checking = true;
