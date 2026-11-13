@@ -609,7 +609,7 @@
   // ─── Android-App: Update-Prüfung über GitHub-Releases (APK als Anhang) ───
   // Jede Release hat eine APK. Ist die Release-Version neuer als die installierte, erscheint ein
   // Hinweis, der die APK im Browser lädt. Installieren bestätigt der Nutzer selbst (Android-Vorgabe).
-  const APK_RELEASES_API = 'https://api.github.com/repos/phil07/Japan2026/releases/latest';
+  const APK_RELEASES_API = 'https://api.github.com/repos/phil07/Trip_Planer/releases/latest';
   function isNativeApp() { return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); }
   function isNewerVersion(remote, local) {
     const a = (String(remote).match(/\d+/g) || []).map(Number), b = (String(local).match(/\d+/g) || []).map(Number);
