@@ -2667,18 +2667,61 @@ function updateSyncUI() {
     if (btn) btn.classList.toggle('active', enabled);
     const nowBtn = document.getElementById('btnSyncNow');
     if (nowBtn) nowBtn.style.display = enabled ? '' : 'none';
+    renderVaultBox();
+    renderFullBackupBox();
+}
+// Verschlüsselung (features/vault.js + sync.js): Status und Einrichtung auf der Einstellungen-Seite.
+async function renderVaultBox() {
+    const box = document.getElementById('vaultBox');
+    const s = window.TripPlannerSync;
+    if (!box || !s) return;
+    if (!window.tripVault?.supported()) { box.innerHTML = ''; return; }
+    const on = await s.hasVaultKey();
+    if (on) {
+        box.innerHTML = `<div class="settings-field"><p class="settings-hint">${ico('lock-simple', '🔒')} <b>Verschlüsselung aktiv.</b> Reisedaten und Dokumente werden mit deinem Sync-Passwort verschlüsselt, bevor sie in Google Drive landen.</p>
+            <label class="settings-check"><input type="checkbox" id="docsMobile" ${s.docsOnMobile() ? 'checked' : ''}> Dokumente auch über mobile Daten übertragen</label></div>`;
+        box.querySelector('#docsMobile').onchange = e => s.setDocsOnMobile(e.target.checked);
+    } else if (s.isEnabled()) {
+        box.innerHTML = `<div class="settings-field"><p class="settings-hint">Reisedaten liegen unverschlüsselt in deinem privaten Drive-Ordner, Dokumente nur auf diesem Gerät. Mit einem Sync-Passwort wird beides verschlüsselt in der Cloud gesichert.</p>
+            <button type="button" class="settings-row" id="btnVaultSetup">${ico('lock-simple', '🔒')}<span>Verschlüsselung einrichten</span>${ico('caret-right')}</button></div>`;
+        box.querySelector('#btnVaultSetup').onclick = setupVaultUi;
+    } else {
+        box.innerHTML = '<div class="settings-field"><p class="settings-hint">Nach dem Verbinden kannst du ein Sync-Passwort festlegen. Dann werden Reisedaten und Dokumente verschlüsselt gesichert.</p></div>';
+    }
+}
+async function setupVaultUi() {
+    const s = window.TripPlannerSync;
+    try {
+        if (!(await s.setupVault())) return;
+        showResultToast('Verschlüsselung eingerichtet – Daten werden übertragen …', 'ok');
+        await s.syncNow({ interactive: true });
+        updateSyncUI();
+        await s.syncDocs();
+        showResultToast('Verschlüsselt gesichert', 'ok');
+    } catch (e) {
+        showResultToast('Verschlüsselung fehlgeschlagen: ' + String(e && e.message || e).slice(0, 160), 'err');
+    }
+    updateSyncUI();
+}
+function renderFullBackupBox() {
+    const box = document.getElementById('fullBackupBox');
+    if (!box || box.dataset.ready || !window.tripVault?.supported()) return;
+    box.dataset.ready = '1';
+    box.innerHTML = `<div class="settings-field"><p class="settings-hint">Das vollständige Backup enthält zusätzlich alle Dokumente dieser Reise und ist mit einem Passwort verschlüsselt. Wiederherstellen erkennt beide Arten.</p>
+        <button type="button" class="settings-row" id="btnFullBackup">${ico('lock-simple', '🔒')}<span>Vollständiges Backup (mit Dokumenten)</span>${ico('download-simple')}</button></div>`;
+    box.querySelector('#btnFullBackup').onclick = exportFullBackup;
 }
 
 function syncNowUi() {
     if (!window.TripPlannerSync) { showToast('Sync noch nicht geladen'); return; }
     window.TripPlannerSync.syncNow({ interactive: true })
-        .then(r => { updateSyncUI(); showToast('Synchronisiert (' + r.action + ')'); })
+        .then(r => { updateSyncUI(); showToast('Synchronisiert (' + r.action + ')'); return window.TripPlannerSync.syncDocs().then(updateSyncUI); })
         .catch(e => {
             // Vollständiger Text bleibt in der Statuszeile stehen (der Toast wird abgeschnitten).
             updateSyncUI();
             const el = document.getElementById('sync-status');
             if (el) el.textContent = 'Fehler: ' + e.message;
-            showToast('Sync fehlgeschlagen, siehe Anzeige im Menü');
+            showResultToast('Sync fehlgeschlagen: ' + String(e.message).slice(0, 140), 'err');
         });
 }
 
@@ -2735,6 +2778,50 @@ function exportTripData() {
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
     showToast(`⬇️ Backup „${payload.label}" heruntergeladen`);
+}
+// Vollständiges Backup: Reisedaten + Dokumente in einer mit Passwort verschlüsselten Datei (.tpbackup).
+async function exportFullBackup() {
+    const v = window.tripVault, api = window.documentsFeature?.sync;
+    if (!v || !api) { showToast('Vollständiges Backup ist hier nicht verfügbar'); return; }
+    const pw = await v.askPassword({ title: 'Backup-Passwort', action: 'Backup erstellen', confirm: true,
+        hint: 'Mit diesem Passwort wird die Backup-Datei verschlüsselt. Am einfachsten nimmst du dein Sync-Passwort. Ohne das Passwort lässt sich das Backup nicht öffnen.' });
+    if (!pw) return;
+    try {
+        showResultToast('Backup wird erstellt …', 'ok');
+        const data = {};
+        EXPORT_KEYS.forEach(k => { const val = localStorage.getItem(k); if (val !== null) data[k] = val; });
+        const label = tripName || 'Reise';
+        const docs = await api.all();
+        const blob = await v.buildBackup(pw, { app: 'trip-planer', version: APP_VERSION, exportedAt: new Date().toISOString(), label, data }, docs);
+        const url = URL.createObjectURL(blob);
+        const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'reise';
+        const a = document.createElement('a');
+        a.href = url; a.download = `trip-planer-${slug}-${todayISO()}.tpbackup`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        showResultToast(`Vollständiges Backup mit ${docs.length} Dokument${docs.length === 1 ? '' : 'en'} erstellt`, 'ok');
+    } catch (e) {
+        showResultToast('Backup fehlgeschlagen: ' + String(e && e.message || e).slice(0, 160), 'err');
+    }
+}
+async function importFullBackup(bytes) {
+    const v = window.tripVault, api = window.documentsFeature?.sync;
+    if (!v || !api) { showToast('⚠️ Vollständige Backups können hier nicht geöffnet werden', 4000); return; }
+    let res = null;
+    for (;;) {
+        const pw = await v.askPassword({ title: 'Backup-Passwort', action: 'Öffnen', hint: 'Dieses Backup ist verschlüsselt. Gib das Passwort ein, mit dem es erstellt wurde.' });
+        if (!pw) return;
+        try { res = await v.openBackup(pw, bytes); break; }
+        catch (e) { showResultToast(e.code === 'bad-key' ? 'Falsches Passwort' : 'Backup nicht lesbar: ' + e.message, 'err'); if (e.code !== 'bad-key') return; }
+    }
+    const data = validateBackup(res.payload);
+    if (!data) { showToast('⚠️ Keine gültige Trip-Planer-Backup-Datei – nichts geändert', 4000); return; }
+    const label = typeof res.payload.label === 'string' && res.payload.label ? `„${res.payload.label.slice(0, 80)}"` : 'dieses Backup';
+    if (!confirm(`Aktuelle Reise-Daten durch ${label} ersetzen und ${res.docs.length} Dokument(e) übernehmen? Die bisherigen Reisedaten werden vorher gesichert („Letzten Import rückgängig machen“). Vorhandene Dokumente bleiben erhalten.`)) return;
+    let failed = 0;
+    for (const d of res.docs) { try { await api.put(d); } catch (e) { failed++; console.warn('Dokument aus Backup', e); } }
+    if (failed) showResultToast(`${failed} Dokument(e) konnten nicht übernommen werden`, 'err');
+    replaceTripData(data, 'Automatische Sicherung vor Import', '✅ Backup importiert – App wird neu geladen…');
 }
 // Nur echte Exporte dieser App akzeptieren und jeden Wert prüfen, bevor irgendetwas gelöscht wird.
 function validateBackup(payload) {
@@ -2802,14 +2889,16 @@ function importTripData(file) {
     const input = document.getElementById('importFileInput');
     const reader = new FileReader();
     reader.onload = () => {
+        const bytes = new Uint8Array(reader.result);
+        if (window.tripVault?.isBackup(bytes)) { importFullBackup(bytes); return; }
         let payload, data;
-        try { payload = JSON.parse(String(reader.result)); data = validateBackup(payload); } catch (e) { data = null; }
+        try { payload = JSON.parse(new TextDecoder().decode(bytes)); data = validateBackup(payload); } catch (e) { data = null; }
         if (!data) { showToast('⚠️ Keine gültige Trip-Planer-Backup-Datei – nichts geändert', 4000); return; }
         const label = typeof payload.label === 'string' && payload.label ? `„${payload.label.slice(0, 80)}"` : 'dieses Backup';
         if (!confirm(`Aktuelle Reise-Daten durch ${label} ersetzen? Die bisherigen Daten werden vorher gesichert („Letzten Import rückgängig machen“).`)) return;
         replaceTripData(data, 'Automatische Sicherung vor Import', '✅ Backup importiert – App wird neu geladen…');
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
     if (input) input.value = '';
 }
 // Stellt den Stand vor dem letzten Import wieder her; der ersetzte Stand wird
@@ -2974,7 +3063,7 @@ function revealView(view) {
         });
 }
 // Reihenfolge der Views im Menü – Grundlage für richtungsabhängige Slide-Übergänge
-const VIEW_ORDER = ['view-home', 'view-map', 'view-places', 'view-activities', 'view-dayplan', 'view-currency', 'view-budget', 'view-phrases', 'view-documents', 'view-journal', 'view-emergency', 'view-logs'];
+const VIEW_ORDER = ['view-home', 'view-map', 'view-places', 'view-activities', 'view-dayplan', 'view-currency', 'view-budget', 'view-phrases', 'view-documents', 'view-journal', 'view-emergency', 'view-settings', 'view-logs'];
 function switchView(id, title) {
     const cur = document.querySelector('.view.active');
     const prevIdx = cur ? VIEW_ORDER.indexOf(cur.id) : -1;
@@ -3000,6 +3089,7 @@ function switchView(id, title) {
     if (id === 'view-journal') renderJournal();
     if (id === 'view-documents') window.documentsFeature?.render();
     if (id === 'view-logs') renderLogs();
+    if (id === 'view-settings') { updateSyncUI(); updateUndoImportBtn(); }
     if (id === 'view-emergency') window.emergency?.render();
     try { localStorage.setItem('tp_lastview', JSON.stringify({ id, title: title || document.getElementById('pageTitle').innerText })); } catch (e) {}
 }

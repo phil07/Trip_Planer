@@ -241,6 +241,61 @@
         <pre id="logsOutput"></pre>
     </div>
 
+    <!-- EINSTELLUNGEN (Design, Cloud, Backup, App) -->
+    <div class="view" id="view-settings">
+        <div class="scroll-content settings-list">
+            <section class="settings-card" aria-labelledby="set-trip">
+                <h3 id="set-trip">Reise</h3>
+                <button type="button" class="settings-row" onclick="openSettings()"><i class="ph-light ph-suitcase-rolling" aria-hidden="true"></i><span>Name, Startdatum und Reiseland</span><i class="ph-light ph-caret-right" aria-hidden="true"></i></button>
+            </section>
+            <section class="settings-card" aria-labelledby="set-design">
+                <h3 id="set-design">Design</h3>
+                <div class="theme-switcher" id="themeSwitcher" role="group" aria-label="Design">
+                    <button type="button" class="theme-btn" data-theme="light" onclick="setTheme('light')" title="Helles Design" aria-label="Helles Design" aria-pressed="false"><i class="ph-light ph-sun" data-fb="☀️" aria-hidden="true"></i></button>
+                    <button type="button" class="theme-btn" data-theme="dark" onclick="setTheme('dark')" title="Dunkles Design" aria-label="Dunkles Design" aria-pressed="false"><i class="ph-light ph-moon" data-fb="🌙" aria-hidden="true"></i></button>
+                    <button type="button" class="theme-btn" data-theme="auto" onclick="setTheme('auto')" title="Wie System" aria-label="Design wie System" aria-pressed="false">Auto</button>
+                </div>
+            </section>
+            <section class="settings-card" aria-labelledby="set-cloud">
+                <h3 id="set-cloud">Cloud (Google Drive)</h3>
+                <p class="settings-hint" id="sync-status"></p>
+                <div class="btn-row">
+                    <button type="button" class="btn-icon js-sync" id="btnSync" onclick="toggleSync()"><i class="ph-light ph-cloud-arrow-up" aria-hidden="true"></i> <span id="sync-label">Cloud verbinden</span></button>
+                    <button type="button" class="btn-icon" id="btnSyncNow" onclick="syncNowUi()" style="display:none"><i class="ph-light ph-arrows-clockwise" aria-hidden="true"></i> Jetzt synchronisieren</button>
+                </div>
+                <div id="vaultBox"></div>
+            </section>
+            <section class="settings-card" aria-labelledby="set-backup">
+                <h3 id="set-backup">Backup</h3>
+                <p class="settings-hint">Das Backup enthält die Reisedaten dieser Reise als Datei.</p>
+                <div class="btn-row">
+                    <button type="button" class="btn-icon" onclick="exportTripData()"><i class="ph-light ph-download-simple" aria-hidden="true"></i> Backup</button>
+                    <button type="button" class="btn-icon" onclick="document.getElementById('importFileInput').click()"><i class="ph-light ph-upload-simple" aria-hidden="true"></i> Wiederherstellen</button>
+                    <input type="file" id="importFileInput" accept="application/json,.json,.tpbackup" hidden onchange="importTripData(this.files[0])">
+                </div>
+                <div id="fullBackupBox"></div>
+                <button type="button" id="btnUndoImport" class="link-btn undo-import-btn" hidden onclick="restorePreImportBackup()">Letzten Import rückgängig machen</button>
+            </section>
+            <section class="settings-card" aria-labelledby="set-app">
+                <h3 id="set-app">App</h3>
+                <div class="drawer-version-row">
+                    <button type="button" id="appVersion" class="link-btn version-btn" onclick="tapVersionForLogs()">–</button>
+                    <button type="button" id="btnCheckUpdate" onclick="checkForUpdate()" aria-label="Auf Update prüfen">Prüfen</button>
+                </div>
+                <div class="legal-links">
+                    <a href="datenschutz.html">Datenschutz</a>
+                    <a href="nutzungsbedingungen.html">Nutzungsbedingungen</a>
+                    <a href="impressum.html">Impressum</a>
+                </div>
+            </section>
+            <section class="settings-card" aria-labelledby="set-reset">
+                <h3 id="set-reset">Daten</h3>
+                <p class="settings-hint">Die Reisedaten liegen auf diesem Gerät.</p>
+                <button type="button" class="settings-row danger" onclick="appReset()"><i class="ph-light ph-trash" aria-hidden="true"></i><span>Alles zurücksetzen</span></button>
+            </section>
+        </div>
+    </div>
+
     <!-- Drawer -->
     <div class="drawer-overlay" onclick="toggleMenu()"></div>
     <nav class="drawer" id="drawer" aria-label="Hauptmenü" inert>
@@ -269,35 +324,10 @@
             <button type="button" class="menu-item" id="menu-logs" onclick="switchView('view-logs','Logs')" hidden><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-terminal-window" data-fb="🪵"></i></span> Logs</button>
         </div>
         <div class="menu-footer">
-            <div class="theme-switcher" id="themeSwitcher" role="group" aria-label="Design">
-                <button type="button" class="theme-btn" data-theme="light" onclick="setTheme('light')" title="Helles Design" aria-label="Helles Design" aria-pressed="false"><i class="ph-light ph-sun" data-fb="☀️" aria-hidden="true"></i></button>
-                <button type="button" class="theme-btn" data-theme="dark" onclick="setTheme('dark')" title="Dunkles Design" aria-label="Dunkles Design" aria-pressed="false"><i class="ph-light ph-moon" data-fb="🌙" aria-hidden="true"></i></button>
-                <button type="button" class="theme-btn" data-theme="auto" onclick="setTheme('auto')" title="Wie System" aria-label="Design wie System" aria-pressed="false">Auto</button>
-            </div>
-            <div class="drawer-version-row">
-                <button type="button" id="appVersion" class="link-btn version-btn" onclick="tapVersionForLogs()">–</button>
-                <button type="button" id="btnCheckUpdate" onclick="checkForUpdate()" aria-label="Auf Update prüfen">Prüfen</button>
-            </div>
             <div class="btn-row">
                 <button type="button" class="btn-icon" onclick="tripsOpen()"><i class="ph-light ph-suitcase-rolling" aria-hidden="true"></i> Meine Reisen</button>
+                <button type="button" class="btn-icon" id="menu-settings" onclick="switchView('view-settings','Einstellungen')"><i class="ph-light ph-gear-six" aria-hidden="true"></i> Einstellungen</button>
             </div>
-            <div class="btn-row">
-                <button type="button" class="btn-icon" onclick="exportTripData()"><i class="ph-light ph-download-simple" aria-hidden="true"></i> Backup</button>
-                <button type="button" class="btn-icon" onclick="document.getElementById('importFileInput').click()"><i class="ph-light ph-upload-simple" aria-hidden="true"></i> Wiederherstellen</button>
-                <input type="file" id="importFileInput" accept="application/json" hidden onchange="importTripData(this.files[0])">
-            </div>
-            <div class="btn-row">
-                <button type="button" class="btn-icon js-sync" id="btnSync" onclick="toggleSync()"><i class="ph-light ph-cloud-arrow-up" aria-hidden="true"></i> <span id="sync-label">Cloud verbinden</span></button>
-                <button type="button" class="btn-icon" id="btnSyncNow" onclick="syncNowUi()" style="display:none"><i class="ph-light ph-arrows-clockwise" aria-hidden="true"></i> Jetzt synchronisieren</button>
-                <span id="sync-status" class="sync-status" style="font-size:0.8rem;opacity:0.7;margin-left:8px"></span>
-            </div>
-            <div class="legal-links">
-                <a href="datenschutz.html">Datenschutz</a>
-                <a href="nutzungsbedingungen.html">Nutzungsbedingungen</a>
-                <a href="impressum.html">Impressum</a>
-            </div>
-            <button type="button" id="btnUndoImport" class="link-btn undo-import-btn" hidden onclick="restorePreImportBackup()">Letzten Import rückgängig machen</button>
-            Gespeichert im LocalStorage · <button type="button" class="link-btn" onclick="appReset()">Zurücksetzen</button>
         </div>
     </nav>
 
@@ -497,6 +527,7 @@
 <script src="features/emergency.js" defer></script>
 <script src="features/splitcosts.js" defer></script>
 <script src="features/openinghours.js" defer></script>
+<script src="features/vault.js" defer></script>
 <script src="features/documents.js" defer></script>
 <script src="features/journalplus.js" defer></script>
 <script src="features/reminders.js" defer></script>

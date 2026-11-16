@@ -161,7 +161,9 @@
         return docs.filter(d => d.ref === ref).sort((a, b) => a.created - b.created).map(d => ({ id: d.id, title: d.title, kind: d.kind }));
     }
     let presetRef = '';
-    async function load() {
+    let loadP = null;
+    function load() { return loadP || (loadP = loadNow().finally(() => { loadP = null; })); }
+    async function loadNow() {
         state = 'loading';
         try {
             const rows = await dbGetAll();
@@ -283,7 +285,7 @@
         if (state === 'idle') { load(); }
         listUrls.forEach(u => URL.revokeObjectURL(u));
         listUrls = [];
-        const note = `<div class="doc-note">${icon('lock-simple', '🔒')}<div><b>Verschlüsselt, nur auf diesem Gerät.</b> Kein Passwort nötig. Dokumente sind offline verfügbar, werden nicht hochgeladen und sind <b>nicht im JSON-Backup</b> enthalten. Löschst du die Website-Daten des Browsers, sind sie weg – Originale also zusätzlich sicher aufbewahren.<span class="doc-storage" id="docStorageInfo"></span></div></div>`;
+        const note = `<div class="doc-note">${icon('lock-simple', '🔒')}<div><b>Verschlüsselt auf diesem Gerät.</b> Dokumente sind offline verfügbar. Mit einem Sync-Passwort (Einstellungen → Cloud) werden sie verschlüsselt in Google Drive gesichert; das „Vollständige Backup“ enthält sie ebenfalls. Ohne beides liegen sie nur hier – Originale also zusätzlich sicher aufbewahren.<span class="doc-storage" id="docStorageInfo"></span></div></div>`;
         const fab = document.getElementById('docFab');
         if (fab) fab.hidden = state === 'error';
         if (state === 'idle' || state === 'loading') { list.innerHTML = note + '<div class="empty-acts">Lade Dokumente …</div>'; return; }
@@ -434,6 +436,7 @@
             document.getElementById('modal-doc').close();
             render();
             if (changedRef) refsChanged();
+            localChanged();
         } catch (e) {
             console.warn('Dokument speichern fehlgeschlagen', e);
             showToast('⚠️ ' + (e && e.message ? e.message : 'Speichern fehlgeschlagen'), 5000);
@@ -451,9 +454,10 @@
         docs.splice(docs.indexOf(d), 1);
         render();
         if (d.ref) refsChanged();
+        localChanged();
         showUndoToast(`🗑️ „${d.title.slice(0, 40)}“ gelöscht`, async () => {
             if (docs.some(x => x.id === id)) return;
-            try { await dbPut(await sealRecord(d)); docs.push(d); render(); if (d.ref) refsChanged(); }
+            try { await dbPut(await sealRecord(d)); docs.push(d); render(); if (d.ref) refsChanged(); localChanged(); }
             catch (e) { showToast('⚠️ Wiederherstellen fehlgeschlagen: ' + e.message); }
         });
     }
@@ -530,6 +534,39 @@
         if (typeof places !== 'undefined' && places.length) refsChanged();
     }
 
+    // ─── Schnittstelle für Cloud-Sync und vollständiges Backup ───────────────
+    // Dokumente bleiben lokal mit dem Geräteschlüssel verschlüsselt; für Drive und Backup
+    // werden sie mit dem Sync-Passwort neu verschlüsselt (features/vault.js).
+    const metaHash = d => [d.title, d.cat, d.ref || ''].join('\u0001');
+    async function ensureLoaded() {
+        if (state === 'idle' || state === 'loading') await load();
+        if (state !== 'ready') throw loadError || new Error('Dokumenten-Speicher nicht verfügbar.');
+    }
+    function localChanged() { try { window.TripPlannerSync?.docsChanged?.(); } catch (e) {} }
+    const syncApi = {
+        async list() { await ensureLoaded(); return docs.map(d => ({ id: d.id, h: metaHash(d) })); },
+        async all() { await ensureLoaded(); return docs.slice(); },
+        async get(id) { await ensureLoaded(); return docs.find(d => d.id === id) || null; },
+        // Dokument aus Drive/Backup übernehmen (ersetzt ein vorhandenes mit gleicher ID).
+        async put(raw) {
+            await ensureLoaded();
+            const d = normDoc(raw);
+            if (!d) throw new Error('Ungültiges Dokument.');
+            await dbPut(await sealRecord(d));
+            const i = docs.findIndex(x => x.id === d.id);
+            if (i >= 0) docs[i] = d; else docs.push(d);
+            return metaHash(d);
+        },
+        async remove(id) {
+            await ensureLoaded();
+            const i = docs.findIndex(x => x.id === id);
+            if (i < 0) return;
+            await dbDelete(id);
+            docs.splice(i, 1);
+        },
+        refresh() { render(); refsChanged(); }
+    };
+
     // Anhänge außerhalb der Dokumente-Seite (Stationen, Tagesplan): öffnen und hinzufügen per data-Attribut.
     document.addEventListener('click', e => {
         const t = e.target.closest?.('[data-att-open],[data-att-add]');
@@ -537,7 +574,7 @@
         if (t.dataset.attOpen) openDoc(t.dataset.attOpen);
         else openAdd({ ref: t.dataset.attAdd, cat: t.dataset.attCat, title: t.dataset.attTitle });
     });
-    window.documentsFeature = { render, openAdd: () => openAdd(), attach: openAdd, byRef, open: openDoc };
+    window.documentsFeature = { render, openAdd: () => openAdd(), attach: openAdd, byRef, open: openDoc, sync: syncApi };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();
 })();

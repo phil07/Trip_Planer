@@ -447,3 +447,129 @@ t('Kursverlauf: Achsen, Hoch/Tief und Tipp-Anzeige für einzelne Tage', async ()
     assert.match(await page.locator('#fxReadout').innerText(), /1 EUR = .* JPY/);
     assert.deepEqual(errors, []);
 });
+
+// ─── Cloud-Sync mit Verschlüsselung gegen ein nachgebautes Google Drive ─────
+function fakeDrive() {
+    const files = new Map(); let n = 0;
+    const stamp = () => new Date(Date.now() + (++n) * 1000).toISOString();
+    return { files, async handle(route) {
+        const req = route.request(), u = new URL(req.url()), m = req.method();
+        const json = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) });
+        if (m === 'OPTIONS') return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } });
+        const id = u.pathname.split('/files/')[1];
+        if (u.pathname.startsWith('/upload/') && m === 'PATCH') {
+            const f = files.get(id); if (!f) return json({ error: { message: 'nicht gefunden' } }, 404);
+            f.body = req.postDataBuffer() || Buffer.alloc(0); f.modifiedTime = stamp();
+            return json({ id, modifiedTime: f.modifiedTime });
+        }
+        if (!id && m === 'POST') { const nid = 'f' + (++n); files.set(nid, { name: JSON.parse(req.postData()).name, body: Buffer.alloc(0), modifiedTime: stamp() }); return json({ id: nid }); }
+        if (!id && m === 'GET') {
+            const q = u.searchParams.get('q') || '';
+            const eq = /name='([^']+)'/.exec(q), has = /name contains '([^']+)'/.exec(q);
+            const out = [...files].filter(([, f]) => eq ? f.name === eq[1] : has ? f.name.includes(has[1]) : true).map(([fid, f]) => ({ id: fid, name: f.name, modifiedTime: f.modifiedTime }));
+            return json({ files: out });
+        }
+        const f = files.get(id);
+        if (!f) return json({ error: { message: 'nicht gefunden' } }, 404);
+        if (m === 'DELETE') { files.delete(id); return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' } }); }
+        if (u.searchParams.get('alt') === 'media') return route.fulfill({ status: 200, contentType: 'application/octet-stream', headers: { 'access-control-allow-origin': '*' }, body: f.body });
+        return json({ id, modifiedTime: f.modifiedTime });
+    } };
+}
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+async function openWithDrive(drive, seed) {
+    await open(seed);
+    await page.route(/^https:\/\/www\.googleapis\.com\//, r => drive.handle(r));
+    await page.evaluate(() => {
+        localStorage.setItem('tp_sync_token', JSON.stringify({ token: 't', exp: Date.now() + 3600e3 }));
+        localStorage.setItem('tp_sync_meta', JSON.stringify({ enabled: true }));
+    });
+}
+const enterPw = async (pw, twice) => {
+    await page.waitForFunction(() => document.getElementById('modal-vault-pw')?.open);
+    await page.fill('#vault-pw-1', pw);
+    if (twice) await page.fill('#vault-pw-2', pw);
+    await page.click('#vault-pw-ok');
+};
+
+t('Cloud: Sync-Passwort verschlüsselt Reisedaten und Dokumente, zweites Gerät entsperrt sie', async () => {
+    const drive = fakeDrive();
+    await openWithDrive(drive);
+    assert.equal((await page.evaluate(() => TripPlannerSync.syncNow())).action, 'created');
+    const tripFile = () => [...drive.files.values()].find(f => f.name === 'trip-planer-sync.json');
+    assert.match(tripFile().body.toString(), /Tokio/); // vorher: lesbar
+
+    // Dokument anlegen, dann Verschlüsselung einrichten
+    await go('view-documents', 'Dokumente');
+    await page.click('[data-doc-add]');
+    await page.setInputFiles('#docFileInput', { name: 'pass.png', mimeType: 'image/png', buffer: PNG });
+    await page.fill('#doc-title', 'Reisepass Geheim');
+    await page.click('#docSaveBtn');
+    await page.locator('.doc-item').waitFor();
+    await go('view-settings', 'Einstellungen');
+    await page.click('#btnVaultSetup');
+    await enterPw('korrekt-pferd-batterie', true);
+    await page.waitForFunction(() => /Dokument verschlüsselt gesichert/.test(document.getElementById('sync-status').textContent));
+    const body = tripFile().body.toString();
+    assert.doesNotMatch(body, /Tokio/);
+    assert.match(body, /"enc":1/);
+    const docFile = [...drive.files.values()].find(f => f.name.startsWith('tp-doc-main-'));
+    assert.ok(docFile && docFile.body.length > 50);
+    assert.equal(docFile.body.includes(Buffer.from('Reisepass Geheim')), false);
+    assert.ok([...drive.files.values()].some(f => f.name === 'tp-vault.json'));
+    assert.deepEqual(errors, []);
+    await ctx.close();
+
+    // Zweites Gerät: leerer Speicher, falsches und dann richtiges Passwort
+    await openWithDrive(drive, { tp_onboarded: '1' });
+    const done = page.evaluate(() => TripPlannerSync.connect());
+    await enterPw('falsch-falsch', false);
+    await page.waitForFunction(() => /Falsches Passwort/.test(document.body.innerText));
+    await enterPw('korrekt-pferd-batterie', false);
+    await done.catch(() => {}); // die App lädt nach dem Übernehmen neu
+    await page.waitForFunction(() => /Tokio/.test(localStorage.getItem('tp_places') || '') && typeof switchView === 'function' && window.TripPlannerSync && document.getElementById('hero-num')?.innerText !== '–');
+    await page.waitForTimeout(1200);
+    assert.match(await page.evaluate(() => JSON.stringify(places)), /Tokio/); // Stand ist wirklich in der App, nicht nur im Speicher
+    await page.evaluate(() => TripPlannerSync.syncDocs());
+    await page.evaluate(() => switchView('view-documents', 'Dokumente'));
+    await page.locator('.doc-item').waitFor();
+    assert.match(await page.locator('.doc-item').innerText(), /Reisepass Geheim/);
+
+    // Löschen auf Gerät 2 entfernt die Datei in der Cloud
+    await page.click('[data-doc-del]');
+    await page.waitForFunction(() => !document.querySelector('.doc-item'));
+    await page.evaluate(() => TripPlannerSync.syncDocs());
+    assert.equal([...drive.files.values()].some(f => f.name.startsWith('tp-doc-main-')), false);
+});
+
+t('Vollständiges Backup: verschlüsselte Datei enthält Dokumente und lässt sich wiederherstellen', async () => {
+    await open();
+    await go('view-documents', 'Dokumente');
+    await page.click('[data-doc-add]');
+    await page.setInputFiles('#docFileInput', { name: 'pass.png', mimeType: 'image/png', buffer: PNG });
+    await page.fill('#doc-title', 'Ticket Geheim');
+    await page.click('#docSaveBtn');
+    await page.locator('.doc-item').waitFor();
+    await go('view-settings', 'Einstellungen');
+    const dl = page.waitForEvent('download');
+    await page.click('#btnFullBackup');
+    await enterPw('backup-passwort', true);
+    const file = await (await dl).path();
+    const bytes = fs.readFileSync(file);
+    assert.equal(bytes.subarray(0, 5).toString(), 'TPBK1');
+    assert.equal(bytes.includes(Buffer.from('Tokio')), false);
+    assert.equal(bytes.includes(Buffer.from('Ticket Geheim')), false);
+    await ctx.close();
+
+    await open({ tp_onboarded: '1' });
+    await go('view-settings', 'Einstellungen');
+    page.on('dialog', d => d.accept());
+    await page.setInputFiles('#importFileInput', { name: 'x.tpbackup', mimeType: 'application/octet-stream', buffer: bytes });
+    await enterPw('backup-passwort', false);
+    await page.waitForFunction(() => /Tokio/.test(localStorage.getItem('tp_places') || ''));
+    await page.waitForLoadState('load');
+    await page.waitForFunction(() => typeof switchView === 'function' && window.documentsFeature);
+    await page.evaluate(() => switchView('view-documents', 'Dokumente'));
+    await page.locator('.doc-item').waitFor();
+    assert.match(await page.locator('.doc-item').innerText(), /Ticket Geheim/);
+});
