@@ -86,3 +86,12 @@ test('Flug-Screenshot, Variante 2: alles in einer Zeile, Uhrzeit mit O statt 0',
     assert.match(t.seat, /Terminal 2/);
     assert.match(t.seat, /Seat 18K/);
 });
+
+test('Sitz: OCR liest "I8K" statt "18K", Wert in der nächsten Zeile', () => {
+    const t = ctx.window.bookingRead.extractTransit('JL407 NRT 10:40\nPremium\nEconomy\nSeat\nI8K >');
+    assert.match(t.seat, /Seat 18K/);
+});
+test('Sitz: Wert in derselben Zeile mit Pfeil', () => {
+    const t = ctx.window.bookingRead.extractTransit('JL407 NRT 10:40\nSeat 18K >');
+    assert.match(t.seat, /Seat 18K/);
+});

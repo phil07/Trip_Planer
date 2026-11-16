@@ -103,8 +103,10 @@
             LABEL_RE.lastIndex = 0;
             let m;
             while ((m = LABEL_RE.exec(l))) {
-                let v = m[2].replace(/[.,;]+$/, '');
-                if (!valueOk(v) && !v && lines[i + 1] && !/^[A-Za-z]{3,}/.test(lines[i + 1])) v = lines[i + 1].split(' ')[0];
+                let v = m[2].replace(/[.,;|>]+$/, '');
+                if (!v && lines[i + 1] && !/^[A-Za-z]{3,}/.test(lines[i + 1])) v = lines[i + 1].split(' ')[0].replace(/[.,;|>]+$/, '');
+                // Häufige OCR-Verwechslungen: I/l statt 1, O statt 0 (z. B. "I8K" -> "18K", "1O" -> "10")
+                v = v.replace(/^[Il|](?=\d|[A-K]$)/, '1').replace(/O/g, '0').replace(/^(\d+)[lI]$/, '$11');
                 if (!valueOk(v)) continue;
                 const label = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase();
                 seats.push(`${label} ${v}`);
