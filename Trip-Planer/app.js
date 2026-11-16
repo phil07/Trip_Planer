@@ -3292,7 +3292,7 @@ function renderPlaces() {
                     <input type="text" id="hi-${Number(p.id)}" value="${escHtml(p.hotel)}" placeholder="Unterkunft eingeben…">
                     <button class="hotel-save-btn" onclick="saveHotelFromInput(${Number(p.id)})">OK</button>
                 </div>
-                ${p.notes ? `<button type="button" class="place-notes" onclick="openPlaceNotes(${Number(p.id)})" aria-label="Notizen zu ${escHtml(clean(p.name))} bearbeiten">${ico('note-pencil', '📝')}<span>${escHtml(p.notes)}</span></button>` : ''}
+                ${p.notes ? `<div class="place-notes">${ico('note-pencil', '📝')}<span>${linkify(p.notes)}</span><button type="button" class="edit-btn" onclick="openPlaceNotes(${Number(p.id)})" aria-label="Notizen zu ${escHtml(clean(p.name))} bearbeiten" title="Notizen bearbeiten">${ico('pencil-simple', '✏️')}</button></div>` : ''}
                 <div class="nights-row">
                     <button class="nights-btn" onclick="changeNights(${i},-1)" aria-label="Weniger Nächte">−</button>
                     <button type="button" class="nights-val" data-i="${i}" onclick="editNights(+this.dataset.i, this)" aria-label="Nächte direkt eingeben">${clampNights(p.nights)} N</button>
@@ -3482,6 +3482,16 @@ function saveRenamePlace() {
     renderDayPlan();
     document.getElementById('modal-rename').close();
     showToast(`Umbenannt in „${name}“`);
+}
+// Text escapen und http(s)-/www-Adressen als Links ausgeben (öffnen im Browser).
+function linkify(text) {
+    return String(text ?? '').split(/((?:https?:\/\/|www\.)[^\s<>"']+)/gi).map((part, i) => {
+        if (i % 2 === 0) return escHtml(part);
+        const tail = (part.match(/[.,;:!?)\]]+$/) || [''])[0];
+        const url = tail ? part.slice(0, -tail.length) : part;
+        const href = /^www\./i.test(url) ? 'https://' + url : url;
+        return `<a href="${escHtml(href)}" target="_blank" rel="noopener noreferrer">${escHtml(url)}</a>${escHtml(tail)}`;
+    }).join('');
 }
 // Freie Notizen pro Station (z. B. Check-in-Zeit, Tipps, Reservierungen).
 let notesPlaceId = null;

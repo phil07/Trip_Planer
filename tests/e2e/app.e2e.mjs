@@ -221,9 +221,12 @@ t('Stationen: Notiz hinzufügen und auf der Karte anzeigen', async () => {
     await page.click('.place-more summary >> nth=0');
     await page.click('text=Notiz hinzufügen >> nth=0');
     await page.waitForFunction(() => document.getElementById('modal-place-notes').open);
-    await page.fill('#pn-text', 'Check-in ab 15 Uhr');
+    await page.fill('#pn-text', 'Check-in ab 15 Uhr, siehe https://example.com/buchung.');
     await page.click('#modal-place-notes .btn:not(.btn-secondary)');
     assert.match(await page.locator('#placesList .place-notes >> nth=0').innerText(), /Check-in ab 15 Uhr/);
+    const link = page.locator('#placesList .place-notes a >> nth=0');
+    assert.equal(await link.getAttribute('href'), 'https://example.com/buchung');
+    assert.equal(await link.getAttribute('target'), '_blank');
     const saved = await page.evaluate(() => JSON.stringify(localStorage));
     assert.match(saved, /Check-in ab 15 Uhr/);
     assert.deepEqual(errors, []);
