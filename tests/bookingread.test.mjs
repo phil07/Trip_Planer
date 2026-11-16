@@ -42,3 +42,24 @@ test('Großbuchstaben werden normal geschrieben, Kürzel bleiben', () => {
     assert.equal(extract('ROYAL PARK HOTEL Kyoto\nCheck-in 22.11.'), 'Royal Park Hotel Kyoto');
     assert.equal(extract('Hotel: APA Hotel Osaka Umeda'), 'APA Hotel Osaka Umeda');
 });
+
+test('Zug: Name und Nummer, Abfahrt und Gleis werden erkannt', () => {
+    const t = ctx.window.bookingRead.extractTransit('JR Pass Reservierung\nNozomi 215\nAbfahrt 09:33 Uhr\nGleis 14 Wagen 7 Sitz 12A\nTokio → Kyoto');
+    assert.equal(t.train, 'Nozomi 215');
+    assert.equal(t.dep, '09:33');
+    assert.match(t.seat, /Gleis 14/);
+    assert.match(t.seat, /Wagen 7/);
+});
+test('Flug: Flugnummer und Abflugzeit', () => {
+    const t = ctx.window.bookingRead.extractTransit('Flugnummer LH716\nAbflug 10:15\nFrankfurt (FRA) - Tokio (HND)');
+    assert.equal(t.train, 'LH 716');
+    assert.equal(t.dep, '10:15');
+});
+test('Check-in-Zeit wird nicht als Abfahrt genommen', () => {
+    const t = ctx.window.bookingRead.extractTransit('Hotel Gracery\nCheck-in ab 15:00\nNozomi 215');
+    assert.equal(t.dep, '');
+    assert.equal(t.train, 'Nozomi 215');
+});
+test('ohne Zug- oder Flugdaten: null', () => {
+    assert.equal(ctx.window.bookingRead.extractTransit('Hotel Gracery Shinjuku\nCheck-in 15:00'), null);
+});

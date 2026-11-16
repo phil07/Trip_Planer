@@ -429,7 +429,7 @@
                 await dbPut(await sealRecord(rec));
                 docs.push(normDoc(rec));
                 changedRef = !!presetRef;
-                if (/^hotel:/.test(presetRef)) hotelRead = { id: rec.id, ref: presetRef };
+                if (presetRef) hotelRead = { id: rec.id, ref: presetRef };
                 showToast('✅ Dokument gespeichert');
                 askPersist();
             }
