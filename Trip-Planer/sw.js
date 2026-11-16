@@ -12,7 +12,7 @@ const PRECACHE = ['./', './index.html', './style.css', './app.js', './version.js
   './features/share.js', './features/share.css', './vendor/qrcode-generator/qrcode.js', './features/weather.js',
   './features/weather.css', './features/transit.js', './features/transit.css', './features/emergency.js',
   './features/emergency.css', './features/splitcosts.js', './features/splitcosts.css', './features/openinghours.js',
-  './features/openinghours.css', './features/documents.js', './features/vault.js', './features/documents.css', './features/journalplus.js',
+  './features/openinghours.css', './features/documents.js', './features/vault.js', './features/bookingread.js', './features/documents.css', './features/journalplus.js',
   './features/journalplus.css', './features/reminders.js', './features/reminders.css', './features/reminders-sw.js',
   './features/packcategories.css', './datenschutz', './nutzungsbedingungen', './impressum'];
 const TILE_CACHE = 'trip-planer-tiles';

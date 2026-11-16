@@ -573,3 +573,23 @@ t('Vollständiges Backup: verschlüsselte Datei enthält Dokumente und lässt si
     await page.locator('.doc-item').waitFor();
     assert.match(await page.locator('.doc-item').innerText(), /Ticket Geheim/);
 });
+
+t('Buchungsbestätigung: Hotelname wird gelesen und in die Station übernommen', async () => {
+    await open();
+    await go('view-places', 'Stationen');
+    await page.evaluate(() => { window.Tesseract = { recognize: async () => ({ data: { text: 'Booking confirmed\nHotel: Hotel Gracery Shinjuku\nCheck-in 18.11.' } }) }; });
+    const dialogs = [];
+    page.on('dialog', d => { dialogs.push(d.message()); d.accept(); });
+    const card = page.locator('#placesList .place-card.station >> nth=0');
+    await card.locator('.station-head').click();
+    await card.locator('.att-add').click();
+    await page.waitForFunction(() => document.getElementById('modal-doc').open);
+    await page.setInputFiles('#docFileInput', { name: 'buchung.png', mimeType: 'image/png', buffer: PNG });
+    await page.fill('#doc-title', 'Hotelbestätigung');
+    await page.click('#docSaveBtn');
+    await page.waitForFunction(() => window.Tesseract && (places[0].hotel || '').includes('Gracery Shinjuku'), null, { timeout: 15000 });
+    assert.equal(await page.evaluate(() => places[0].hotel), 'Hotel Gracery Shinjuku');
+    assert.equal(dialogs.length, 1);
+    assert.match(dialogs[0], /Hotel Gracery Shinjuku/);
+    assert.deepEqual(errors, []);
+});

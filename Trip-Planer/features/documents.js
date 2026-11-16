@@ -411,7 +411,7 @@
         const cat = CAT_IDS.has(document.getElementById('doc-cat').value) ? document.getElementById('doc-cat').value : 'other';
         if (!title) { showToast('⚠️ Bitte einen Titel eingeben'); return; }
         const btn = document.getElementById('docSaveBtn');
-        let changedRef = false;
+        let changedRef = false, hotelRead = null;
         saving = true; btn.disabled = true; btn.textContent = 'Speichere …';
         try {
             if (editId) {
@@ -429,6 +429,7 @@
                 await dbPut(await sealRecord(rec));
                 docs.push(normDoc(rec));
                 changedRef = !!presetRef;
+                if (/^hotel:/.test(presetRef)) hotelRead = { id: rec.id, ref: presetRef };
                 showToast('✅ Dokument gespeichert');
                 askPersist();
             }
@@ -437,6 +438,7 @@
             render();
             if (changedRef) refsChanged();
             localChanged();
+            if (hotelRead) setTimeout(() => window.bookingRead?.suggest(hotelRead.id, hotelRead.ref), 300);
         } catch (e) {
             console.warn('Dokument speichern fehlgeschlagen', e);
             showToast('⚠️ ' + (e && e.message ? e.message : 'Speichern fehlgeschlagen'), 5000);
