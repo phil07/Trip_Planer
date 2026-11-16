@@ -262,7 +262,7 @@ t('Stationen: Buchungsbestätigung an die Unterkunft anhängen und öffnen', asy
     await page.setInputFiles('#docFileInput', { name: 'buchung.png', mimeType: 'image/png', buffer: png });
     await page.fill('#doc-title', 'Hotel Bestätigung');
     await page.click('#docSaveBtn');
-    const chip = page.locator('#placesList .place-card.station >> nth=0').locator('.att-chip[data-att-open]');
+    const chip = page.locator('#placesList .place-card.station >> nth=0').locator('.att-open[data-att-open]');
     await chip.waitFor();
     assert.match(await chip.innerText(), /Hotel Bestätigung/);
     await chip.click();
@@ -612,8 +612,8 @@ t('Buchungen an Stationen: erneut lesen und wieder entfernen', async () => {
     await card().locator('[data-att-scan]').click();
     await page.waitForFunction(() => places[0].hotel === 'Hotel Gracery Shinjuku Tokyo', null, { timeout: 15000 });
     // Entfernen: Bestätigung verschwindet aus der Station
-    assert.equal(await card().locator('.att-chip-wrap').count(), 1);
+    assert.equal(await card().locator('.att-pill').count(), 1);
     await card().locator('.att-del').click();
-    await page.waitForFunction(() => !document.querySelector('#placesList .place-card.station .att-chip-wrap'), null, { timeout: 5000 });
+    await page.waitForFunction(() => !document.querySelector('#placesList .place-card.station .att-pill'), null, { timeout: 5000 });
     assert.deepEqual(errors, []);
 });

@@ -575,7 +575,7 @@
         if (!t || t.closest('#view-documents')) return;
         if (t.dataset.attOpen) openDoc(t.dataset.attOpen);
         else if (t.dataset.attDel) del(t.dataset.attDel);
-        else if (t.dataset.attScan) window.bookingRead?.scanRef(t.dataset.attScan);
+        else if (t.dataset.attScan) window.bookingRead?.scanRef(t.dataset.attScan, t.dataset.attDoc);
         else openAdd({ ref: t.dataset.attAdd, cat: t.dataset.attCat, title: t.dataset.attTitle });
     });
     window.documentsFeature = { render, openAdd: () => openAdd(), attach: openAdd, byRef, open: openDoc, sync: syncApi, remove: id => del(id) };

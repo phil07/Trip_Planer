@@ -105,11 +105,11 @@
         }
         return true;
     }
-    // Alle Bestätigungen einer Unterkunft erneut lesen (Schaltfläche „Hotelname neu lesen“).
-    async function scanRef(ref) {
-        const docs = window.documentsFeature?.byRef?.(ref) || [];
+    // Eine Bestätigung neu lesen (Aktualisieren-Teil der Pille); ohne docId alle Bestätigungen der Unterkunft.
+    async function scanRef(ref, docId) {
+        const docs = (window.documentsFeature?.byRef?.(ref) || []).filter(d => !docId || d.id === docId);
         if (!docs.length) return;
-        if (typeof showResultToast === 'function') showResultToast('Lese Bestätigungen erneut …', 'ok');
+        if (typeof showResultToast === 'function') showResultToast('Lese Bestätigung erneut …', 'ok');
         for (const d of docs) await suggest(d.id, ref, false);
     }
     // Einmalig nach dem Update: alle schon vorhandenen Hotelbestätigungen auslesen.

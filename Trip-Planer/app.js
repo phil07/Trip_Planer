@@ -3460,11 +3460,14 @@ function attachHtml(ref, cat, title) {
     const f = window.documentsFeature;
     if (!f?.byRef) return '';
     const docs = f.byRef(ref);
-    // Jede Bestätigung: Öffnen und Entfernen (mit Rückgängig, wie bei den Reisedokumenten).
-    const chips = docs.map(d => `<span class="att-chip-wrap"><button type="button" class="att-chip" data-att-open="${escHtml(d.id)}" aria-label="${escHtml(d.title)} öffnen">${ico(d.kind === 'pdf' ? 'file-pdf' : 'image', '📎')}<span>${escHtml(d.title)}</span></button><button type="button" class="att-del" data-att-del="${escHtml(d.id)}" aria-label="${escHtml(d.title)} aus der Station entfernen" title="Entfernen">${ico('x', '✕')}</button></span>`).join('');
-    // Hotelname aus den Bestätigungen erneut lesen (z. B. für Buchungen, die vor dieser Funktion angehängt wurden)
-    const scan = ref.startsWith('hotel:') && docs.length ? `<button type="button" class="att-chip att-add" data-att-scan="${escHtml(ref)}">${ico('arrows-clockwise', '↻')}<span>Hotelname neu lesen</span></button>` : '';
-    return `<div class="att-row">${chips}${scan}<button type="button" class="att-chip att-add" data-att-add="${escHtml(ref)}" data-att-cat="${escHtml(cat)}" data-att-title="${escHtml(String(title).slice(0, 80))}">${ico('paperclip', '📎')}<span>Bestätigung anhängen</span></button></div>`;
+    // Jede Bestätigung ist eine Pille mit drei Teilen: öffnen | aktualisieren (nur Unterkunft) | löschen.
+    const isHotel = ref.startsWith('hotel:');
+    const pill = d => `<span class="att-pill">` +
+        `<button type="button" class="att-part att-open" data-att-open="${escHtml(d.id)}" aria-label="${escHtml(d.title)} öffnen">${ico(d.kind === 'pdf' ? 'file-pdf' : 'image', '📎')}<span>${escHtml(d.title)}</span></button>` +
+        (isHotel ? `<button type="button" class="att-part att-refresh" data-att-scan="${escHtml(ref)}" data-att-doc="${escHtml(d.id)}" aria-label="${escHtml(d.title)}: Hotelnamen aus dieser Bestätigung neu lesen" title="Hotelnamen neu lesen">${ico('arrows-clockwise', '↻')}</button>` : '') +
+        `<button type="button" class="att-part att-del" data-att-del="${escHtml(d.id)}" aria-label="${escHtml(d.title)} aus der Station entfernen" title="Entfernen">${ico('x', '✕')}</button>` +
+        `</span>`;
+    return `<div class="att-row">${docs.map(pill).join('')}<button type="button" class="att-chip att-add" data-att-add="${escHtml(ref)}" data-att-cat="${escHtml(cat)}" data-att-title="${escHtml(String(title).slice(0, 80))}">${ico('paperclip', '📎')}<span>Bestätigung anhängen</span></button></div>`;
 }
 
 // Transportmittel liegt im transport-Feld der Zielstation; bei der ersten Station ist es die Anreise.
