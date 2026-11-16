@@ -29,3 +29,11 @@ test('ohne Hotelangabe leer', () => {
 test('Zeile mit Preis/Check-in wird nicht als Name genommen', () => {
     assert.equal(extract('Hotel check-in: 15:00\nTotal price hotel 520 EUR'), '');
 });
+
+test('Seitentitel "Unterkunft in Tokyo" wird nicht als Hotel genommen (Expedia-PDF)', () => {
+    const text = 'Unterkunft in Tokyo\n25. Nov. 2026 – 28. Nov. 2026\nHOTEL Tokyo Trip Ueno Nishi Nippori\nBestätigung: T_2603346607\nBuchungsdetails\nGebucht\nCheck-in\nMi., 25. Nov.\n15:00 Uhr';
+    assert.equal(extract(text), 'HOTEL Tokyo Trip Ueno Nishi Nippori');
+});
+test('Beschriftung "Unterkunft:" wird weiterhin übernommen', () => {
+    assert.equal(extract('Unterkunft: Ryokan Sakura Hakone\nCheck-in 15:00'), 'Ryokan Sakura Hakone');
+});
