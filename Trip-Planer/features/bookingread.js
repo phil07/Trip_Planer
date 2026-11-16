@@ -57,8 +57,44 @@
     const DEP_RE = /(abfahrt|abflug|departure|depart(s|ure)?)\D{0,20}(\d{1,2}[:.]\d{2})/i;
     const SEAT_RE = /\b(gleis|platform|gate|sitz|seat|wagen|car|terminal)\s*[:#]?\s*([A-Z0-9][A-Z0-9 ,\/-]{0,18})/gi;
     // Verbindung aus dem Text: { train, dep, seat } oder null. Heuristisch wie der Hotelname.
+    // Tabellen-Layout aus App-Screenshots: eine Zeile nur mit Beschriftungen ("Terminal Gate Boarding time"),
+    // darunter die Werte in gleicher Reihenfolge ("2 - -"). Liefert zusätzliche Zeilen "Terminal 2".
+    const HEADER_RE = /\b(boarding time|terminal|gate|boarding|class|klasse|seat|sitz|gleis|platform)\b/gi;
+    function tableLines(lines) {
+        const out = [];
+        lines.forEach((l, i) => {
+            const labels = l.match(HEADER_RE) || [];
+            if (labels.length < 2 || /[a-z0-9]/i.test(l.replace(HEADER_RE, '')) || !lines[i + 1]) return;
+            const vals = lines[i + 1].split(' ').filter(t => !/^[>|<»›]+$/.test(t));
+            labels.forEach((lab, k) => {
+                const v = vals.length === labels.length ? vals[k] : k === 0 ? vals[0] : k === labels.length - 1 ? vals[vals.length - 1] : '';
+                if (v) out.push(`${lab} ${v}`);
+            });
+        });
+        return out;
+    }
+    // Texterkennung mit Wortpositionen: zu jeder Beschriftung das Wort direkt darunter suchen ("Seat" über "18K").
+    function labelLinesFromWords(words) {
+        const out = [];
+        for (const w of words || []) {
+            if (!w || !w.bbox || !/^(terminal|gate|seat|sitz|gleis|platform)$/i.test(w.text || '')) continue;
+            const h = w.bbox.y1 - w.bbox.y0, cx = (w.bbox.x0 + w.bbox.x1) / 2;
+            let best = null;
+            for (const v of words) {
+                if (v === w || !v.bbox) continue;
+                const dy = v.bbox.y0 - w.bbox.y1;
+                if (dy < -h * 0.3 || dy > h * 3.5) continue;
+                const dx = Math.abs((v.bbox.x0 + v.bbox.x1) / 2 - cx);
+                if (dx > Math.max(w.bbox.x1 - w.bbox.x0, v.bbox.x1 - v.bbox.x0)) continue;
+                if (!best || dy < best.dy) best = { dy, text: v.text };
+            }
+            if (best) out.push(`${w.text} ${best.text}`);
+        }
+        return out;
+    }
     function extractTransit(text) {
         const lines = String(text || '').split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+        lines.push(...tableLines(lines));
         let train = '';
         for (const l of lines) {
             const m = TRAIN_RE.exec(l);
@@ -90,7 +126,9 @@
         }
         // Letzter Ausweg bei erkanntem Flug: erste Uhrzeit im Text, die nicht zu Hotel oder Check-in gehört
         if (!dep && train) {
-            for (const l of lines) {
+            // Erst ab der Zeile mit der Flug-/Zugnummer suchen: davor steht oft die Uhr der Statusleiste
+            const from = Math.max(0, lines.findIndex(l => FLIGHT_CODE_RE.test(l) || TRAIN_RE.test(l)));
+            for (const l of lines.slice(from)) {
                 if (/(check[- ]?in|check[- ]?out|hotel|unterkunft|uhr\s*\(|ortszeit|stornier)/i.test(l)) continue;
                 const m = new RegExp(`\\b${TIME}\\b`).exec(l);
                 if (m) { dep = hm(m[1]); break; }
@@ -154,7 +192,11 @@
         if (!window.Tesseract) await loadScript(TESSERACT);
         if (!window.Tesseract) throw new Error('Texterkennung nicht verfügbar');
         const { data } = await window.Tesseract.recognize(blob, 'eng');
-        return data && data.text ? data.text : '';
+        if (!data) return '';
+        // Wortpositionen nutzen, damit Werte unter ihrer Beschriftung gefunden werden (Spalten-Layout)
+        let extra = [];
+        try { extra = labelLinesFromWords(data.words); } catch (e) {}
+        return (data.text || '') + '\n' + extra.join('\n');
     }
     // Text einer gespeicherten Bestätigung (über die Dokumente-Schnittstelle)
     async function readDocument(docId) {
@@ -244,5 +286,5 @@
     if (typeof window.document !== 'undefined' && typeof setTimeout === 'function')
         setTimeout(() => { scanExisting().catch(e => console.warn('Bestätigungen nachlesen:', e)); }, 4000);
 
-    window.bookingRead = { extractHotelName, extractTransit, suggest, scanRef };
+    window.bookingRead = { extractHotelName, extractTransit, labelLinesFromWords, suggest, scanRef };
 })();

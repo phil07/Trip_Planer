@@ -95,3 +95,23 @@ test('Sitz: Wert in derselben Zeile mit Pfeil', () => {
     const t = ctx.window.bookingRead.extractTransit('JL407 NRT 10:40\nSeat 18K >');
     assert.equal(t.seat, '18K');
 });
+
+test('Echte Texterkennung des JAL-Screenshots: Werte stehen als Tabelle unter den Beschriftungen', () => {
+    const ocr = "X Flight details\n(® Scheduled Jan 1 (Fri) JL407\nTokyo\n(Narita) Frankfurt\n10:40 14h 20m 17:00\nTerminal Gate Boarding time\n2 - -\nBoarding Class Seat\n- Premium 18K >\nEconomy\nOther wv\nManage bookings\nra Booking details / changes N\ne-ticket itinerary, etc.\n& Seat selection / change >\n(B) Baggage >\n";
+    const t = ctx.window.bookingRead.extractTransit(ocr);
+    assert.equal(t.train, 'JL 407');
+    assert.equal(t.dep, '10:40');
+    assert.equal(t.terminal, '2');
+    assert.equal(t.gate, '');
+    assert.equal(t.seat, '18K');
+});
+test('Wortpositionen: Wert direkt unter der Beschriftung', () => {
+    const w = (text, x0, y0, x1, y1) => ({ text, bbox: { x0, y0, x1, y1 } });
+    const lines = ctx.window.bookingRead.labelLinesFromWords([w('Terminal', 170, 780, 295, 812), w('Gate', 418, 780, 490, 812), w('2', 220, 838, 245, 876), w('-', 446, 850, 462, 858), w('Seat', 643, 930, 710, 960), w('18K', 610, 985, 690, 1028)]);
+    assert.deepEqual([...lines], ['Terminal 2', 'Gate -', 'Seat 18K']);
+});
+
+test('Uhr der Statusleiste wird nicht als Abflug genommen', () => {
+    const t = ctx.window.bookingRead.extractTransit('16:26 Ld\nFlight details\nScheduled Jan 1 (Fri) JL407\nTokyo\n10:40 14h 20m 17:00');
+    assert.equal(t.dep, '10:40');
+});
