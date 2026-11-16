@@ -3275,76 +3275,139 @@ function renderPlaces() {
         });
 
         const hotelGeoHint = p.hotelLat ? '' : ' <span style="color:var(--label-tertiary);font-size:10px">(kein Marker)</span>';
-        const editId = `hotel-edit-${Number(p.id)}`;
+        const pid = Number(p.id);
+        const editId = `hotel-edit-${pid}`;
+        const isOpen = openStations.has(pid);
+        const nights = clampNights(p.nights);
+        const nDocs = attachCount(`hotel:${pid}`);
+        card.dataset.pid = pid;
+        card.classList.toggle('is-open', isOpen);
 
+        // Eingeklappt: eine kompakte Kopfzeile. Aufgeklappt: Unterkunft, Anhänge, Notizen, Nächte.
         card.innerHTML = `
             <div class="drag-handle" aria-hidden="true">≡</div>
             <div class="place-body">
-                <div class="station-num">Station ${i+1}</div>
-                <h3>${escHtml(displayName(p.name,i))}</h3>
-                <div class="place-dates">${cd.strStart} – ${cd.strEnd}</div>
-                <div class="hotel-row">
-                    <span class="hotel-name">${ico(p.hotelLat ? 'map-pin' : 'bed')}<span style="overflow:hidden;text-overflow:ellipsis">${escHtml(p.hotel)||'Unterkunft offen'}${hotelGeoHint}</span></span>
-                    <button class="edit-btn" onclick="toggleHotelEdit(${Number(p.id)})" aria-label="Unterkunft bearbeiten" title="Unterkunft bearbeiten">${ico('pencil-simple', '✏️')}</button>
-                </div>
-                ${p.hotel ? `<button type="button" class="btn-icon taxi-open" onclick="taxiCard.openPlace(${Number(p.id)})">${ico('taxi', '🚕')} Taxi-Karte</button>` : ''}
-                <div class="hotel-input-wrap" id="${editId}">
-                    <input type="text" id="hi-${Number(p.id)}" value="${escHtml(p.hotel)}" placeholder="Unterkunft eingeben…">
-                    <button class="hotel-save-btn" onclick="saveHotelFromInput(${Number(p.id)})">OK</button>
-                </div>
-                ${p.notes ? `<div class="place-notes">${ico('note-pencil', '📝')}<span>${linkify(p.notes)}</span><button type="button" class="edit-btn" onclick="openPlaceNotes(${Number(p.id)})" aria-label="Notizen zu ${escHtml(clean(p.name))} bearbeiten" title="Notizen bearbeiten">${ico('pencil-simple', '✏️')}</button></div>` : ''}
-                <div class="nights-row">
-                    <button class="nights-btn" onclick="changeNights(${i},-1)" aria-label="Weniger Nächte">−</button>
-                    <button type="button" class="nights-val" data-i="${i}" onclick="editNights(+this.dataset.i, this)" aria-label="Nächte direkt eingeben">${clampNights(p.nights)} N</button>
-                    <button class="nights-btn" onclick="changeNights(${i},1)" aria-label="Mehr Nächte">+</button>
+                <button type="button" class="station-head" aria-expanded="${isOpen}" aria-controls="st-det-${pid}" onclick="toggleStation(${pid})">
+                    <span class="station-head-text">
+                        <span class="station-num">Station ${i+1}</span>
+                        <span class="station-name" role="heading" aria-level="3">${escHtml(displayName(p.name,i))}</span>
+                        <span class="place-dates">${cd.strStart} – ${cd.strEnd} · ${nights} ${nights === 1 ? 'Nacht' : 'Nächte'}</span>
+                        <span class="station-sub">${ico('bed', '🛏')}<span>${escHtml(p.hotel) || 'Unterkunft offen'}</span>${p.notes ? ico('note-pencil', '📝') : ''}${nDocs ? ico('paperclip', '📎') : ''}</span>
+                    </span>
+                    ${ico('caret-down')}
+                </button>
+                <div class="station-details" id="st-det-${pid}" ${isOpen ? '' : 'hidden'}>
+                    <div class="hotel-row">
+                        <span class="hotel-name">${ico(p.hotelLat ? 'map-pin' : 'bed')}<span style="overflow:hidden;text-overflow:ellipsis">${escHtml(p.hotel)||'Unterkunft offen'}${hotelGeoHint}</span></span>
+                        <button class="edit-btn" onclick="toggleHotelEdit(${pid})" aria-label="Unterkunft bearbeiten" title="Unterkunft bearbeiten">${ico('pencil-simple', '✏️')}</button>
+                    </div>
+                    ${p.hotel ? `<button type="button" class="btn-icon taxi-open" onclick="taxiCard.openPlace(${pid})">${ico('taxi', '🚕')} Taxi-Karte</button>` : ''}
+                    <div class="hotel-input-wrap" id="${editId}">
+                        <input type="text" id="hi-${pid}" value="${escHtml(p.hotel)}" placeholder="Unterkunft eingeben…">
+                        <button class="hotel-save-btn" onclick="saveHotelFromInput(${pid})">OK</button>
+                    </div>
+                    ${attachHtml(`hotel:${pid}`, 'hotel', `Buchung ${p.hotel || clean(p.name)}`)}
+                    ${p.notes ? `<div class="place-notes">${ico('note-pencil', '📝')}<span>${linkify(p.notes)}</span><button type="button" class="edit-btn" onclick="openPlaceNotes(${pid})" aria-label="Notizen zu ${escHtml(clean(p.name))} bearbeiten" title="Notizen bearbeiten">${ico('pencil-simple', '✏️')}</button></div>` : ''}
+                    <div class="nights-row">
+                        <button class="nights-btn" onclick="changeNights(${i},-1)" aria-label="Weniger Nächte">−</button>
+                        <button type="button" class="nights-val" data-i="${i}" onclick="editNights(+this.dataset.i, this)" aria-label="Nächte direkt eingeben">${nights} N</button>
+                        <button class="nights-btn" onclick="changeNights(${i},1)" aria-label="Mehr Nächte">+</button>
+                    </div>
                 </div>
             </div>
             <div class="place-side">
                 <details class="place-more">
                     <summary class="more-btn" aria-label="${escHtml(clean(p.name))}: Aktionen">${ico('dots-three-vertical', '⋯')}</summary>
                     <div class="more-menu">
-                        <button type="button" onclick="openRenamePlace(${Number(p.id)})">${ico('pencil-simple', '✏️')} Umbenennen</button>
-                        <button type="button" onclick="openPlaceNotes(${Number(p.id)})">${ico('note-pencil', '📝')} ${p.notes ? 'Notizen bearbeiten' : 'Notiz hinzufügen'}</button>
+                        <button type="button" onclick="openRenamePlace(${pid})">${ico('pencil-simple', '✏️')} Umbenennen</button>
+                        <button type="button" onclick="openPlaceNotes(${pid})">${ico('note-pencil', '📝')} ${p.notes ? 'Notizen bearbeiten' : 'Notiz hinzufügen'}</button>
                         <button type="button" data-i="${i}" data-d="-1" onclick="movePlace(+this.dataset.i, +this.dataset.d)" ${i === 0 ? 'disabled' : ''}>${ico('arrow-up', '↑')} Nach oben</button>
                         <button type="button" data-i="${i}" data-d="1" onclick="movePlace(+this.dataset.i, +this.dataset.d)" ${i === places.length - 1 ? 'disabled' : ''}>${ico('arrow-down', '↓')} Nach unten</button>
-                        <button type="button" class="danger" onclick="delPlace(${Number(p.id)})">${ico('trash', '✕')} Löschen</button>
+                        <button type="button" class="danger" onclick="delPlace(${pid})">${ico('trash', '✕')} Löschen</button>
                     </div>
                 </details>
             </div>`;
         frag.appendChild(card);
         const nxt = places[i + 1];
-        if (nxt) frag.appendChild(buildTransportLeg(nxt, false, nxt));
+        if (nxt && window.transit) {
+            // Etappe: eine Zeile, aufgeklappt mit Transportmittel, Verbindung, Links und Anhängen.
+            const leg = window.transit.legEl(i);
+            leg.querySelector('.transit-actions')?.prepend(transportBtn(nxt.id));
+            frag.appendChild(leg);
+        } else if (nxt) frag.appendChild(buildLegButton(nxt, false, nxt));
         else frag.appendChild(buildTransportLeg(null, false, p));
-        if (nxt && window.transit) frag.appendChild(window.transit.legEl(i));
     });
     list.appendChild(frag);
 }
 
+// Aufgeklappte Stationen und Anreise/Rückreise überstehen das Neu-Rendern (nicht dauerhaft gespeichert).
+const openStations = new Set(), openEnds = new Set();
+function toggleStation(pid) {
+    const open = !openStations.has(pid);
+    open ? openStations.add(pid) : openStations.delete(pid);
+    const card = document.querySelector(`#placesList .place-card[data-pid="${pid}"]`);
+    if (!card) return;
+    card.classList.toggle('is-open', open);
+    card.querySelector('.station-head')?.setAttribute('aria-expanded', open);
+    const det = card.querySelector('.station-details');
+    if (det) det.hidden = !open;
+}
+// Anhänge (Buchungsbestätigungen) aus dem Dokumente-Bereich, verknüpft über ref:
+// hotel:<Stations-ID>, leg:<ID der Zielstation>, arrival, return. Klicks behandelt features/documents.js.
+function attachCount(ref) { return window.documentsFeature?.byRef ? window.documentsFeature.byRef(ref).length : 0; }
+function attachHtml(ref, cat, title) {
+    const f = window.documentsFeature;
+    if (!f?.byRef) return '';
+    const chips = f.byRef(ref).map(d => `<button type="button" class="att-chip" data-att-open="${escHtml(d.id)}" aria-label="${escHtml(d.title)} öffnen">${ico(d.kind === 'pdf' ? 'file-pdf' : 'image', '📎')}<span>${escHtml(d.title)}</span></button>`).join('');
+    return `<div class="att-row">${chips}<button type="button" class="att-chip att-add" data-att-add="${escHtml(ref)}" data-att-cat="${escHtml(cat)}" data-att-title="${escHtml(String(title).slice(0, 80))}">${ico('paperclip', '📎')}<span>Bestätigung anhängen</span></button></div>`;
+}
+
 // Transportmittel liegt im transport-Feld der Zielstation; bei der ersten Station ist es die Anreise.
-// target = null + from: Rückreise ab der letzten Station (reiseweites Feld returnTransport).
+// Rückreise ab der letzten Station: reiseweites Feld returnTransport.
 document.addEventListener('click', e => {
     document.querySelectorAll('.place-more[open]').forEach(d => { if (!d.contains(e.target)) d.removeAttribute('open'); });
 });
 
+// Knopf „Transportmittel ändern“ im aufgeklappten Bereich. key: Stations-ID der Zielstation, 'arrival' oder 'return'.
+function transportBtn(key) {
+    const tr = clean((key === 'return' ? returnTransport : key === 'arrival' ? arrivalTransport : places.find(p => p.id === key)?.transport) || '');
+    const set = tr && tr !== 'Ausstehend';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'transit-link transport-btn';
+    btn.innerHTML = `${ico(transportMode(tr).icon)}<span>${escHtml(set ? `Transportmittel: ${tr}` : 'Transportmittel festlegen')}</span>${ico('pencil-simple')}`;
+    btn.onclick = () => openTransport(key);
+    return btn;
+}
+// Anreise und Rückreise: eine aufklappbare Zeile mit Transportmittel, gebuchter Verbindung und Anhängen.
 function buildTransportLeg(target, isArrival, from) {
-    const isReturn = !target && !isArrival;
-    if (!isArrival && !isReturn) return buildLegButton(target, isArrival, from);
-    // Anreise und Rückreise: Transportmittel wie bei den Etappen, zusätzlich die gebuchte Verbindung.
-    {
-        const wrap = document.createElement('div');
-        wrap.className = 'station-leg-wrap';
-        wrap.appendChild(buildLegButton(target, isArrival, from));
-        const booking = isArrival ? places[0]?.transit : returnBooking;
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'transit-link transit-edit';
-        const idx = isArrival ? 0 : -1;
-        const kind = isArrival ? 'arrival' : 'return';
-        btn.innerHTML = `${ico(booking ? 'pencil-simple' : 'plus', booking ? '✏️' : '+')}<span>${booking ? 'Gebuchte Verbindung bearbeiten' : 'Gebuchte Verbindung eintragen'}</span>`;
-        btn.onclick = () => window.transit?.openEditor(idx, kind);
-        wrap.appendChild(btn);
-        return wrap;
-    }
+    const kind = isArrival ? 'arrival' : 'return';
+    const tr = clean((isArrival ? arrivalTransport : returnTransport) || '');
+    const set = tr && tr !== 'Ausstehend';
+    const booking = isArrival ? places[0]?.transit : returnBooking;
+    const title = isArrival ? `Anreise nach ${clean(from.name)}` : `Rückreise ab ${clean(from.name)}`;
+    const conn = booking ? [booking.train, booking.dep ? `ab ${booking.dep} Uhr` : ''].filter(Boolean).join(' · ') : '';
+    const small = [set ? tr : '', conn].filter(Boolean).join(' · ') || 'Noch nicht festgelegt';
+    const el = document.createElement('details');
+    el.className = 'transit-leg transit-leg--end';
+    el.open = openEnds.has(kind);
+    el.addEventListener('toggle', () => { el.open ? openEnds.add(kind) : openEnds.delete(kind); });
+    el.innerHTML = `
+        <summary>${ico(set ? transportMode(tr).icon : (isArrival ? 'airplane-landing' : 'airplane-takeoff'))}<span class="transit-sum-text"><b>${escHtml(title)}</b><small>${escHtml(small)}</small></span>${ico('caret-down')}</summary>
+        <div class="transit-body">
+            ${window.transit?.connectionHtml?.(booking) || ''}
+            <div class="transit-actions"></div>
+            ${attachHtml(kind, 'ticket', title)}
+        </div>`;
+    const actions = el.querySelector('.transit-actions');
+    actions.appendChild(transportBtn(kind));
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'transit-link transit-edit';
+    btn.innerHTML = `${ico(booking ? 'pencil-simple' : 'plus', booking ? '✏️' : '+')}<span>${booking ? 'Gebuchte Verbindung bearbeiten' : 'Gebuchte Verbindung eintragen'}</span>`;
+    btn.onclick = () => window.transit?.openEditor(isArrival ? 0 : -1, kind);
+    actions.appendChild(btn);
+    return el;
 }
 function buildLegButton(target, isArrival, from) {
     const isReturn = !target && !isArrival;
@@ -3509,6 +3572,7 @@ function savePlaceNotes() {
     const p = places.find(x => Number(x.id) === notesPlaceId);
     if (!p) return;
     p.notes = document.getElementById('pn-text').value.trim().slice(0, PLACE_NOTES_MAX);
+    if (p.notes) openStations.add(Number(p.id));
     notesPlaceId = null;
     document.getElementById('modal-place-notes').close();
     saveData();

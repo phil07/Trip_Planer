@@ -124,17 +124,18 @@
         const title = await enc(new TextEncoder().encode(JSON.stringify({ title: d.title })));
         const blob = await enc(await d.blob.arrayBuffer());
         const thumb = d.thumb ? Object.assign(await enc(await d.thumb.arrayBuffer()), { type: d.thumb.type }) : null;
-        return { id: d.id, cat: d.cat, kind: d.kind, created: d.created, v: 2,
+        return { id: d.id, cat: d.cat, kind: d.kind, created: d.created, ref: d.ref || '', v: 2,
             title, blob: Object.assign(blob, { type: d.blob.type }), thumb };
     }
     async function openRecord(row) {
         const { title } = JSON.parse(new TextDecoder().decode(await dec(row.title)));
         const blob = new Blob([await dec(row.blob)], { type: row.blob.type || '' });
         const thumb = row.thumb ? new Blob([await dec(row.thumb)], { type: row.thumb.type || '' }) : null;
-        return { id: row.id, title, cat: row.cat, kind: row.kind, created: row.created, blob, thumb };
+        return { id: row.id, title, cat: row.cat, kind: row.kind, created: row.created, ref: row.ref, blob, thumb };
     }
 
     // ─── Normalisieren (Datenbank-Inhalte nie ungeprüft anzeigen) ───────────
+    const REF_RE = /^(?:(?:hotel|leg):-?\d{1,20}(?:\.\d+)?|arrival|return)$/;
     const cleanTitle = t => (typeof t === 'string' ? t : '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, TITLE_MAX);
     function normDoc(d) {
         if (!d || typeof d !== 'object' || typeof d.id !== 'string' || !d.id || !(d.blob instanceof Blob)) return null;
@@ -144,11 +145,22 @@
             cat: CAT_IDS.has(d.cat) ? d.cat : 'other',
             kind: d.kind === 'pdf' ? 'pdf' : 'image',
             created: Number.isFinite(d.created) ? d.created : 0,
+            // Verknüpfung mit Unterkunft (hotel:<Stations-ID>), Etappe (leg:<ID der Zielstation>), Anreise oder Rückreise
+            ref: typeof d.ref === 'string' && REF_RE.test(d.ref) ? d.ref : '',
             blob: d.blob,
             thumb: d.thumb instanceof Blob ? d.thumb : null
         };
     }
 
+    // Anhänge an Stationen/Etappen: Stationsliste und Tagesplan neu zeichnen, wenn sich Verknüpfungen ändern.
+    function refsChanged() {
+        try { window.renderPlaces?.(); window.renderDayPlan?.(); } catch (e) { console.warn('Dokumente:', e); }
+    }
+    function byRef(ref) {
+        if (state === 'idle') load();
+        return docs.filter(d => d.ref === ref).sort((a, b) => a.created - b.created).map(d => ({ id: d.id, title: d.title, kind: d.kind }));
+    }
+    let presetRef = '';
     async function load() {
         state = 'loading';
         try {
@@ -166,6 +178,7 @@
                 try { await dbPut(await sealRecord(d)); } catch (e) { console.warn('Verschlüsselung fehlgeschlagen', d.id, e); }
             }
             state = 'ready'; loadError = null;
+            if (docs.some(d => d.ref)) refsChanged();
         } catch (e) {
             state = 'error'; loadError = e;
             console.warn('Dokumente: IndexedDB nicht nutzbar', e);
@@ -357,7 +370,9 @@
         const t = document.getElementById('doc-title');
         if (!t.value.trim()) t.value = cleanTitle((file.name || '').replace(/\.[a-z0-9]{2,5}$/i, '')).slice(0, TITLE_MAX);
     }
-    function openAdd() {
+    // preset (optional): { ref, cat, title } – Anhang für eine Unterkunft oder Etappe.
+    function openAdd(preset) {
+        if (state === 'idle') load();
         if (state === 'error') { showToast('⚠️ ' + (loadError ? loadError.message : 'Speicher nicht verfügbar')); return; }
         if (docs.length >= MAX_DOCS) { showToast(`⚠️ Maximal ${MAX_DOCS} Dokumente`); return; }
         editId = null;
@@ -367,9 +382,12 @@
         document.getElementById('docSizeHint').hidden = false;
         document.getElementById('docFileInput').value = '';
         document.getElementById('docFileCamera').value = '';
-        document.getElementById('doc-title').value = '';
-        document.getElementById('doc-cat').value = 'passport';
+        const pre = preset && typeof preset === 'object' && typeof preset.ref === 'string' && REF_RE.test(preset.ref) ? preset : null;
+        document.getElementById('modal-doc-title').textContent = pre ? 'Bestätigung anhängen' : 'Dokument hinzufügen';
+        document.getElementById('doc-title').value = pre ? cleanTitle(pre.title) : '';
+        document.getElementById('doc-cat').value = pre && CAT_IDS.has(pre.cat) ? pre.cat : 'passport';
         setPending(null);
+        presetRef = pre ? pre.ref : '';
         dlg.showModal();
     }
     function openEdit(id) {
@@ -391,6 +409,7 @@
         const cat = CAT_IDS.has(document.getElementById('doc-cat').value) ? document.getElementById('doc-cat').value : 'other';
         if (!title) { showToast('⚠️ Bitte einen Titel eingeben'); return; }
         const btn = document.getElementById('docSaveBtn');
+        let changedRef = false;
         saving = true; btn.disabled = true; btn.textContent = 'Speichere …';
         try {
             if (editId) {
@@ -399,19 +418,22 @@
                 const next = Object.assign({}, d, { title, cat });
                 await dbPut(await sealRecord(next));
                 Object.assign(d, { title, cat });
+                changedRef = !!d.ref;
                 showToast('✅ Dokument aktualisiert');
             } else {
                 if (!pending) { showToast('⚠️ Bitte zuerst ein Foto oder PDF wählen'); return; }
                 const { blob, thumb } = pending.kind === 'pdf' ? await processPdf(pending.file) : await processImage(pending.file);
-                const rec = { id: 'doc' + Date.now() + Math.random().toString(36).slice(2, 7), title, cat, kind: pending.kind, created: Date.now(), blob, thumb };
+                const rec = { id: 'doc' + Date.now() + Math.random().toString(36).slice(2, 7), title, cat, kind: pending.kind, created: Date.now(), ref: presetRef, blob, thumb };
                 await dbPut(await sealRecord(rec));
                 docs.push(normDoc(rec));
+                changedRef = !!presetRef;
                 showToast('✅ Dokument gespeichert');
                 askPersist();
             }
             editId = null;
             document.getElementById('modal-doc').close();
             render();
+            if (changedRef) refsChanged();
         } catch (e) {
             console.warn('Dokument speichern fehlgeschlagen', e);
             showToast('⚠️ ' + (e && e.message ? e.message : 'Speichern fehlgeschlagen'), 5000);
@@ -428,9 +450,10 @@
         catch (e) { showToast('⚠️ ' + e.message); return; }
         docs.splice(docs.indexOf(d), 1);
         render();
+        if (d.ref) refsChanged();
         showUndoToast(`🗑️ „${d.title.slice(0, 40)}“ gelöscht`, async () => {
             if (docs.some(x => x.id === id)) return;
-            try { await dbPut(await sealRecord(d)); docs.push(d); render(); }
+            try { await dbPut(await sealRecord(d)); docs.push(d); render(); if (d.ref) refsChanged(); }
             catch (e) { showToast('⚠️ Wiederherstellen fehlgeschlagen: ' + e.message); }
         });
     }
@@ -478,7 +501,7 @@
         ['docFileInput', 'docFileCamera'].forEach(id => document.getElementById(id).addEventListener('change', ev => setPending(ev.target.files && ev.target.files[0])));
         document.getElementById('docSaveBtn').addEventListener('click', save);
         document.getElementById('doc-title').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } });
-        dlg.addEventListener('close', () => { setPending(null); editId = null; });
+        dlg.addEventListener('close', () => { setPending(null); editId = null; presetRef = ''; });
 
         viewer.addEventListener('click', e => {
             if (e.target.closest('[data-doc-close]') || e.target === viewer) { viewer.close(); return; }
@@ -503,9 +526,18 @@
         document.getElementById('docFab')?.addEventListener('click', openAdd);
         // Wurde die View schon beim Start (zuletzt geöffnete Seite) aktiviert, jetzt füllen
         if (view?.classList.contains('active')) render();
+        // Stationsliste wurde evtl. vor diesem Skript gezeichnet: Anhänge-Zeilen nachziehen.
+        if (typeof places !== 'undefined' && places.length) refsChanged();
     }
 
-    window.documentsFeature = { render, openAdd };
+    // Anhänge außerhalb der Dokumente-Seite (Stationen, Tagesplan): öffnen und hinzufügen per data-Attribut.
+    document.addEventListener('click', e => {
+        const t = e.target.closest?.('[data-att-open],[data-att-add]');
+        if (!t || t.closest('#view-documents')) return;
+        if (t.dataset.attOpen) openDoc(t.dataset.attOpen);
+        else openAdd({ ref: t.dataset.attAdd, cat: t.dataset.attCat, title: t.dataset.attTitle });
+    });
+    window.documentsFeature = { render, openAdd: () => openAdd(), attach: openAdd, byRef, open: openDoc };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();
 })();

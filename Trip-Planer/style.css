@@ -1259,3 +1259,29 @@ dialog > h3 { font-size: 22px; font-weight: 800; letter-spacing: -.025em; }
 .plan-check { width: 22px; height: 22px; flex: 0 0 auto; margin: 0 2px 0 0; accent-color: var(--primary-text, #d70015); cursor: pointer; }
 .dayplan-item.is-done { opacity: .55; }
 .dayplan-item.is-done .dayplan-item-title { text-decoration: line-through; }
+
+/* Stationen: eingeklappte Kopfzeile, Details erst nach Tipp */
+.place-card.station { padding: 12px 12px 12px 6px; }
+.station-head { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 0; border: 0; background: none;
+    font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: 12px; }
+.station-head:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.station-head-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.station-name { font-size: 20px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; margin: 2px 0; color: var(--label); overflow-wrap: anywhere; }
+.station-sub { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 13px; color: var(--muted); min-width: 0; }
+.station-sub > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.station-sub > i { flex: none; font-size: 15px; }
+.station-head > i:last-child { flex: none; font-size: 14px; color: var(--muted); transition: transform .3s var(--ease-out); }
+.place-card.is-open .station-head > i:last-child { transform: rotate(180deg); }
+.place-card.is-open .station-sub { display: none; }
+.station-details { margin-top: 4px; }
+.station-details[hidden] { display: none; }
+/* Anhänge (Buchungsbestätigungen) an Unterkunft und Etappen */
+.att-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.att-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; max-width: 100%; padding: 6px 12px; border: 0; border-radius: 999px;
+    background: var(--bg-secondary); box-shadow: inset 0 0 0 1px var(--border); color: var(--label); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.att-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.att-chip i { flex: none; font-size: 15px; }
+.att-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.att-add { background: transparent; color: var(--muted); }
+/* Aktionsmenü darf über die folgende Etappen-Zeile ragen */
+.place-card.station:has(.place-more[open]) { position: relative; z-index: 5; }

@@ -141,8 +141,8 @@ t('Stationen: drei Karten, gerade (nicht gedreht), gleiche Breite', async () => 
 t('Stationen: Verbindung zeigt Zug ohne Shinkansen-Option', async () => {
     await open();
     await go('view-places', 'Stationen');
-    const text = await page.locator('#placesList').innerText();
-    assert.match(text, /Zug · ca\. \d+ km · ca\. \d/);
+    const text = await page.locator('#placesList').evaluate(el => el.textContent);
+    assert.match(text, /geschätzt per Zug/);
     assert.doesNotMatch(text, /Shinkansen/);
 });
 
@@ -223,12 +223,50 @@ t('Stationen: Notiz hinzufügen und auf der Karte anzeigen', async () => {
     await page.waitForFunction(() => document.getElementById('modal-place-notes').open);
     await page.fill('#pn-text', 'Check-in ab 15 Uhr, siehe https://example.com/buchung.');
     await page.click('#modal-place-notes .btn:not(.btn-secondary)');
+    await page.locator('#placesList .place-notes >> nth=0').waitFor();
     assert.match(await page.locator('#placesList .place-notes >> nth=0').innerText(), /Check-in ab 15 Uhr/);
     const link = page.locator('#placesList .place-notes a >> nth=0');
     assert.equal(await link.getAttribute('href'), 'https://example.com/buchung');
     assert.equal(await link.getAttribute('target'), '_blank');
     const saved = await page.evaluate(() => JSON.stringify(localStorage));
     assert.match(saved, /Check-in ab 15 Uhr/);
+    assert.deepEqual(errors, []);
+});
+
+t('Stationen: eingeklappt kompakt, Tipp klappt Details auf', async () => {
+    await open();
+    await go('view-places', 'Stationen');
+    const card = page.locator('#placesList .place-card.station >> nth=0');
+    assert.equal(await card.locator('.station-details').isVisible(), false);
+    assert.match(await card.locator('.station-head').innerText(), /Station 1[\s\S]*N(acht|ächte)/);
+    await card.locator('.station-head').click();
+    assert.equal(await card.locator('.nights-row').isVisible(), true);
+    assert.equal(await card.locator('.station-head').getAttribute('aria-expanded'), 'true');
+    // Anreise: eine Zeile, aufgeklappt mit Transportmittel und gebuchter Verbindung
+    const arrival = page.locator('#placesList .transit-leg--end >> nth=0');
+    assert.match(await arrival.locator('summary').innerText(), /Anreise nach/);
+    await arrival.locator('summary').click();
+    assert.match(await arrival.innerText(), /Transportmittel[\s\S]*Gebuchte Verbindung/);
+    assert.deepEqual(errors, []);
+});
+
+t('Stationen: Buchungsbestätigung an die Unterkunft anhängen und öffnen', async () => {
+    await open();
+    await go('view-places', 'Stationen');
+    const card = page.locator('#placesList .place-card.station >> nth=0');
+    await card.locator('.station-head').click();
+    await card.locator('.att-add').click();
+    await page.waitForFunction(() => document.getElementById('modal-doc').open);
+    assert.equal(await page.inputValue('#doc-cat'), 'hotel');
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+    await page.setInputFiles('#docFileInput', { name: 'buchung.png', mimeType: 'image/png', buffer: png });
+    await page.fill('#doc-title', 'Hotel Bestätigung');
+    await page.click('#docSaveBtn');
+    const chip = page.locator('#placesList .place-card.station >> nth=0').locator('.att-chip[data-att-open]');
+    await chip.waitFor();
+    assert.match(await chip.innerText(), /Hotel Bestätigung/);
+    await chip.click();
+    await page.waitForFunction(() => document.getElementById('modal-doc-viewer').open);
     assert.deepEqual(errors, []);
 });
 
@@ -365,7 +403,7 @@ t('Reise teilen: Kurzlink (verschlüsselt) mit QR-Code, Empfänger sieht die Rei
 t('Stationen: Etappen-Symbol und Links folgen dem Verkehrsmittel (Mietwagen ≠ Zug)', async () => {
     await open();
     await go('view-places', '');
-    const legs = page.locator('#placesList .transit-leg');
+    const legs = page.locator('#placesList .transit-leg:not(.transit-leg--end)');
     // Osaka: Mietwagen -> Auto-Symbol, kein Zug-Planer, Route für Auto
     const osaka = legs.nth(1);
     await osaka.locator('summary').click();

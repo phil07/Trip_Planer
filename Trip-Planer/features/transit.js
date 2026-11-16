@@ -116,6 +116,11 @@
         return info.km == null ? 'Distanz unbekannt (keine Koordinaten)'
             : `${info.est.mode} · ca. ${fmtKm(info.est.dist)} · ca. ${fmtDuration(info.est.min)}`;
     }
+    // Kurzfassung der gebuchten Verbindung für die eingeklappte Zeile.
+    function bookedText(t) {
+        if (!t) return '';
+        return [t.train, t.dep ? `ab ${t.dep} Uhr` : '', t.seat].filter(Boolean).join(' · ');
+    }
     function connectionHtml(t) {
         if (!t) return '';
         const parts = [t.train, t.dep ? `ab ${t.dep} Uhr` : '', t.seat].filter(Boolean);
@@ -141,7 +146,8 @@
                 ${info.japan && onRails(info) ? `<a class="transit-link" href="https://world.jorudan.co.jp/mln/en/" target="_blank" rel="noopener">${ico('train', '🚄')}<span>Japan Transit Planner (Jorudan)</span></a>
                 <a class="transit-link" href="https://japantravel.navitime.com/en/" target="_blank" rel="noopener">${ico('compass', '🧭')}<span>NAVITIME Japan Travel</span></a>` : ''}
                 <button type="button" class="transit-link transit-edit" data-i="${idx}">${ico(t ? 'pencil-simple' : 'plus', t ? '✏️' : '+')}<span>${t ? 'Verbindung bearbeiten' : 'Gebuchte Verbindung eintragen'}</span></button>
-            </div>`;
+            </div>
+            ${typeof attachHtml === 'function' ? attachHtml('leg:' + info.to.id, transportMode(info.to.transport).label === 'Flug' ? 'ticket' : 'jrpass', `${info.fromName} → ${info.toName}`) : ''}`;
     }
     function wire(root) {
         root.querySelectorAll('.transit-edit').forEach(b => b.addEventListener('click', () => openEditor(+b.dataset.i)));
@@ -157,7 +163,7 @@
         el.open = openLegs.has(key);
         el.addEventListener('toggle', () => { el.open ? openLegs.add(key) : openLegs.delete(key); });
         el.innerHTML = `
-            <summary>${legIcon(info)}<span class="transit-sum-text"><b>Weiter nach ${esc(info.toName)}</b><small>${esc(summaryText(info))}</small></span>${ico('caret-down')}</summary>
+            <summary>${legIcon(info)}<span class="transit-sum-text"><b>Weiter nach ${esc(info.toName)}</b><small>${esc(bookedText(info.to.transit) || summaryText(info))}</small></span>${ico('caret-down')}</summary>
             <div class="transit-body">${bodyHtml(info, i)}</div>`;
         wire(el);
         return el;
@@ -285,7 +291,7 @@
         showUndoToast('Verbindung entfernt.', () => { setBooking(kind, editIdx, prev); saveData(); });
     }
 
-    window.transit = { legEl, renderDayPlan, legInfo, openEditor, bookingOf };
+    window.transit = { legEl, renderDayPlan, legInfo, openEditor, bookingOf, connectionHtml };
     // Skript lädt nach app.js – evtl. schon gerenderte Listen einmal nachziehen.
     if (typeof places !== 'undefined' && places.length) {
         try { window.renderPlaces?.(); window.renderDayPlan?.(); } catch (e) { console.warn('transit:', e); }

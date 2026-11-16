@@ -36,3 +36,8 @@
 .transit-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .transit-edit { background: var(--primary-fill); color: var(--on-primary); box-shadow: none; }
 #modal-transit textarea { min-height: 70px; }
+
+/* Stationsliste: Etappe, Anreise und Rückreise als eine Zeile zwischen den Karten */
+#placesList .transit-leg { margin: 8px 12px; }
+.transit-body > .transit-conn:first-child { margin-top: 0; }
+.transport-btn > i:last-child { margin-left: auto; font-size: 13px; opacity: .55; }
