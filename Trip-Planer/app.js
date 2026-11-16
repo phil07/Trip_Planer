@@ -3459,8 +3459,12 @@ function attachCount(ref) { return window.documentsFeature?.byRef ? window.docum
 function attachHtml(ref, cat, title) {
     const f = window.documentsFeature;
     if (!f?.byRef) return '';
-    const chips = f.byRef(ref).map(d => `<button type="button" class="att-chip" data-att-open="${escHtml(d.id)}" aria-label="${escHtml(d.title)} öffnen">${ico(d.kind === 'pdf' ? 'file-pdf' : 'image', '📎')}<span>${escHtml(d.title)}</span></button>`).join('');
-    return `<div class="att-row">${chips}<button type="button" class="att-chip att-add" data-att-add="${escHtml(ref)}" data-att-cat="${escHtml(cat)}" data-att-title="${escHtml(String(title).slice(0, 80))}">${ico('paperclip', '📎')}<span>Bestätigung anhängen</span></button></div>`;
+    const docs = f.byRef(ref);
+    // Jede Bestätigung: Öffnen und Entfernen (mit Rückgängig, wie bei den Reisedokumenten).
+    const chips = docs.map(d => `<span class="att-chip-wrap"><button type="button" class="att-chip" data-att-open="${escHtml(d.id)}" aria-label="${escHtml(d.title)} öffnen">${ico(d.kind === 'pdf' ? 'file-pdf' : 'image', '📎')}<span>${escHtml(d.title)}</span></button><button type="button" class="att-del" data-att-del="${escHtml(d.id)}" aria-label="${escHtml(d.title)} aus der Station entfernen" title="Entfernen">${ico('x', '✕')}</button></span>`).join('');
+    // Hotelname aus den Bestätigungen erneut lesen (z. B. für Buchungen, die vor dieser Funktion angehängt wurden)
+    const scan = ref.startsWith('hotel:') && docs.length ? `<button type="button" class="att-chip att-add" data-att-scan="${escHtml(ref)}">${ico('arrows-clockwise', '↻')}<span>Hotelname neu lesen</span></button>` : '';
+    return `<div class="att-row">${chips}${scan}<button type="button" class="att-chip att-add" data-att-add="${escHtml(ref)}" data-att-cat="${escHtml(cat)}" data-att-title="${escHtml(String(title).slice(0, 80))}">${ico('paperclip', '📎')}<span>Bestätigung anhängen</span></button></div>`;
 }
 
 // Transportmittel liegt im transport-Feld der Zielstation; bei der ersten Station ist es die Anreise.

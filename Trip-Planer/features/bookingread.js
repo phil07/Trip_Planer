@@ -83,26 +83,52 @@
         return d.kind === 'pdf' ? pdfText(d.blob) : imageText(d.blob);
     }
 
-    // Nach dem Anhängen an eine Unterkunft: Namen lesen und in die Station eintragen.
-    async function suggest(docId, ref) {
+    // Nach dem Anhängen an eine Unterkunft (und beim erneuten Lesen): Namen lesen und eintragen.
+    // quiet: nichts melden, wenn nichts zu tun ist (für den automatischen Lauf beim Start).
+    async function suggest(docId, ref, quiet = false) {
         const m = /^hotel:(-?\d+(?:\.\d+)?)$/.exec(ref || '');
-        if (!m || typeof places === 'undefined') return;
+        if (!m || typeof places === 'undefined') return true;
         const pid = Number(m[1]);
-        const toast = (msg, ms) => (typeof showResultToast === 'function' ? showResultToast(msg, 'ok') : showToast(msg, ms));
-        toast('Lese Hotelnamen aus der Bestätigung …');
+        const toast = (msg) => { if (!quiet) (typeof showResultToast === 'function' ? showResultToast(msg, 'ok') : showToast(msg)); };
+        if (!quiet) toast('Lese Hotelnamen aus der Bestätigung …');
         let name = '';
         try { name = extractHotelName(await readDocument(docId)); }
-        catch (e) { console.warn('Buchung lesen:', e); toast('Bestätigung konnte nicht gelesen werden – Hotel bitte selbst eintragen'); return; }
+        catch (e) { console.warn('Buchung lesen:', e); if (!quiet) toast('Bestätigung konnte nicht gelesen werden – Hotel bitte selbst eintragen'); return false; }
         const p = places.find(x => Number(x.id) === pid);
-        if (!p) return;
-        if (!name) { toast('Keinen Hotelnamen gefunden – bitte selbst eintragen'); return; }
-        if (p.hotel === name) { toast(`Hotel „${name}“ ist schon eingetragen`); return; }
-        if (!p.hotel) { toast(`Hotel „${name}“ eingetragen`); await saveHotel(pid, name); return; }
+        if (!p) return true;
+        if (!name) { toast('Keinen Hotelnamen gefunden – bitte selbst eintragen'); return true; }
+        if (p.hotel === name) { toast(`Hotel „${name}“ ist schon eingetragen`); return true; }
+        if (!p.hotel) { toast(`Hotel „${name}“ eingetragen`); await saveHotel(pid, name); return true; }
         if (confirm(`Aus der Bestätigung gelesen: „${name}“.\n\nStatt „${p.hotel}“ in der Station eintragen?`)) {
             toast(`Hotel „${name}“ eingetragen`);
             await saveHotel(pid, name);
         }
+        return true;
     }
+    // Alle Bestätigungen einer Unterkunft erneut lesen (Schaltfläche „Hotelname neu lesen“).
+    async function scanRef(ref) {
+        const docs = window.documentsFeature?.byRef?.(ref) || [];
+        if (!docs.length) return;
+        if (typeof showResultToast === 'function') showResultToast('Lese Bestätigungen erneut …', 'ok');
+        for (const d of docs) await suggest(d.id, ref, false);
+    }
+    // Einmalig nach dem Update: alle schon vorhandenen Hotelbestätigungen auslesen.
+    // Erledigte IDs stehen in tp_booking_scanned; gelesen wird nur, was dort noch fehlt.
+    const SCANNED_KEY = 'tp_booking_scanned';
+    function scannedIds() { try { return new Set(JSON.parse(localStorage.getItem(SCANNED_KEY) || '[]')); } catch (e) { return new Set(); } }
+    async function scanExisting() {
+        const api = window.documentsFeature?.sync;
+        if (!api || typeof places === 'undefined' || !places.length) return;
+        const done = scannedIds();
+        const all = (await api.all()).filter(d => /^hotel:/.test(d.ref || '') && !done.has(d.id));
+        for (const d of all) {
+            const ok = await suggest(d.id, d.ref, true);
+            if (ok) { done.add(d.id); try { localStorage.setItem(SCANNED_KEY, JSON.stringify([...done])); } catch (e) {} }
+        }
+    }
+    // Nach dem Start, wenn Reisedaten und Dokumente geladen sind. Ohne Netz einfach später erneut.
+    if (typeof window.document !== 'undefined' && typeof setTimeout === 'function')
+        setTimeout(() => { scanExisting().catch(e => console.warn('Bestätigungen nachlesen:', e)); }, 4000);
 
-    window.bookingRead = { extractHotelName, suggest };
+    window.bookingRead = { extractHotelName, suggest, scanRef };
 })();

@@ -593,3 +593,27 @@ t('Buchungsbestätigung: Hotelname wird gelesen und in die Station übernommen',
     assert.match(dialogs[0], /Hotel Gracery Shinjuku/);
     assert.deepEqual(errors, []);
 });
+
+t('Buchungen an Stationen: erneut lesen und wieder entfernen', async () => {
+    await open();
+    await go('view-places', 'Stationen');
+    await page.evaluate(() => { window.Tesseract = { recognize: async () => ({ data: { text: 'Hotel: Hotel Gracery Shinjuku' } }) }; });
+    page.on('dialog', d => d.accept());
+    const card = () => page.locator('#placesList .place-card.station >> nth=0');
+    await card().locator('.station-head').click();
+    await card().locator('.att-add').click();
+    await page.waitForFunction(() => document.getElementById('modal-doc').open);
+    await page.setInputFiles('#docFileInput', { name: 'buchung.png', mimeType: 'image/png', buffer: PNG });
+    await page.fill('#doc-title', 'Hotelbestätigung');
+    await page.click('#docSaveBtn');
+    await page.waitForFunction(() => places[0].hotel === 'Hotel Gracery Shinjuku', null, { timeout: 15000 });
+    // Erneut lesen: neue Schreibweise im Text, Name wird nach Rückfrage ersetzt
+    await page.evaluate(() => { window.Tesseract = { recognize: async () => ({ data: { text: 'Hotel: Hotel Gracery Shinjuku Tokyo' } }) }; });
+    await card().locator('[data-att-scan]').click();
+    await page.waitForFunction(() => places[0].hotel === 'Hotel Gracery Shinjuku Tokyo', null, { timeout: 15000 });
+    // Entfernen: Bestätigung verschwindet aus der Station
+    assert.equal(await card().locator('.att-chip-wrap').count(), 1);
+    await card().locator('.att-del').click();
+    await page.waitForFunction(() => !document.querySelector('#placesList .place-card.station .att-chip-wrap'), null, { timeout: 5000 });
+    assert.deepEqual(errors, []);
+});
