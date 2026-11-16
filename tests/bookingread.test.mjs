@@ -70,3 +70,19 @@ test('Flug-Screenshot ohne Beschriftung: Flugnummer, Abflug am Flughafen, Sitz',
     assert.equal(t.dep, '10:40');
     assert.match(t.seat, /Seat 18K/);
 });
+
+test('Flug-Screenshot, Variante 1: Beschriftung und Wert in getrennten Zeilen', () => {
+    const t = ctx.window.bookingRead.extractTransit('Flight details\nScheduled\nJan 1 (Fri) JL407\nTokyo\n(Narita)\nNRT\n10:40\nFrankfurt\nFRA\n17:00\n14h 20m\nTerminal\n2\nGate\n-\nBoarding time\n-\nBoarding\n-\nClass\nPremium\nEconomy\nSeat\n18K');
+    assert.equal(t.train, 'JL 407');
+    assert.equal(t.dep, '10:40');
+    assert.match(t.seat, /Terminal 2/);
+    assert.match(t.seat, /Seat 18K/);
+    assert.doesNotMatch(t.seat, /Gate/);
+});
+test('Flug-Screenshot, Variante 2: alles in einer Zeile, Uhrzeit mit O statt 0', () => {
+    const t = ctx.window.bookingRead.extractTransit('JL407 NRT 1O:40 FRA 17:00\nTerminal 2 Gate - Boarding time -\nSeat 18K');
+    assert.equal(t.train, 'JL 407');
+    assert.equal(t.dep, '10:40');
+    assert.match(t.seat, /Terminal 2/);
+    assert.match(t.seat, /Seat 18K/);
+});

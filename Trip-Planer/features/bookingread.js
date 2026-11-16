@@ -48,7 +48,11 @@
     const TRAIN_NAMES = 'Nozomi|Hikari|Kodama|Sakura|Mizuho|Tsubame|Hayabusa|Komachi|Yamabiko|Nasuno|Kagayaki|Shinkansen|Limited Express|JR|ICE|TGV|Zug|Train';
     const TRAIN_RE = new RegExp(`\\b(${TRAIN_NAMES})\\b[\\s#:.-]*([A-Z]{0,3}\\s?\\d{1,4})`, 'i');
     const FLIGHT_CODE_RE = /\b([A-Z]{2})\s?(\d{2,4})\b/;
-    const AIRPORT_TIME_RE = /\b([A-Z]{3})\b[^\d\n]{0,25}(\d{1,2}[:.]\d{2})\b/;
+    // Uhrzeit mit OCR-Toleranz: "1O:40" (O statt 0), "10.40", "10;40"
+    const TIME = '([0-9O]{1,2}[:.;,][0-9O]{2})';
+    const AIRPORT_TIME_RE = new RegExp(`\\b([A-Z]{3})\\b[^\\d\\n]{0,25}${TIME}\\b`);
+    const LABEL_RE = /\b(terminal|gate|seat|sitz|gleis|platform|wagen|car|haltestelle)\b\s*[:#]?\s*([^\s]*)/gi;
+    const normTime = t => { const [h, m] = t.replace(/O/g, '0').split(/[:.;,]/); return `${h.padStart(2, '0')}:${m}`; };
     const FLIGHT_CTX = /(flug|flight|airline|abflug|departure|boarding)/i;
     const DEP_RE = /(abfahrt|abflug|departure|depart(s|ure)?)\D{0,20}(\d{1,2}[:.]\d{2})/i;
     const SEAT_RE = /\b(gleis|platform|gate|sitz|seat|wagen|car|terminal)\s*[:#]?\s*([A-Z0-9][A-Z0-9 ,\/-]{0,18})/gi;
@@ -68,12 +72,12 @@
                 if (m) { train = m[1] + ' ' + m[2]; break; }
             }
         }
-        const hm = t => { const [h, mi] = t.replace('.', ':').split(':'); return `${h.padStart(2, '0')}:${mi}`; };
+        const hm = normTime;
         let dep = '';
         for (const l of lines) {
             if (/(check[- ]?in|check[- ]?out|hotel|unterkunft)/i.test(l)) continue;
             const m = DEP_RE.exec(l);
-            if (m) { dep = hm(m[3]); break; }
+            if (m) { dep = hm(m[3].replace(/O/g, '0')); break; }
         }
         // Ohne Beschriftung: Flughafen-Kürzel mit Uhrzeit ("NRT 10:40") ist der Abflug, wenn es eine Flugnummer gibt
         if (!dep && train && /^[A-Z]{2} \d/.test(train)) {
@@ -84,12 +88,28 @@
                 if (m) { dep = hm(m[2]); break; }
             }
         }
-        const seats = [];
-        for (const l of lines) {
-            SEAT_RE.lastIndex = 0;
-            let m;
-            while ((m = SEAT_RE.exec(l))) seats.push(`${m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase()} ${m[2].trim().replace(/[ ,\/-]+$/, '')}`);
+        // Letzter Ausweg bei erkanntem Flug: erste Uhrzeit im Text, die nicht zu Hotel oder Check-in gehört
+        if (!dep && train) {
+            for (const l of lines) {
+                if (/(check[- ]?in|check[- ]?out|hotel|unterkunft|uhr\s*\(|ortszeit|stornier)/i.test(l)) continue;
+                const m = new RegExp(`\\b${TIME}\\b`).exec(l);
+                if (m) { dep = hm(m[1]); break; }
+            }
         }
+        // Beschriftung und Wert: "Terminal 2", "Seat 18K" – oder der Wert steht in der nächsten Zeile ("Terminal" / "2")
+        const seats = [];
+        const valueOk = v => /\d/.test(v) && v.length <= 8;
+        lines.forEach((l, i) => {
+            LABEL_RE.lastIndex = 0;
+            let m;
+            while ((m = LABEL_RE.exec(l))) {
+                let v = m[2].replace(/[.,;]+$/, '');
+                if (!valueOk(v) && !v && lines[i + 1] && !/^[A-Za-z]{3,}/.test(lines[i + 1])) v = lines[i + 1].split(' ')[0];
+                if (!valueOk(v)) continue;
+                const label = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase();
+                seats.push(`${label} ${v}`);
+            }
+        });
         const seat = [...new Set(seats)].slice(0, 3).join(' · ').slice(0, 40);
         if (!train && !dep) return null;
         return { train: train.slice(0, 60), dep, seat, note: '' };
@@ -186,7 +206,9 @@
         }
         slot.set(value);
         saveData();
-        toast(`Verbindung eingetragen: ${[value.train, value.dep].filter(Boolean).join(' · ')}`);
+        const found = [value.train, value.dep && `Abfahrt ${value.dep}`, value.seat].filter(Boolean).join(' · ');
+        const missing = [!value.dep && 'Abfahrt', !value.seat && 'Terminal/Sitz'].filter(Boolean);
+        toast(`Gelesen: ${found}${missing.length ? ` – nicht gefunden: ${missing.join(', ')} (bitte eintragen)` : ''}`);
         return true;
     }
     // Eine Bestätigung neu lesen (Aktualisieren-Teil der Pille); ohne docId alle Bestätigungen der Unterkunft.
