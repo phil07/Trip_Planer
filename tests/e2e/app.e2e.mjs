@@ -673,3 +673,22 @@ t('Flug: Terminal, Gate und Sitz sind eigene Felder und werden getrennt gespeich
     assert.equal(tr.seat, '18K');
     assert.deepEqual(errors, []);
 });
+
+t('Buchung als PDF: Tipp öffnet die Anzeige in der App (ohne Netz mit Ausweg)', async () => {
+    await open();
+    await go('view-places', 'Stationen');
+    const card = () => page.locator('#placesList .place-card.station >> nth=0');
+    await card().locator('.station-head').click();
+    await card().locator('.att-add').click();
+    await page.waitForFunction(() => document.getElementById('modal-doc').open);
+    await page.setInputFiles('#docFileInput', { name: 'buchung.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%%EOF\n') });
+    await page.fill('#doc-title', 'Hotelbuchung PDF');
+    await page.click('#docSaveBtn');
+    await card().locator('.att-open').waitFor();
+    await card().locator('.att-open').click();
+    await page.waitForFunction(() => document.getElementById('modal-doc-viewer').open);
+    assert.equal(await page.locator('#docViewerTitle').innerText(), 'Hotelbuchung PDF');
+    // pdf.js ist im Test nicht erreichbar: Hinweis und Ausweg statt eines leeren Bildschirms
+    await page.locator('#docPdfExternal').waitFor();
+    assert.deepEqual(errors, []);
+});

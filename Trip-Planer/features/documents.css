@@ -34,3 +34,10 @@ dialog.doc-viewer::backdrop { background: #000; }
 .doc-viewer-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; align-items: center; justify-content: center; padding: 0 0 env(safe-area-inset-bottom); touch-action: pan-x pan-y pinch-zoom; }
 .doc-viewer-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; }
 .doc-viewer-wrap img.zoomed { max-width: none; max-height: none; cursor: zoom-out; margin: auto; }
+
+/* PDF-Anzeige in der App: Seiten untereinander, zum Vergrößern mit zwei Fingern */
+.doc-viewer-pdf { align-self: flex-start; width: 100%; max-width: 1000px; margin: 0 auto; padding: 0 0 12px; }
+.doc-viewer-pdf[hidden], .doc-viewer-wrap img[hidden] { display: none; }
+.doc-viewer-pdf canvas { display: block; width: 100%; height: auto; margin: 0 0 8px; background: #fff; }
+.doc-viewer-msg { margin: 40px 20px; text-align: center; color: #fff; font-size: 15px; line-height: 1.5; }
+.doc-viewer-msg .btn { margin-top: 14px; }

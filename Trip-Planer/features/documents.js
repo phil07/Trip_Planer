@@ -331,25 +331,71 @@
         const d = docs.find(x => x.id === id);
         if (!d) return;
         haptic();
-        if (d.kind === 'pdf') {
-            // Typ immer fest auf application/pdf setzen: eine blob:-URL läuft im App-Origin,
-            // ein falscher MIME-Typ (z. B. text/html) dürfte dort niemals gerendert werden.
-            const url = URL.createObjectURL(new Blob([d.blob], { type: 'application/pdf' }));
-            const a = document.createElement('a');
-            a.href = url; a.target = '_blank'; a.rel = 'noopener';
-            document.body.appendChild(a); a.click(); a.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
-            return;
-        }
         const dlg = document.getElementById('modal-doc-viewer');
         const img = document.getElementById('docViewerImg');
+        const pdfBox = document.getElementById('docViewerPdf');
+        document.getElementById('docViewerTitle').textContent = d.title;
+        pdfBox.replaceChildren();
+        if (d.kind === 'pdf') {
+            // PDF in der App anzeigen (Seiten als Bilder über pdf.js). Ein neuer Tab funktioniert
+            // in der Android-App nicht; er bleibt nur als Ausweg, wenn pdf.js nicht geladen werden kann.
+            img.hidden = true; pdfBox.hidden = false;
+            pdfBox.innerHTML = '<p class="doc-viewer-msg">PDF wird geladen …</p>';
+            dlg.showModal();
+            const run = ++pdfRun;
+            renderPdf(d, pdfBox, run).catch(e => {
+                console.warn('PDF anzeigen:', e);
+                if (run !== pdfRun) return;
+                pdfBox.innerHTML = '<p class="doc-viewer-msg">Das PDF konnte hier nicht angezeigt werden (keine Verbindung?).<br><button type="button" class="btn" id="docPdfExternal">Im Browser öffnen</button></p>';
+                pdfBox.querySelector('#docPdfExternal').onclick = () => openPdfExternal(d);
+            });
+            return;
+        }
+        img.hidden = false; pdfBox.hidden = true;
         if (viewerUrl) URL.revokeObjectURL(viewerUrl);
         viewerUrl = URL.createObjectURL(d.blob);
         img.classList.remove('zoomed');
         img.src = viewerUrl;
         img.alt = d.title;
-        document.getElementById('docViewerTitle').textContent = d.title;
         dlg.showModal();
+    }
+    let pdfRun = 0; // verwirft Seiten eines PDFs, wenn inzwischen ein anderes Dokument geöffnet wurde
+    const PDF_MAX_PAGES = 30;
+    async function renderPdf(d, box, run) {
+        if (!window.bookingRead?.loadPdfJs) throw new Error('pdf.js fehlt');
+        const lib = await window.bookingRead.loadPdfJs();
+        const pdf = await lib.getDocument({ data: new Uint8Array(await d.blob.arrayBuffer()) }).promise;
+        if (run !== pdfRun) return;
+        box.replaceChildren();
+        const width = Math.min(box.clientWidth || window.innerWidth, 1000);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+        for (let p = 1; p <= Math.min(pdf.numPages, PDF_MAX_PAGES); p++) {
+            const page = await pdf.getPage(p);
+            const vp = page.getViewport({ scale: 1 });
+            const viewport = page.getViewport({ scale: width / vp.width * dpr });
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.floor(viewport.width); canvas.height = Math.floor(viewport.height);
+            canvas.setAttribute('role', 'img');
+            canvas.setAttribute('aria-label', `${d.title} – Seite ${p} von ${pdf.numPages}`);
+            await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+            if (run !== pdfRun) return;
+            box.appendChild(canvas);
+        }
+        if (pdf.numPages > PDF_MAX_PAGES) {
+            const more = document.createElement('p');
+            more.className = 'doc-viewer-msg';
+            more.textContent = `Es werden die ersten ${PDF_MAX_PAGES} von ${pdf.numPages} Seiten angezeigt.`;
+            box.appendChild(more);
+        }
+    }
+    function openPdfExternal(d) {
+        // Typ immer fest auf application/pdf setzen: eine blob:-URL läuft im App-Origin,
+        // ein falscher MIME-Typ (z. B. text/html) dürfte dort niemals gerendert werden.
+        const url = URL.createObjectURL(new Blob([d.blob], { type: 'application/pdf' }));
+        const a = document.createElement('a');
+        a.href = url; a.target = '_blank'; a.rel = 'noopener';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
     }
 
     // ─── Hinzufügen / Umbenennen ────────────────────────────────────────────
@@ -494,7 +540,7 @@
             <h3 id="docViewerTitle"></h3>
             <button type="button" class="doc-viewer-close" data-doc-close aria-label="Schließen">${icon('x', '✕')}</button>
         </div>
-        <div class="doc-viewer-wrap"><img id="docViewerImg" alt=""></div>
+        <div class="doc-viewer-wrap"><img id="docViewerImg" alt=""><div id="docViewerPdf" class="doc-viewer-pdf" hidden></div></div>
     </dialog>`;
         app.appendChild(tpl.content);
 
@@ -516,6 +562,8 @@
         viewer.addEventListener('close', () => {
             const img = document.getElementById('docViewerImg');
             img.removeAttribute('src');
+            pdfRun++;
+            document.getElementById('docViewerPdf').replaceChildren();
             if (viewerUrl) { URL.revokeObjectURL(viewerUrl); viewerUrl = null; }
         });
 

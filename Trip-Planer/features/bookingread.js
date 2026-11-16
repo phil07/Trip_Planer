@@ -169,11 +169,16 @@
         });
     }
 
-    async function pdfText(blob) {
+    // pdf.js bei Bedarf laden (auch für die PDF-Anzeige in features/documents.js)
+    async function loadPdfJs() {
         if (!window.pdfjsLib) await loadScript(PDFJS);
         const lib = window.pdfjsLib;
         if (!lib) throw new Error('pdf.js nicht verfügbar');
         lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+        return lib;
+    }
+    async function pdfText(blob) {
+        const lib = await loadPdfJs();
         const pdf = await lib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
         let out = '';
         for (let p = 1; p <= Math.min(pdf.numPages, 3); p++) {
@@ -286,5 +291,5 @@
     if (typeof window.document !== 'undefined' && typeof setTimeout === 'function')
         setTimeout(() => { scanExisting().catch(e => console.warn('Bestätigungen nachlesen:', e)); }, 4000);
 
-    window.bookingRead = { extractHotelName, extractTransit, labelLinesFromWords, suggest, scanRef };
+    window.bookingRead = { extractHotelName, extractTransit, labelLinesFromWords, suggest, scanRef, loadPdfJs };
 })();
