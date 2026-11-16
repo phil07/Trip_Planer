@@ -301,12 +301,14 @@ const finiteOr = (v, d) => { const n = Number(v); return v !== null && v !== '' 
 // Taxi-Karte (features/taxicard.js): manuell gespeicherte Adresse in Landessprache + Bezugstext.
 const TAXI_MAX = 300;
 const taxiStr = v => typeof v === 'string' && v ? v.slice(0, TAXI_MAX) : undefined;
+const PLACE_NOTES_MAX = 2000;
 function normPlace(p, i) {
     return { ...p, id: finiteOr(p.id, Date.now() + i), name: String(p.name ?? ''), nights: clampNights(p.nights),
         lat: finiteOr(p.lat, 0), lng: finiteOr(p.lng, 0),
         hotelLat: finiteOr(p.hotelLat, null), hotelLng: finiteOr(p.hotelLng, null),
         transport: normTransport(p.transport) || 'Ausstehend', taxiAddr: taxiStr(p.taxiAddr), taxiFor: taxiStr(p.taxiFor),
         transit: normTransit(p.transit),
+        notes: typeof p.notes === 'string' ? p.notes.slice(0, PLACE_NOTES_MAX) : '',
         checkout: typeof p.checkout === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(p.checkout) ? p.checkout : '' };
 }
 // Tatsächliche Zugverbindung der Etappe zu dieser Station (features/transit.js) – nur kurze Strings übernehmen.
@@ -3290,6 +3292,7 @@ function renderPlaces() {
                     <input type="text" id="hi-${Number(p.id)}" value="${escHtml(p.hotel)}" placeholder="Unterkunft eingeben…">
                     <button class="hotel-save-btn" onclick="saveHotelFromInput(${Number(p.id)})">OK</button>
                 </div>
+                ${p.notes ? `<button type="button" class="place-notes" onclick="openPlaceNotes(${Number(p.id)})" aria-label="Notizen zu ${escHtml(clean(p.name))} bearbeiten">${ico('note-pencil', '📝')}<span>${escHtml(p.notes)}</span></button>` : ''}
                 <div class="nights-row">
                     <button class="nights-btn" onclick="changeNights(${i},-1)" aria-label="Weniger Nächte">−</button>
                     <button type="button" class="nights-val" data-i="${i}" onclick="editNights(+this.dataset.i, this)" aria-label="Nächte direkt eingeben">${clampNights(p.nights)} N</button>
@@ -3301,6 +3304,7 @@ function renderPlaces() {
                     <summary class="more-btn" aria-label="${escHtml(clean(p.name))}: Aktionen">${ico('dots-three-vertical', '⋯')}</summary>
                     <div class="more-menu">
                         <button type="button" onclick="openRenamePlace(${Number(p.id)})">${ico('pencil-simple', '✏️')} Umbenennen</button>
+                        <button type="button" onclick="openPlaceNotes(${Number(p.id)})">${ico('note-pencil', '📝')} ${p.notes ? 'Notizen bearbeiten' : 'Notiz hinzufügen'}</button>
                         <button type="button" data-i="${i}" data-d="-1" onclick="movePlace(+this.dataset.i, +this.dataset.d)" ${i === 0 ? 'disabled' : ''}>${ico('arrow-up', '↑')} Nach oben</button>
                         <button type="button" data-i="${i}" data-d="1" onclick="movePlace(+this.dataset.i, +this.dataset.d)" ${i === places.length - 1 ? 'disabled' : ''}>${ico('arrow-down', '↓')} Nach unten</button>
                         <button type="button" class="danger" onclick="delPlace(${Number(p.id)})">${ico('trash', '✕')} Löschen</button>
@@ -3478,6 +3482,26 @@ function saveRenamePlace() {
     renderDayPlan();
     document.getElementById('modal-rename').close();
     showToast(`Umbenannt in „${name}“`);
+}
+// Freie Notizen pro Station (z. B. Check-in-Zeit, Tipps, Reservierungen).
+let notesPlaceId = null;
+function openPlaceNotes(id) {
+    const p = places.find(x => Number(x.id) === Number(id));
+    if (!p) return;
+    notesPlaceId = Number(id);
+    document.querySelectorAll('.place-more[open]').forEach(d => d.removeAttribute('open'));
+    document.getElementById('modal-place-notes-title').textContent = `Notizen: ${clean(p.name)}`;
+    document.getElementById('pn-text').value = p.notes || '';
+    document.getElementById('modal-place-notes').showModal();
+    document.getElementById('pn-text').focus();
+}
+function savePlaceNotes() {
+    const p = places.find(x => Number(x.id) === notesPlaceId);
+    if (!p) return;
+    p.notes = document.getElementById('pn-text').value.trim().slice(0, PLACE_NOTES_MAX);
+    notesPlaceId = null;
+    document.getElementById('modal-place-notes').close();
+    saveData();
 }
 function movePlace(i, d) {
     const j = i + d;

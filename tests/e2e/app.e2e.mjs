@@ -215,6 +215,20 @@ t('Stationen: umbenennen behält die Station und ihre Aktivitäten', async () =>
     assert.match(txt, /Neu Tokio/);
 });
 
+t('Stationen: Notiz hinzufügen und auf der Karte anzeigen', async () => {
+    await open();
+    await go('view-places', 'Stationen');
+    await page.click('.place-more summary >> nth=0');
+    await page.click('text=Notiz hinzufügen >> nth=0');
+    await page.waitForFunction(() => document.getElementById('modal-place-notes').open);
+    await page.fill('#pn-text', 'Check-in ab 15 Uhr');
+    await page.click('#modal-place-notes .btn:not(.btn-secondary)');
+    assert.match(await page.locator('#placesList .place-notes >> nth=0').innerText(), /Check-in ab 15 Uhr/);
+    const saved = await page.evaluate(() => JSON.stringify(localStorage));
+    assert.match(saved, /Check-in ab 15 Uhr/);
+    assert.deepEqual(errors, []);
+});
+
 t('Währungsrechner: 250 EUR → 40.000 JPY mit gestubbtem Kurs, Rückrichtung', async () => {
     await open();
     await go('view-currency', 'Währungsrechner');

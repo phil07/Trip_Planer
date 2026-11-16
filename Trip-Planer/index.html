@@ -367,6 +367,17 @@
         </div>
     </dialog>
 
+    <dialog id="modal-place-notes" aria-labelledby="modal-place-notes-title">
+        <h3 id="modal-place-notes-title">Notizen</h3>
+        <div class="dialog-body">
+            <div class="form-group"><label for="pn-text">Notizen zur Station</label><textarea id="pn-text" rows="6" maxlength="2000" placeholder="z. B. Check-in ab 15 Uhr, Restaurant-Tipp, Reservierung …"></textarea></div>
+        </div>
+        <div class="dialog-actions">
+            <button class="btn" onclick="savePlaceNotes()">Speichern</button>
+            <button class="btn btn-secondary" onclick="this.closest('dialog').close()">Abbrechen</button>
+        </div>
+    </dialog>
+
     <dialog id="modal-transport" aria-labelledby="modal-transport-title">
         <h3 id="modal-transport-title">Transportmittel</h3>
         <div class="dialog-body">
