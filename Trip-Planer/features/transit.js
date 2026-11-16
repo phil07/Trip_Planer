@@ -258,6 +258,7 @@
             : kind === 'return' ? `Rückreise ab ${clean(places[places.length - 1].name)}`
             : `${clean(places[idx].name)} → ${clean(places[idx + 1].name)}`;
         d.querySelector('#transit-route').textContent = route;
+        applyLabels(d, transportLabelFor(kind, idx));
         d.querySelector('#modal-transit-title').textContent = kind === 'leg' ? 'Zugverbindung' : kind === 'arrival' ? 'Anreise buchen' : 'Rückreise buchen';
         d.querySelector('#transit-train').value = t.train || '';
         d.querySelector('#transit-dep').value = t.dep || '';
@@ -265,6 +266,30 @@
         d.querySelector('#transit-note').value = t.note || '';
         d.querySelector('#transit-del').hidden = !bookingOf(kind, idx);
         d.showModal();
+    }
+    // Verkehrsmittel der Verbindung: Anreise/Rückreise bzw. Transportmittel der Zielstation.
+    function transportLabelFor(kind, idx) {
+        const tr = kind === 'arrival' ? arrivalTransport : kind === 'return' ? returnTransport : (places[idx + 1]?.transport || '');
+        return transportMode(clean(tr)).label;
+    }
+    // Beschriftung der Felder je Verkehrsmittel: Flug und Bahn haben andere Angaben als Bus oder Auto.
+    function applyLabels(d, mode) {
+        const L = {
+            Flug:      { train: 'Flugnummer', train_ph: 'z. B. LH 716', dep: 'Abflug', seat: 'Terminal · Gate · Sitz', seat_ph: 'z. B. Terminal 2 · Sitz 18K' },
+            Bus:       { train: 'Linie / Verbindung', train_ph: 'z. B. Bus Nr. 12', dep: 'Abfahrt', seat: 'Haltestelle · Sitz', seat_ph: 'z. B. Shinjuku Bahnhof · Sitz 4' },
+            Fähre:     { train: 'Schiff / Verbindung', train_ph: 'z. B. Ferry Sea Star', dep: 'Abfahrt', seat: 'Terminal · Kabine', seat_ph: 'z. B. Terminal 1 · Kabine 210' },
+            Mietwagen: { train: 'Abholung / Fahrzeug', train_ph: 'z. B. Toyota Aqua', dep: 'Abholzeit', seat: 'Station · Buchungsnr.', seat_ph: 'z. B. Shin-Osaka · 12345' },
+            default:   { train: 'Zug', train_ph: 'z. B. Nozomi 215', dep: 'Abfahrt', seat: 'Gleis / Sitz', seat_ph: 'z. B. Gleis 14 · Wagen 7, 12A' }
+        };
+        const x = L[mode] || L.default;
+        const set = (id, text, ph) => {
+            const lab = d.querySelector(`label[for="${id}"]`), inp = d.querySelector('#' + id);
+            if (lab && text) lab.textContent = text;
+            if (inp && ph !== undefined) inp.placeholder = ph;
+        };
+        set('transit-train', x.train, x.train_ph);
+        set('transit-dep', x.dep);
+        set('transit-seat', x.seat, x.seat_ph);
     }
     function save() {
         const d = dialog();

@@ -63,3 +63,10 @@ test('Check-in-Zeit wird nicht als Abfahrt genommen', () => {
 test('ohne Zug- oder Flugdaten: null', () => {
     assert.equal(ctx.window.bookingRead.extractTransit('Hotel Gracery Shinjuku\nCheck-in 15:00'), null);
 });
+
+test('Flug-Screenshot ohne Beschriftung: Flugnummer, Abflug am Flughafen, Sitz', () => {
+    const t = ctx.window.bookingRead.extractTransit('Flight details\nScheduled\nJan 1 (Fri) JL407\nTokyo (Narita)\nNRT\n10:40\nFrankfurt\nFRA\n17:00\nTerminal 2\nSeat 18K');
+    assert.equal(t.train, 'JL 407');
+    assert.equal(t.dep, '10:40');
+    assert.match(t.seat, /Seat 18K/);
+});

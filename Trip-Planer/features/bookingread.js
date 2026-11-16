@@ -47,7 +47,8 @@
     // ─── Zug und Flug ──────────────────────────────────────────────────────
     const TRAIN_NAMES = 'Nozomi|Hikari|Kodama|Sakura|Mizuho|Tsubame|Hayabusa|Komachi|Yamabiko|Nasuno|Kagayaki|Shinkansen|Limited Express|JR|ICE|TGV|Zug|Train';
     const TRAIN_RE = new RegExp(`\\b(${TRAIN_NAMES})\\b[\\s#:.-]*([A-Z]{0,3}\\s?\\d{1,4})`, 'i');
-    const FLIGHT_RE = /\b([A-Z]{2}\s?\d{2,4})\b/;
+    const FLIGHT_CODE_RE = /\b([A-Z]{2})\s?(\d{2,4})\b/;
+    const AIRPORT_TIME_RE = /\b([A-Z]{3})\b[^\d\n]{0,25}(\d{1,2}[:.]\d{2})\b/;
     const FLIGHT_CTX = /(flug|flight|airline|abflug|departure|boarding)/i;
     const DEP_RE = /(abfahrt|abflug|departure|depart(s|ure)?)\D{0,20}(\d{1,2}[:.]\d{2})/i;
     const SEAT_RE = /\b(gleis|platform|gate|sitz|seat|wagen|car|terminal)\s*[:#]?\s*([A-Z0-9][A-Z0-9 ,\/-]{0,18})/gi;
@@ -59,18 +60,29 @@
             const m = TRAIN_RE.exec(l);
             if (m) { train = (m[1] + ' ' + m[2]).replace(/\s+/g, ' ').trim(); break; }
         }
+        // Flugnummer: zuerst in Zeilen mit Flug-Wort, sonst irgendwo (Screenshots haben oft nur "JL407" in einer Zeile)
         if (!train) {
-            for (const l of lines) {
-                if (!FLIGHT_CTX.test(l)) continue;
-                const m = FLIGHT_RE.exec(l);
-                if (m) { train = m[1].replace(/^([A-Z]{2})\s?/, '$1 '); break; }
+            const ordered = [...lines.filter(l => FLIGHT_CTX.test(l)), ...lines];
+            for (const l of ordered) {
+                const m = FLIGHT_CODE_RE.exec(l);
+                if (m) { train = m[1] + ' ' + m[2]; break; }
             }
         }
+        const hm = t => { const [h, mi] = t.replace('.', ':').split(':'); return `${h.padStart(2, '0')}:${mi}`; };
         let dep = '';
         for (const l of lines) {
             if (/(check[- ]?in|check[- ]?out|hotel|unterkunft)/i.test(l)) continue;
             const m = DEP_RE.exec(l);
-            if (m) { const [h, mi] = m[3].replace('.', ':').split(':'); dep = `${h.padStart(2, '0')}:${mi}`; break; }
+            if (m) { dep = hm(m[3]); break; }
+        }
+        // Ohne Beschriftung: Flughafen-Kürzel mit Uhrzeit ("NRT 10:40") ist der Abflug, wenn es eine Flugnummer gibt
+        if (!dep && train && /^[A-Z]{2} \d/.test(train)) {
+            // Flughafen und Zeit können in getrennten Zeilen stehen: einzelne Zeile und Zeilenpaare prüfen
+            const cand = lines.flatMap((l, i) => [l, i + 1 < lines.length ? l + ' ' + lines[i + 1] : '']);
+            for (const l of cand) {
+                const m = AIRPORT_TIME_RE.exec(l);
+                if (m) { dep = hm(m[2]); break; }
+            }
         }
         const seats = [];
         for (const l of lines) {
@@ -137,6 +149,7 @@
         let text = '';
         try { text = await readDocument(docId); }
         catch (e) { console.warn('Buchung lesen:', e); toast('Bestätigung konnte nicht gelesen werden – bitte selbst eintragen'); return false; }
+        if (!String(text).trim()) { toast('Kein Text in der Bestätigung erkannt – bitte als PDF oder schärferes Foto anhängen'); return true; }
         return hotel ? applyHotel(Number(hotel[1]), text, toast) : applyTransit(ref, text, toast);
     }
     async function applyHotel(pid, text, toast) {

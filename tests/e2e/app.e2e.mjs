@@ -637,3 +637,16 @@ t('Anreise: Flugdaten aus der Bestätigung werden eingetragen, Pille zum Entfern
     await page.waitForFunction(() => !document.querySelector('#placesList .transit-leg--end .att-pill'), null, { timeout: 5000 });
     assert.deepEqual(errors, []);
 });
+
+t('Verbindung: Flug zeigt Flugnummer und Abflug statt Zug', async () => {
+    await open();
+    await go('view-places', 'Stationen');
+    const arrival = page.locator('#placesList .transit-leg--end >> nth=0');
+    await arrival.locator('summary').click();
+    await arrival.locator('.transit-edit').click();
+    await page.waitForFunction(() => document.getElementById('modal-transit')?.open);
+    assert.equal(await page.locator('label[for="transit-train"]').innerText(), 'Flugnummer');
+    assert.equal(await page.locator('label[for="transit-dep"]').innerText(), 'Abflug');
+    await page.click('#transit-cancel');
+    assert.deepEqual(errors, []);
+});
