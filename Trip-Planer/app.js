@@ -1661,12 +1661,12 @@ function renderBudget() {
             const sp = spentBy(c), pl = planBy(c), cp = pl ? Math.min(100, Math.round(sp / pl * 100)) : 0;
             return `
             <div class="budget-cat" data-catrow="${c}">
-                <div class="budget-cat-top">
+                <button type="button" class="budget-cat-top budget-cat-toggle" data-cat="${c}" aria-expanded="${openBudgetCats.has(c)}" onclick="toggleBudgetCat(this.dataset.cat, this)" aria-label="${c}: Budget ändern">
                     <span class="budget-cat-name">${emo} ${c}</span>
-                    <span class="budget-cat-spent">${fmtEuro(sp)}${pl ? ` / ${fmtEuro(pl)}` : ''}</span>
-                </div>
+                    <span class="budget-cat-spent">${fmtEuro(sp)}${pl ? ` / ${fmtEuro(pl)}` : ''} ${ico('pencil-simple')}</span>
+                </button>
                 <div class="budget-progress"><div class="budget-progress-fill${sp > pl ? ' over' : ''}" style="width:${pl ? Math.max(cp, 2) : 0}%"></div></div>
-                <label class="budget-cat-budget">
+                <label class="budget-cat-budget" ${openBudgetCats.has(c) ? '' : 'hidden'}>
                     <input type="number" value="${pl || ''}" step="1" min="0" inputmode="numeric" aria-label="Budget für ${c} in Euro" data-cat="${c}" oninput="setCatBudget(this.dataset.cat, this.value, false)" onchange="setCatBudget(this.dataset.cat, this.value, true)">
                     <span>€ Budget</span>
                 </label>
@@ -1689,6 +1689,17 @@ function renderBudget() {
     `;
     window.splitcosts?.render(topCont);
 }
+// Budget-Feld einer Kategorie erst nach Tipp zeigen; offene Felder überstehen das Neu-Rendern.
+const openBudgetCats = new Set();
+function toggleBudgetCat(cat, btn) {
+    const open = !openBudgetCats.has(cat);
+    open ? openBudgetCats.add(cat) : openBudgetCats.delete(cat);
+    btn.setAttribute('aria-expanded', open);
+    const label = btn.parentElement.querySelector('.budget-cat-budget');
+    if (!label) return;
+    label.hidden = !open;
+    if (open) label.querySelector('input')?.focus();
+}
 function getDailyBudget() { try { return parseDeNumber(localStorage.getItem('tp_daily_budget') || '') || 0; } catch (e) { return 0; } }
 function tripDayCount() {
     const total = places.reduce((n, p) => n + clampNights(p.nights), 0) || 1;
@@ -1702,13 +1713,13 @@ function dailyBudgetInner() {
     const today = budget.entries.filter(e => e.date === todayISO()).reduce((s, e) => s + Number(e.amount || 0), 0);
     const pct = daily ? Math.min(100, Math.round(today / daily * 100)) : 0;
     return `
-        <div class="budget-cat-top">
+        <button type="button" class="budget-cat-top budget-cat-toggle" data-cat="__daily" aria-expanded="${openBudgetCats.has('__daily')}" onclick="toggleBudgetCat(this.dataset.cat, this)" aria-label="Tagesbudget ändern">
             <span class="budget-cat-name">📅 Pro Tag</span>
-            <span class="budget-cat-spent">Ø ${fmtEuro(avg)}</span>
-        </div>
+            <span class="budget-cat-spent">Ø ${fmtEuro(avg)} ${ico('pencil-simple')}</span>
+        </button>
         ${daily ? `<div class="budget-progress"><div class="budget-progress-fill${today > daily ? ' over' : ''}" style="width:${Math.max(pct, 2)}%"></div></div>
         <div class="budget-sub">Heute <b>${fmtEuro(today)}</b> von ${fmtEuro(daily)} · Ø ${avg > daily ? `<b style="color:var(--primary)">über</b>` : 'im'} Tagesbudget</div>` : ''}
-        <label class="budget-cat-budget">
+        <label class="budget-cat-budget" ${openBudgetCats.has('__daily') ? '' : 'hidden'}>
             <input type="number" id="dailyBudgetInput" value="${daily || ''}" step="1" min="0" inputmode="numeric" aria-label="Tagesbudget in Euro" oninput="setDailyBudget(this.value, false)" onchange="setDailyBudget(this.value, true)">
             <span>€ Tagesbudget (optional)</span>
         </label>`;
@@ -3930,9 +3941,9 @@ function renderActs() {
                 <div class="act-btns">
                     ${(a.lat && a.lng) ? `<button class="btn-icon btn-map-act">${ico('map-trifold')} Karte</button>` : ''}
                     ${(a.lat && a.lng) ? `<button class="btn-icon btn-nav-act">${ico('navigation-arrow')} Route</button>` : ''}
-                    <button class="btn-icon btn-web-act">${ico('globe-simple')} Web</button>
-                    <button class="btn-icon btn-taxi-act" onclick="taxiCard.openAct(${Number(a.id)})" aria-label="Taxi-Karte" title="Taxi-Karte">${ico('taxi', '🚕')} Taxi</button>
-                    <button class="btn-icon btn-favorite-act" aria-pressed="${!!a.favorite}">${ico('heart', a.favorite ? '♥' : '♡')} Favorit</button>
+                    <button class="btn-icon btn-web-act act-btn-round" aria-label="Im Web suchen" title="Im Web suchen">${ico('globe-simple', '🌐')}</button>
+                    <button class="btn-icon btn-taxi-act act-btn-round" onclick="taxiCard.openAct(${Number(a.id)})" aria-label="Taxi-Karte" title="Taxi-Karte">${ico('taxi', '🚕')}</button>
+                    <button class="btn-icon btn-favorite-act act-btn-round" aria-pressed="${!!a.favorite}" aria-label="Favorit" title="Favorit">${ico('heart', a.favorite ? '♥' : '♡')}</button>
                 </div>
             </div>
             <button class="act-edit" aria-label="Aktivität bearbeiten">${ico('pencil-simple', '✏️')}</button>
@@ -4146,6 +4157,7 @@ function dayEntryHtml(e, inDay, entries, i) {
                 <div class="dayplan-item-title">${safeTitle}</div>
                 <div class="dayplan-item-type">${sub}</div>
             </div>
+            <div class="dayplan-controls">
             ${a ? `<select class="dayplan-day-select" data-id="${id}" onchange="setActDay(+this.dataset.id, this.value)" aria-label="Tag für ${safeTitle} wählen">
                 <option value="">Kein Tag</option>
                 ${placeDays(a.topPlace).map(d => `<option value="${d}" ${a.day === d ? 'selected' : ''}>${escHtml(fmtDayShort(d))}</option>`).join('')}
@@ -4156,6 +4168,7 @@ function dayEntryHtml(e, inDay, entries, i) {
                 ${a ? '' : `<button class="edit-btn" data-id="${id}" onclick="openPlanModal(+this.dataset.id)" aria-label="${safeTitle} bearbeiten">✏️</button>
                 <button class="del-btn" data-id="${id}" onclick="delPlanPoint(+this.dataset.id)" aria-label="${safeTitle} entfernen">✕</button>`}
             </div>` : ''}
+            </div>
             ${a ? (window.openingHours?.warnHtml(a) || '') : ''}
         </div>`;
 }

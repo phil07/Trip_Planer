@@ -177,9 +177,13 @@
         if (!legs.length) return;
         const dayCards = () => [...list.querySelectorAll('.dayplan-card[data-day]')];
         legs.forEach(({ info, i }) => {
-            const block = document.createElement('div');
+            // Eingeklappt: nur Ziel und Abfahrt; Details (Schätzung, Links, Anhänge) nach Tipp.
+            const block = document.createElement('details');
             block.className = 'transit-day';
-            block.innerHTML = `<div class="transit-day-title">${legIcon(info)}<span>Weiter nach ${esc(info.toName)}${info.to.transit?.dep ? ` · ${esc(info.to.transit.dep)} Uhr` : ''}</span></div>${bodyHtml(info, i)}`;
+            const key = 'day:' + info.to.id;
+            block.open = openLegs.has(key);
+            block.addEventListener('toggle', () => { block.open ? openLegs.add(key) : openLegs.delete(key); });
+            block.innerHTML = `<summary class="transit-day-title">${legIcon(info)}<span class="transit-sum-text"><b>Weiter nach ${esc(info.toName)}</b><small>${esc(bookedText(info.to.transit) || summaryText(info))}</small></span>${ico('caret-down')}</summary>${bodyHtml(info, i)}`;
             wire(block);
             const same = dayCards().find(c => c.dataset.day === info.day);
             if (same) { same.querySelector('.dayplan-header')?.after(block); return; }
