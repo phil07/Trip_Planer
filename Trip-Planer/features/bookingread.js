@@ -18,8 +18,15 @@
     const LABEL = /^\s*(hotel(\s*name)?|property( name)?|unterkunft|accommodation( name)?|name of (the )?(hotel|property))\s*[:：]\s*(.+)$/i;
     const NOISE = /(check[- ]?in|check[- ]?out|reservation|confirmation|booking|buchung|price|total|preis|guest|gast|room|zimmer|www\.|https?:|@|\d{2}[./-]\d{2})/i;
 
+    // Ganz in Großbuchstaben geschriebene Wörter (ab 4 Buchstaben) normal schreiben: "HOTEL Tokyo" -> "Hotel Tokyo".
+    // Kürzel wie "ANA" oder "APA" bleiben unverändert, gemischt geschriebene Wörter auch.
+    const normCase = name => name.replace(/\b[A-ZÄÖÜ]{4,}\b/g, w => w.charAt(0) + w.slice(1).toLowerCase());
     // Reiner Text -> Hotelname oder ''. Zuerst Zeilen mit Beschriftung ("Hotel: X"), dann freie Zeilen mit Schlüsselwort.
     function extractHotelName(text) {
+        const name = findName(text);
+        return name ? normCase(name) : '';
+    }
+    function findName(text) {
         const lines = String(text || '').split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
         const clean = s => s.replace(/^[\s"'„“*•\-–:]+|[\s"'“”*•\-–:,.;]+$/g, '').slice(0, MAX_LEN).trim();
         for (const l of lines) {

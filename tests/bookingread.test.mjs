@@ -32,8 +32,13 @@ test('Zeile mit Preis/Check-in wird nicht als Name genommen', () => {
 
 test('Seitentitel "Unterkunft in Tokyo" wird nicht als Hotel genommen (Expedia-PDF)', () => {
     const text = 'Unterkunft in Tokyo\n25. Nov. 2026 – 28. Nov. 2026\nHOTEL Tokyo Trip Ueno Nishi Nippori\nBestätigung: T_2603346607\nBuchungsdetails\nGebucht\nCheck-in\nMi., 25. Nov.\n15:00 Uhr';
-    assert.equal(extract(text), 'HOTEL Tokyo Trip Ueno Nishi Nippori');
+    assert.equal(extract(text), 'Hotel Tokyo Trip Ueno Nishi Nippori');
 });
 test('Beschriftung "Unterkunft:" wird weiterhin übernommen', () => {
     assert.equal(extract('Unterkunft: Ryokan Sakura Hakone\nCheck-in 15:00'), 'Ryokan Sakura Hakone');
+});
+
+test('Großbuchstaben werden normal geschrieben, Kürzel bleiben', () => {
+    assert.equal(extract('ROYAL PARK HOTEL Kyoto\nCheck-in 22.11.'), 'Royal Park Hotel Kyoto');
+    assert.equal(extract('Hotel: APA Hotel Osaka Umeda'), 'APA Hotel Osaka Umeda');
 });
