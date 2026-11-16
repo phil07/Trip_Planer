@@ -96,8 +96,8 @@
                 if (m) { dep = hm(m[1]); break; }
             }
         }
-        // Beschriftung und Wert: "Terminal 2", "Seat 18K" – oder der Wert steht in der nächsten Zeile ("Terminal" / "2")
-        const seats = [];
+        // Beschriftung und Wert: "Terminal 2", "Gate 23", "Seat 18K" – oder der Wert steht in der nächsten Zeile
+        const parts = { terminal: '', gate: '', seat: [] };
         const valueOk = v => /\d/.test(v) && v.length <= 8;
         lines.forEach((l, i) => {
             LABEL_RE.lastIndex = 0;
@@ -108,13 +108,17 @@
                 // Häufige OCR-Verwechslungen: I/l statt 1, O statt 0 (z. B. "I8K" -> "18K", "1O" -> "10")
                 v = v.replace(/^[Il|](?=\d|[A-K]$)/, '1').replace(/O/g, '0').replace(/^(\d+)[lI]$/, '$11');
                 if (!valueOk(v)) continue;
-                const label = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase();
-                seats.push(`${label} ${v}`);
+                const label = m[1].toLowerCase();
+                if (label === 'terminal') { if (!parts.terminal) parts.terminal = v; }
+                else if (label === 'gate' || label === 'gleis' || label === 'platform') { if (!parts.gate) parts.gate = v; }
+                else if (label === 'wagen' || label === 'car') parts.seat.push(`Wagen ${v}`);
+                else parts.seat.push(v);
             }
         });
-        const seat = [...new Set(seats)].slice(0, 3).join(' · ').slice(0, 40);
+        const seat = [...new Set(parts.seat)].slice(0, 3).join(' · ').slice(0, 40);
+        const terminal = parts.terminal.slice(0, 20), gate = parts.gate.slice(0, 20);
         if (!train && !dep) return null;
-        return { train: train.slice(0, 60), dep, seat, note: '' };
+        return { train: train.slice(0, 60), dep, terminal, gate, seat, note: '' };
     }
     const sameTransit = (a, b) => !!a && !!b && a.train === b.train && a.dep === b.dep;
 
@@ -200,7 +204,8 @@
         if (!slot) return true;
         if (!info) { toast('Keine Zug- oder Flugdaten gefunden – bitte selbst eintragen'); return true; }
         const cur = slot.get();
-        const value = normTransit(Object.assign({ note: cur?.note || '' }, info, { seat: info.seat || cur?.seat || '' }));
+        const value = normTransit({ note: cur?.note || '', train: info.train, dep: info.dep,
+            terminal: info.terminal || cur?.terminal || '', gate: info.gate || cur?.gate || '', seat: info.seat || cur?.seat || '' });
         if (cur && !sameTransit(cur, value)) {
             const old = [cur.train, cur.dep].filter(Boolean).join(' · ') || 'leer';
             const next = [value.train, value.dep].filter(Boolean).join(' · ');
@@ -208,8 +213,9 @@
         }
         slot.set(value);
         saveData();
-        const found = [value.train, value.dep && `Abfahrt ${value.dep}`, value.seat].filter(Boolean).join(' · ');
-        const missing = [!value.dep && 'Abfahrt', !value.seat && 'Terminal/Sitz'].filter(Boolean);
+        const found = [value.train, value.dep && `Abfahrt ${value.dep}`, value.terminal && `Terminal ${value.terminal}`,
+            value.gate && `Gate ${value.gate}`, value.seat && `Sitz ${value.seat}`].filter(Boolean).join(' · ');
+        const missing = [!value.dep && 'Abfahrt', !value.terminal && !value.gate && !value.seat && 'Terminal/Gate/Sitz'].filter(Boolean);
         toast(`Gelesen: ${found}${missing.length ? ` – nicht gefunden: ${missing.join(', ')} (bitte eintragen)` : ''}`);
         return true;
     }

@@ -315,8 +315,8 @@ function normPlace(p, i) {
 function normTransit(t) {
     if (!isObj(t)) return null;
     const s = (v, n) => typeof v === 'string' ? v.trim().slice(0, n) : '';
-    const o = { train: s(t.train, 60), dep: /^\d{2}:\d{2}$/.test(t.dep) ? t.dep : '', seat: s(t.seat, 40), note: s(t.note, 200) };
-    return o.train || o.dep || o.seat || o.note ? o : null;
+    const o = { train: s(t.train, 60), dep: /^\d{2}:\d{2}$/.test(t.dep) ? t.dep : '', terminal: s(t.terminal, 20), gate: s(t.gate, 20), seat: s(t.seat, 40), note: s(t.note, 200) };
+    return o.train || o.dep || o.terminal || o.gate || o.seat || o.note ? o : null;
 }
 function normAct(a, i) {
     return { ...a, id: finiteOr(a.id, Date.now() + i), topPlace: String(a.topPlace ?? ''), type: String(a.type ?? ''),

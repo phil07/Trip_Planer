@@ -147,7 +147,7 @@ test('legInfo: ohne Transportmittel Standard „Zug“', () => {
 test('connectionHtml: maskiert Eingaben und zeigt Abfahrt/Sitzplatz', () => {
     assert.equal(TR.t.connectionHtml(null), '');
     const h = TR.t.connectionHtml({ train: 'Hikari <b>', dep: '09:30', seat: '12A', note: '<img>' });
-    assert.ok(h.includes('Hikari &lt;b&gt; · ab 09:30 Uhr · 12A'));
+    assert.ok(h.includes('Hikari &lt;b&gt; · ab 09:30 Uhr · Sitz 12A'));
     assert.ok(h.includes('&lt;img&gt;') && !h.includes('<img>'));
 });
 

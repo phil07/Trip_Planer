@@ -650,3 +650,26 @@ t('Verbindung: Flug zeigt Flugnummer und Abflug statt Zug', async () => {
     await page.click('#transit-cancel');
     assert.deepEqual(errors, []);
 });
+
+t('Flug: Terminal, Gate und Sitz sind eigene Felder und werden getrennt gespeichert', async () => {
+    await open();
+    await go('view-places', 'Stationen');
+    const arrival = page.locator('#placesList .transit-leg--end >> nth=0');
+    await arrival.locator('summary').click();
+    await arrival.locator('.transit-edit').click();
+    await page.waitForFunction(() => document.getElementById('modal-transit')?.open);
+    assert.equal(await page.locator('#transit-terminal-wrap').isVisible(), true);
+    assert.equal(await page.locator('#transit-gate-wrap').isVisible(), true);
+    await page.fill('#transit-train', 'JL 407');
+    await page.fill('#transit-dep', '10:40');
+    await page.fill('#transit-terminal', '2');
+    await page.fill('#transit-gate', '23');
+    await page.fill('#transit-seat', '18K');
+    await page.click('#transit-save');
+    await page.waitForFunction(() => places[0].transit && places[0].transit.seat === '18K');
+    const tr = await page.evaluate(() => places[0].transit);
+    assert.equal(tr.terminal, '2');
+    assert.equal(tr.gate, '23');
+    assert.equal(tr.seat, '18K');
+    assert.deepEqual(errors, []);
+});

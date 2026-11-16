@@ -119,11 +119,17 @@
     // Kurzfassung der gebuchten Verbindung für die eingeklappte Zeile.
     function bookedText(t) {
         if (!t) return '';
-        return [t.train, t.dep ? `ab ${t.dep} Uhr` : '', t.seat].filter(Boolean).join(' · ');
+        return bookedParts(t).join(' · ');
+    }
+    // Angaben der gebuchten Verbindung als Liste; Gate heißt bei Flügen "Gate", sonst "Gleis".
+    function bookedParts(t) {
+        const gateLbl = /^[A-Z]{2} \d/.test(t.train || '') ? 'Gate' : 'Gleis';
+        return [t.train, t.dep ? `ab ${t.dep} Uhr` : '', t.terminal ? `Terminal ${t.terminal}` : '',
+            t.gate ? `${gateLbl} ${t.gate}` : '', t.seat ? `Sitz ${t.seat}` : ''].filter(Boolean);
     }
     function connectionHtml(t) {
         if (!t) return '';
-        const parts = [t.train, t.dep ? `ab ${t.dep} Uhr` : '', t.seat].filter(Boolean);
+        const parts = bookedParts(t);
         return `<div class="transit-conn">
                 <div class="transit-conn-main">${ico('ticket', '🎫')}<span>${esc(parts.join(' · ') || 'Verbindung')}</span></div>
                 ${t.note ? `<div class="transit-conn-note">${esc(t.note)}</div>` : ''}
@@ -234,7 +240,9 @@
                 <p class="tr-route" id="transit-route"></p>
                 <div class="form-group"><label for="transit-train">Zug</label><input type="text" id="transit-train" maxlength="60" placeholder="z. B. Nozomi 215"></div>
                 <div class="form-group"><label for="transit-dep">Abfahrt</label><input type="time" id="transit-dep"></div>
-                <div class="form-group"><label for="transit-seat">Gleis / Sitz</label><input type="text" id="transit-seat" maxlength="40" placeholder="z. B. Gleis 14 · Wagen 7, 12A"></div>
+                <div class="form-group" id="transit-terminal-wrap"><label for="transit-terminal">Terminal</label><input type="text" id="transit-terminal" maxlength="20" placeholder="z. B. 2" autocomplete="off"></div>
+                <div class="form-group" id="transit-gate-wrap"><label for="transit-gate">Gate</label><input type="text" id="transit-gate" maxlength="20" placeholder="z. B. 23" autocomplete="off"></div>
+                <div class="form-group" id="transit-seat-wrap"><label for="transit-seat">Sitz</label><input type="text" id="transit-seat" maxlength="40" placeholder="z. B. 18K" autocomplete="off"></div>
                 <div class="form-group"><label for="transit-note">Notiz</label><textarea id="transit-note" maxlength="200" placeholder="z. B. JR Pass, Sitz reserviert, Umstieg in Nagoya"></textarea></div>
             </div>
             <div class="dialog-actions">
@@ -263,6 +271,8 @@
         d.querySelector('#transit-train').value = t.train || '';
         d.querySelector('#transit-dep').value = t.dep || '';
         d.querySelector('#transit-seat').value = t.seat || '';
+        d.querySelector('#transit-terminal').value = t.terminal || '';
+        d.querySelector('#transit-gate').value = t.gate || '';
         d.querySelector('#transit-note').value = t.note || '';
         d.querySelector('#transit-del').hidden = !bookingOf(kind, idx);
         d.showModal();
@@ -274,14 +284,17 @@
     }
     // Beschriftung der Felder je Verkehrsmittel: Flug und Bahn haben andere Angaben als Bus oder Auto.
     function applyLabels(d, mode) {
+        // Flug: Terminal, Gate, Sitz. Bahn: Gleis (Gate-Feld) und Wagen/Sitz. Andere: nur ein Angabenfeld.
         const L = {
-            Flug:      { train: 'Flugnummer', train_ph: 'z. B. LH 716', dep: 'Abflug', seat: 'Terminal · Gate · Sitz', seat_ph: 'z. B. Terminal 2 · Sitz 18K' },
+            Flug:      { train: 'Flugnummer', train_ph: 'z. B. LH 716', dep: 'Abflug', gate: 'Gate', gate_ph: 'z. B. 23', terminal: true, seat: 'Sitz', seat_ph: 'z. B. 18K' },
             Bus:       { train: 'Linie / Verbindung', train_ph: 'z. B. Bus Nr. 12', dep: 'Abfahrt', seat: 'Haltestelle · Sitz', seat_ph: 'z. B. Shinjuku Bahnhof · Sitz 4' },
             Fähre:     { train: 'Schiff / Verbindung', train_ph: 'z. B. Ferry Sea Star', dep: 'Abfahrt', seat: 'Terminal · Kabine', seat_ph: 'z. B. Terminal 1 · Kabine 210' },
             Mietwagen: { train: 'Abholung / Fahrzeug', train_ph: 'z. B. Toyota Aqua', dep: 'Abholzeit', seat: 'Station · Buchungsnr.', seat_ph: 'z. B. Shin-Osaka · 12345' },
-            default:   { train: 'Zug', train_ph: 'z. B. Nozomi 215', dep: 'Abfahrt', seat: 'Gleis / Sitz', seat_ph: 'z. B. Gleis 14 · Wagen 7, 12A' }
+            default:   { train: 'Zug', train_ph: 'z. B. Nozomi 215', dep: 'Abfahrt', gate: 'Gleis', gate_ph: 'z. B. 14', seat: 'Wagen / Sitz', seat_ph: 'z. B. 7 · 12A' }
         };
         const x = L[mode] || L.default;
+        d.querySelector('#transit-terminal-wrap').hidden = !x.terminal;
+        d.querySelector('#transit-gate-wrap').hidden = !x.gate;
         const set = (id, text, ph) => {
             const lab = d.querySelector(`label[for="${id}"]`), inp = d.querySelector('#' + id);
             if (lab && text) lab.textContent = text;
@@ -290,6 +303,7 @@
         set('transit-train', x.train, x.train_ph);
         set('transit-dep', x.dep);
         set('transit-seat', x.seat, x.seat_ph);
+        set('transit-gate', x.gate, x.gate_ph);
     }
     function save() {
         const d = dialog();
@@ -299,7 +313,8 @@
         const leg = kind === 'leg' ? places[editIdx + 1] : null;
         const wasOpen = leg && openLegs.has(String(leg.id));
         const v = id => d.querySelector(id).value;
-        setBooking(kind, editIdx, normTransit({ train: v('#transit-train'), dep: v('#transit-dep'), seat: v('#transit-seat'), note: v('#transit-note') }));
+        setBooking(kind, editIdx, normTransit({ train: v('#transit-train'), dep: v('#transit-dep'), terminal: v('#transit-terminal'),
+            gate: v('#transit-gate'), seat: v('#transit-seat'), note: v('#transit-note') }));
         if (leg) openLegs.add(String(leg.id));
         const current = bookingOf(kind, editIdx);
         if (!saveData()) {

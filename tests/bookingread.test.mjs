@@ -47,7 +47,7 @@ test('Zug: Name und Nummer, Abfahrt und Gleis werden erkannt', () => {
     const t = ctx.window.bookingRead.extractTransit('JR Pass Reservierung\nNozomi 215\nAbfahrt 09:33 Uhr\nGleis 14 Wagen 7 Sitz 12A\nTokio → Kyoto');
     assert.equal(t.train, 'Nozomi 215');
     assert.equal(t.dep, '09:33');
-    assert.match(t.seat, /Gleis 14/);
+    assert.equal(t.gate, '14');
     assert.match(t.seat, /Wagen 7/);
 });
 test('Flug: Flugnummer und Abflugzeit', () => {
@@ -68,30 +68,30 @@ test('Flug-Screenshot ohne Beschriftung: Flugnummer, Abflug am Flughafen, Sitz',
     const t = ctx.window.bookingRead.extractTransit('Flight details\nScheduled\nJan 1 (Fri) JL407\nTokyo (Narita)\nNRT\n10:40\nFrankfurt\nFRA\n17:00\nTerminal 2\nSeat 18K');
     assert.equal(t.train, 'JL 407');
     assert.equal(t.dep, '10:40');
-    assert.match(t.seat, /Seat 18K/);
+    assert.equal(t.seat, '18K');
 });
 
 test('Flug-Screenshot, Variante 1: Beschriftung und Wert in getrennten Zeilen', () => {
     const t = ctx.window.bookingRead.extractTransit('Flight details\nScheduled\nJan 1 (Fri) JL407\nTokyo\n(Narita)\nNRT\n10:40\nFrankfurt\nFRA\n17:00\n14h 20m\nTerminal\n2\nGate\n-\nBoarding time\n-\nBoarding\n-\nClass\nPremium\nEconomy\nSeat\n18K');
     assert.equal(t.train, 'JL 407');
     assert.equal(t.dep, '10:40');
-    assert.match(t.seat, /Terminal 2/);
-    assert.match(t.seat, /Seat 18K/);
-    assert.doesNotMatch(t.seat, /Gate/);
+    assert.equal(t.terminal, '2');
+    assert.equal(t.seat, '18K');
+    assert.equal(t.gate, '');
 });
 test('Flug-Screenshot, Variante 2: alles in einer Zeile, Uhrzeit mit O statt 0', () => {
     const t = ctx.window.bookingRead.extractTransit('JL407 NRT 1O:40 FRA 17:00\nTerminal 2 Gate - Boarding time -\nSeat 18K');
     assert.equal(t.train, 'JL 407');
     assert.equal(t.dep, '10:40');
-    assert.match(t.seat, /Terminal 2/);
-    assert.match(t.seat, /Seat 18K/);
+    assert.equal(t.terminal, '2');
+    assert.equal(t.seat, '18K');
 });
 
 test('Sitz: OCR liest "I8K" statt "18K", Wert in der nächsten Zeile', () => {
     const t = ctx.window.bookingRead.extractTransit('JL407 NRT 10:40\nPremium\nEconomy\nSeat\nI8K >');
-    assert.match(t.seat, /Seat 18K/);
+    assert.equal(t.seat, '18K');
 });
 test('Sitz: Wert in derselben Zeile mit Pfeil', () => {
     const t = ctx.window.bookingRead.extractTransit('JL407 NRT 10:40\nSeat 18K >');
-    assert.match(t.seat, /Seat 18K/);
+    assert.equal(t.seat, '18K');
 });
