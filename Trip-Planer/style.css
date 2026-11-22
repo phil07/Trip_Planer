@@ -1575,3 +1575,6 @@ body .settings-card .theme-btn i { display: block; line-height: 1; }
 .station-sub > span:not(.station-count) { flex: 0 1 auto; }
 /* Menü-Kopf: Reisestand in Satzschreibweise, ohne Versalien. */
 #drawer-countdown { text-transform: none; letter-spacing: normal; font-weight: 500; }
+/* Aktivitäten: Auswahl in Textfarbe statt Rot, Typ-Zeile neutral, damit die Rot-Akzente selten bleiben. */
+.chip.active, .chip-sm.active, .chip.active:hover, .chip-sm.active:hover { background: var(--label); color: var(--bg-elevated); box-shadow: none; }
+.act-body .act-type { color: var(--muted); }

@@ -4045,7 +4045,7 @@ function renderActs() {
             <div class="act-body">
                 <div class="act-type">${escHtml(a.type)} • ${escHtml(a.topPlace)}${liveDistance ? ` • ${escHtml(liveDistance)}` : ''}</div>
                 <h3 class="act-title">${escHtml(a.title)}</h3>
-                <p class="act-desc clamped">${escHtml(a.desc)}</p>
+                <p class="act-desc clamped"${/^.+ – Tipp für .+\.$/.test(a.desc || '') ? ' hidden' : ''}>${escHtml(a.desc)}</p>
                 ${a.notes ? `<p class="act-notes">${escHtml(a.notes)}</p>` : ''}
                 <button class="act-desc-toggle" style="display:none">Mehr anzeigen</button>
                 ${ratingHtmlFor(a)}
