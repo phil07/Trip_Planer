@@ -2028,7 +2028,7 @@ function renderJournal() {
     const list = document.getElementById('journalList');
     if (!list) return;
     if (!journal.length) {
-        list.innerHTML = '<div class="empty-acts">📝 Noch keine Einträge.<br>Tippe auf <b>+</b>, um deinen ersten Reise-Moment festzuhalten.<br><button type="button" class="btn empty-cta" onclick="openJournalModal()">Eintrag schreiben</button></div>';
+        list.innerHTML = '<div class="empty-acts">Noch keine Einträge.<br>Tippe auf <b>+</b>, um deinen ersten Reise-Moment festzuhalten.<br><button type="button" class="btn empty-cta" onclick="openJournalModal()">Eintrag schreiben</button></div>';
         return;
     }
     const today = todayISO();
@@ -3096,7 +3096,7 @@ document.addEventListener('keydown', e => {
     if (app.classList.contains('menu-open')) { e.preventDefault(); setMenuOpen(false); }
     else if (window.isPackSheetOpen?.()) { e.preventDefault(); window.closePackSheet(); }
 });
-// Sanftes Einblenden (Fade-up + Blur) der Karten einer View, sobald sie sichtbar werden.
+// Sanftes Einblenden (Deckkraft + 8 px Bewegung) der Karten einer View, sobald sie sichtbar werden.
 // Nur beim View-Wechsel – Re-Renders (z. B. Nächte ±) erscheinen ohne Animation.
 let revealIO = null;
 function revealView(view) {
@@ -3105,12 +3105,12 @@ function revealView(view) {
         if (!en.isIntersecting) return;
         const el = en.target; revealIO.unobserve(el);
         el.classList.add('in');
-        setTimeout(() => { el.classList.remove('reveal', 'in'); el.style.transitionDelay = ''; }, 1100 + (parseInt(el.style.transitionDelay) || 0));
+        setTimeout(() => { el.classList.remove('reveal', 'in'); el.style.transitionDelay = ''; }, 800 + (parseInt(el.style.transitionDelay) || 0));
     }), { threshold: .1 });
     view.querySelectorAll('.home-intro, .hero-card, .stat-card, .home-next, .place-card, .station-leg, .dayplan-card, .budget-card, .phrase-group, .journal-card')
         .forEach((el, i) => {
             el.classList.add('reveal'); el.classList.remove('in');
-            el.style.transitionDelay = Math.min(i, 8) * 60 + 'ms';
+            el.style.transitionDelay = Math.min(i, 8) * 40 + 'ms';
             revealIO.observe(el);
         });
 }
@@ -3306,7 +3306,7 @@ function drawMap() {
         const cd = computedData[i];
         const cityIcon = L.divIcon({
             className: '',
-            html: `<div style="background:#d32f2f;color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.4);border:2px solid white;">${i+1}</div>`,
+            html: `<div style="background:#D70015;color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.4);border:2px solid white;">${i+1}</div>`,
             iconSize: [28,28], iconAnchor: [14,14]
         });
         L.marker([p.lat, p.lng], {icon: cityIcon}).addTo(layerGroup).on('click', e => {
@@ -3328,11 +3328,11 @@ function drawMap() {
         }
         ll.push([p.lat, p.lng]);
     });
-    if (ll.length > 1) L.polyline(ll,{color:'#d32f2f',weight:3,opacity:.6,dashArray:'6,10'}).addTo(layerGroup);
+    if (ll.length > 1) L.polyline(ll,{color:'#D70015',weight:3,opacity:.6,dashArray:'6,10'}).addTo(layerGroup);
 
     const favoriteIcon = L.divIcon({
         className: '',
-        html: '<div style="width:30px;height:30px;border-radius:50%;background:#fff;color:#d32f2f;border:2px solid #d32f2f;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 6px rgba(0,0,0,.35)">♥</div>',
+        html: '<div style="width:30px;height:30px;border-radius:50%;background:#fff;color:#D70015;border:2px solid #D70015;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 6px rgba(0,0,0,.35)">♥</div>',
         iconSize: [30,30], iconAnchor: [15,15]
     });
     acts.filter(a => a.favorite && a.lat && a.lng).forEach(a => {
@@ -3344,7 +3344,7 @@ function drawMap() {
     if (userLocation) {
         const meIcon = L.divIcon({
             className: '',
-            html: '<div style="width:16px;height:16px;border-radius:50%;background:#4285F4;border:3px solid white;box-shadow:0 0 0 4px rgba(66,133,244,.35),0 2px 6px rgba(0,0,0,.35)"></div>',
+            html: '<div style="width:16px;height:16px;border-radius:50%;background:#1F2937;border:3px solid white;box-shadow:0 0 0 4px rgba(31,41,55,.25),0 2px 6px rgba(0,0,0,.35)"></div>',
             iconSize: [16,16], iconAnchor: [8,8]
         });
         L.marker([userLocation.lat, userLocation.lng], { icon: meIcon, zIndexOffset: 1000 })
@@ -3491,7 +3491,7 @@ function renderPlaces() {
 
         // Eingeklappt: drei ruhige Zeilen. Aufgeklappt: Nächte, Unterkunft, Buchungen, Notiz.
         card.innerHTML = `
-            <div class="drag-handle" aria-hidden="true">≡</div>
+            <div class="drag-handle" aria-hidden="true">${ico('dots-six-vertical', '≡')}</div>
             <div class="place-body">
                 <button type="button" class="station-head" aria-expanded="${isOpen}" aria-controls="st-det-${pid}" onclick="toggleStation(${pid})">
                     <span class="station-head-text">
@@ -4285,7 +4285,7 @@ function renderDayPlan() {
 
     const favs = acts.filter(a => a.favorite);
     if (!favs.length && !planPoints.length) {
-        list.innerHTML = `<div class="empty-acts">♡ Noch keine Favoriten.<br>Markiere Aktivitäten in „Aktivitäten & Essen“ mit ♡ – hier kannst du sie dann einzelnen Reisetagen zuordnen und als Route in Google Maps öffnen.<br>Eigene Punkte legst du mit <b>+</b> an.<br><button type="button" class="btn empty-cta" onclick="switchView('view-activities','Aktivitäten')">Aktivitäten entdecken</button></div>`;
+        list.innerHTML = `<div class="empty-acts">Noch keine Favoriten.<br>Markiere Aktivitäten in „Aktivitäten & Essen“ mit ♡ – hier kannst du sie dann einzelnen Reisetagen zuordnen und als Route in Google Maps öffnen.<br>Eigene Punkte legst du mit <b>+</b> an.<br><button type="button" class="btn empty-cta" onclick="switchView('view-activities','Aktivitäten')">Aktivitäten entdecken</button></div>`;
         window.calendarExport?.decorateDayPlan(list);
         window.transit?.renderDayPlan(list);
         return;

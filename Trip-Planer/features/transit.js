@@ -252,7 +252,7 @@
             </div>
             <div class="dialog-actions">
                 <button type="button" class="btn" id="transit-save">Speichern</button>
-                <button type="button" class="btn btn-secondary" id="transit-del">Verbindung entfernen</button>
+                <button type="button" class="btn btn-danger" id="transit-del">Verbindung entfernen</button>
                 <button type="button" class="btn btn-secondary" id="transit-cancel">Abbrechen</button>
             </div>`;
         document.body.appendChild(d);

@@ -62,7 +62,7 @@
     </head>
 <body>
 <div class="app-container" id="app">
-    <div id="offline-bar">📵 Offline – Karte und gespeicherte Daten verfügbar</div>
+    <div id="offline-bar"><i class="ph-light ph-wifi-slash" data-fb="📵" aria-hidden="true"></i> Offline – Karte und gespeicherte Daten verfügbar</div>
     <div id="toast" role="status" aria-live="polite"></div>
 
     <div class="app-header">
@@ -92,7 +92,7 @@
     <!-- PACKLISTE: Global bottom sheet (swipe up to open) -->
     <div class="pack-sheet" id="packSheet" inert>
         <div class="pack-sheet-handle"></div>
-        <div class="pack-head"><span>🧳 Packliste</span><span class="pack-count" id="packCount">0/0</span></div>
+        <div class="pack-head"><span><i class="ph-light ph-suitcase" data-fb="🧳" aria-hidden="true"></i> Packliste</span><span class="pack-count" id="packCount">0/0</span></div>
         <div class="pack-lists" id="packLists"></div>
         <form class="pack-add" id="packAddForm" autocomplete="off">
             <input type="text" id="packAddInput" maxlength="90" placeholder="Eigenen Eintrag hinzufügen …" aria-label="Eigenen Eintrag zur Packliste hinzufügen" enterkeyhint="done">
@@ -131,8 +131,8 @@
                 <img id="bs-act-img" alt="" class="bs-act-img" hidden>
                 <h3 id="bs-act-title" class="bs-act-title">–</h3>
                 <p id="bs-act-desc" class="bs-act-desc"></p>
-                <button class="btn btn-accent" onclick="openGoogleMapsRoute()">🧭 Route hierhin (Google Maps)</button>
-                <button class="btn btn-secondary" onclick="openActivityWeb()">🌐 Mehr erfahren (Browser)</button>
+                <button class="btn btn-accent" onclick="openGoogleMapsRoute()"><i class="ph-light ph-compass" data-fb="🧭" aria-hidden="true"></i> Route hierhin (Google Maps)</button>
+                <button class="btn btn-secondary" onclick="openActivityWeb()"><i class="ph-light ph-globe" data-fb="🌐" aria-hidden="true"></i> Mehr erfahren (Browser)</button>
             </div>
         </div>
     </div>
@@ -235,8 +235,8 @@
     <!-- LOGS (Diagnose, v. a. für Debugging ohne Browser-DevTools auf dem Handy) -->
     <div class="view" id="view-logs">
         <div class="btn-row">
-            <button class="btn-icon" onclick="copyLogs()">📋 Kopieren</button>
-            <button class="btn-icon" onclick="clearLogs()">🗑️ Leeren</button>
+            <button class="btn-icon" onclick="copyLogs()"><i class="ph-light ph-copy" data-fb="📋" aria-hidden="true"></i> Kopieren</button>
+            <button class="btn-icon" onclick="clearLogs()"><i class="ph-light ph-trash" data-fb="🗑️" aria-hidden="true"></i> Leeren</button>
         </div>
         <pre id="logsOutput"></pre>
     </div>
@@ -246,7 +246,7 @@
         <div class="scroll-content settings-list">
             <section class="settings-card" aria-labelledby="set-trip">
                 <h3 id="set-trip">Reise</h3>
-                <button type="button" class="settings-row" onclick="openSettings()"><i class="ph-light ph-suitcase-rolling" aria-hidden="true"></i><span>Reisedaten: Name, Startdatum, Reiseland</span><i class="ph-light ph-caret-right" aria-hidden="true"></i></button>
+                <button type="button" class="settings-row" onclick="openSettings()"><i class="ph-light ph-suitcase-rolling" aria-hidden="true"></i><span>Reisedaten bearbeiten</span><i class="ph-light ph-caret-right" aria-hidden="true"></i></button>
                 <button type="button" class="settings-row" onclick="tripsOpen()"><i class="ph-light ph-stack" aria-hidden="true"></i><span>Meine Reisen und neue Reise</span><i class="ph-light ph-caret-right" aria-hidden="true"></i></button>
             </section>
             <section class="settings-card" aria-labelledby="set-design">

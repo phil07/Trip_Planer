@@ -1,37 +1,37 @@
 /* ─── Zugverbindungen zwischen Stationen (features/transit.js) ─── */
-.transit-leg { margin: -6px 12px 6px; border-radius: 20px; background: var(--bg-secondary); box-shadow: inset 0 0 0 1px var(--border);
+.transit-leg { margin: -6px 12px 6px; border-radius: var(--radius-md); background: var(--bg-secondary); box-shadow: inset 0 0 0 1px var(--border);
     position: relative; z-index: 1; min-width: 0; }
 .transit-leg > summary { list-style: none; display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; min-height: 44px;
-    color: var(--label); border-radius: 20px; }
+    color: var(--label); border-radius: var(--radius-md); }
 .transit-leg > summary::-webkit-details-marker { display: none; }
 .transit-leg > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.transit-leg > summary > i:first-child { font-size: 18px; color: var(--muted); flex: none; }
-.transit-leg > summary > i:last-child { margin-left: auto; font-size: 13px; color: var(--muted); transition: transform .3s var(--ease-out); flex: none; }
+.transit-leg > summary > i:first-child { font-size: var(--fs-title3); color: var(--muted); flex: none; }
+.transit-leg > summary > i:last-child { margin-left: auto; font-size: var(--fs-footnote); color: var(--muted); transition: transform .3s var(--ease-out); flex: none; }
 .transit-leg[open] > summary > i:last-child { transform: rotate(180deg); }
 .transit-sum-text { display: flex; flex-direction: column; min-width: 0; }
-.transit-sum-text b { font-size: 13.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.transit-sum-text small { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.transit-sum-text b { font-size: var(--fs-footnote); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.transit-sum-text small { font-size: var(--fs-footnote); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .transit-body { padding: 0 14px 14px; }
 
-.transit-day { border-radius: 18px; background: var(--bg-secondary); box-shadow: inset 0 0 0 1px var(--border); padding: 12px; margin: 10px 0 4px; }
-.transit-day-title { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; color: var(--label); margin-bottom: 8px; min-width: 0; }
+.transit-day { border-radius: var(--radius-md); background: var(--bg-secondary); box-shadow: inset 0 0 0 1px var(--border); padding: 12px; margin: 10px 0 4px; }
+.transit-day-title { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: var(--fs-footnote); color: var(--label); margin-bottom: 8px; min-width: 0; }
 .transit-day-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.transit-day-title i { font-size: 18px; color: var(--muted); flex: none; }
+.transit-day-title i { font-size: var(--fs-title3); color: var(--muted); flex: none; }
 
 .transit-facts { display: flex; flex-wrap: wrap; gap: 6px; }
 .transit-fact { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; background: var(--bg-elevated);
-    color: var(--label); font-size: 12.5px; font-weight: 600; box-shadow: inset 0 0 0 1px var(--border); }
-.transit-basis { margin: 6px 0 0; font-size: 11.5px; line-height: 1.4; color: var(--muted); }
-.transit-conn { margin-top: 10px; padding: 9px 11px; border-radius: 14px; background: var(--bg-elevated); box-shadow: inset 0 0 0 1px var(--border); }
-.transit-conn-main { display: flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 700; color: var(--label); min-width: 0; }
+    color: var(--label); font-size: var(--fs-footnote); font-weight: 600; box-shadow: inset 0 0 0 1px var(--border); }
+.transit-basis { margin: 6px 0 0; font-size: var(--fs-caption); line-height: 1.4; color: var(--muted); }
+.transit-conn { margin-top: 10px; padding: 9px 11px; border-radius: var(--radius-md); background: var(--bg-elevated); box-shadow: inset 0 0 0 1px var(--border); }
+.transit-conn-main { display: flex; align-items: center; gap: 7px; font-size: var(--fs-footnote); font-weight: 600; color: var(--label); min-width: 0; }
 .transit-conn-main span { overflow-wrap: anywhere; }
-.transit-conn-note { margin-top: 3px; font-size: 12.5px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+.transit-conn-note { margin-top: 3px; font-size: var(--fs-footnote); color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; }
 .transit-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
 .transit-link { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 14px; border-radius: 999px; border: 0;
-    background: var(--bg-elevated); color: var(--label); font: inherit; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer;
+    background: var(--bg-elevated); color: var(--label); font: inherit; font-size: var(--fs-footnote); font-weight: 600; text-decoration: none; cursor: pointer;
     box-shadow: inset 0 0 0 1px var(--border); text-align: left; width: 100%; min-width: 0; transition: transform .2s var(--ease-out); }
 .transit-link span { overflow-wrap: anywhere; line-height: 1.3; }
-.transit-link i { font-size: 16px; flex: none; }
+.transit-link i { font-size: var(--fs-body); flex: none; }
 .transit-link:active { transform: scale(.98); }
 .transit-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .transit-edit { background: var(--primary-fill); color: var(--on-primary); box-shadow: none; }
@@ -40,23 +40,23 @@
 /* Stationsliste: Etappe, Anreise und Rückreise als eine Zeile zwischen den Karten */
 #placesList .transit-leg { margin: 8px 12px; }
 .transit-body > .transit-conn:first-child { margin-top: 0; }
-.transport-btn > i:last-child { margin-left: auto; font-size: 13px; opacity: .55; }
+.transport-btn > i:last-child { margin-left: auto; font-size: var(--fs-footnote); opacity: .55; }
 
 /* Tagesplan: Stationswechsel eingeklappt */
 details.transit-day > summary { list-style: none; cursor: pointer; margin-bottom: 0; min-height: 32px; }
 details.transit-day > summary::-webkit-details-marker { display: none; }
-details.transit-day > summary > i:last-child { margin-left: auto; font-size: 13px; transition: transform .3s var(--ease-out); }
+details.transit-day > summary > i:last-child { margin-left: auto; font-size: var(--fs-footnote); transition: transform .3s var(--ease-out); }
 details.transit-day[open] > summary > i:last-child { transform: rotate(180deg); }
 details.transit-day[open] > summary { margin-bottom: 10px; }
 details.transit-day .transit-sum-text { white-space: normal; overflow: visible; }
-details.transit-day > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 10px; }
+details.transit-day > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
 
 /* Etappe: zwei Ebenen. Oben Buchung und Anhänge, darunter „Routen und Richtwert“ */
-.transit-routes { margin-top: 10px; border-radius: 14px; }
-.transit-routes > summary { list-style: none; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 4px; cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 600; }
+.transit-routes { margin-top: 10px; border-radius: var(--radius-md); }
+.transit-routes > summary { list-style: none; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 4px; cursor: pointer; color: var(--muted); font-size: var(--fs-footnote); font-weight: 600; }
 .transit-routes > summary::-webkit-details-marker { display: none; }
-.transit-routes > summary > i:first-child { font-size: 16px; }
-.transit-routes > summary > i:last-child { margin-left: auto; font-size: 13px; transition: transform .3s var(--ease-out); }
+.transit-routes > summary > i:first-child { font-size: var(--fs-body); }
+.transit-routes > summary > i:last-child { margin-left: auto; font-size: var(--fs-footnote); transition: transform .3s var(--ease-out); }
 .transit-routes[open] > summary > i:last-child { transform: rotate(180deg); }
 .transit-routes > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .transit-routes .transit-actions { margin-top: 2px; }
