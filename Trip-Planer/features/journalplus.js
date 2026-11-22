@@ -368,7 +368,7 @@
                     <div class="jp-rv-dayhead"><span class="jp-rv-dayno">${no ? 'Tag ' + esc(no) : 'Ohne Reisetag'}</span>
                         <h4>${d.date ? esc(fmtDateLong(d.date)) : 'Ohne Datum'}</h4>${st ? `<span class="jp-rv-station">${esc(st)}</span>` : ''}</div>
                     ${d.items.map(e => `<article class="jp-rv-entry">
-                        ${e.place ? `<span class="journal-place">📍 ${esc(e.place)}</span>` : ''}
+                        ${e.place ? `<span class="journal-place">${esc(e.place)}</span>` : ''}
                         <div class="journal-text">${esc(e.text)}</div>
                         ${(e.photos || []).length ? `<div class="jp-rv-photos jp-n${Math.min(3, e.photos.length)}">${e.photos.map((id, k) => `<button type="button" class="jp-rv-photo" data-jid="${esc(e.id)}" data-k="${k}" aria-label="Foto ${k + 1} im Vollbild"><img data-pid="${esc(id)}" alt=""></button>`).join('')}</div>` : ''}
                     </article>`).join('')}
@@ -396,7 +396,7 @@
         if (!jLayer || !window.L) return;
         jLayer.clearLayers();
         if (!layerOn || typeof journal === 'undefined') return;
-        const icon = L.divIcon({ className: 'jp-marker', html: '<span>📝</span>', iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -14] });
+        const icon = L.divIcon({ className: 'jp-marker', html: '<span class="jp-marker-dot" aria-hidden="true"></span>', iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -14] });
         journal.forEach(e => {
             const c = entryCoords(e);
             if (!c) return;

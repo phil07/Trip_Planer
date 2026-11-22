@@ -1549,3 +1549,20 @@ body .settings-card .theme-btn i { display: block; line-height: 1; }
 .search-refresh svg { display: block; width: 20px; height: 20px; flex: none; transform-origin: 50% 50%; }
 .search-refresh.spinning svg { animation: locate-spin 1s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .search-refresh.spinning svg { animation: none; } }
+
+/* ===== Unslop-Durchgang (v274): Sentence case, ruhige Chrome, Akzent sparsam ===== */
+/* Versalien mit weitem Sperrsatz sind raus. Gilt für Labels, Statuspillen und Abschnittsüberschriften. */
+.act-type, .menu-group-label, .tt-dir, .phrase-group h4, .dayplan-section, .station-num, .station-status,
+.st-title, .settings-sub { text-transform: none; letter-spacing: normal; }
+.station-status { font-weight: 500; }
+/* Überschriften und Zahlen höchstens 600 Gewicht, enges Tracking nur bei großer Schrift. */
+.home-headline, .hero-num, .stat-num, .menu-title, .place-body h3, .station-name, .act-title,
+.dayplan-header h3, .budget-total, .home-next .home-card-title, dialog > h3, .fx-field input { font-weight: 600; letter-spacing: -.01em; }
+/* Der Hotel-Knopf auf Start ist keine rote Fläche mehr: ruhige Fläche, roter Akzent nur am Icon. */
+.home-next .btn-icon.taxi-home { background: var(--bg-elevated); color: var(--label); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.home-next .btn-icon.taxi-home i { color: var(--primary-text); }
+/* Fortschritt auf Start in Textfarbe statt Rot. Der Akzent bleibt für Aktionen. */
+.hero-progress { background: var(--bg-secondary); }
+.hero-progress-fill { background: var(--label); }
+/* Marker im Tagebuch: einfacher Punkt statt Emoji. */
+.jp-marker-dot { display: block; width: 12px; height: 12px; margin: 9px; border-radius: 50%; background: var(--label); border: 2px solid var(--bg-elevated); box-shadow: 0 0 0 1px var(--border); }

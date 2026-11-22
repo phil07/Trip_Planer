@@ -1194,9 +1194,12 @@ function haptic(ms=10) { try { navigator.vibrate?.(ms); } catch(e) {} }
 let toastT;
 function showToast(msg, ms=3000) {
     const t = document.getElementById('toast');
-    if (t.classList.contains('show') && t.innerText.startsWith('⚠️') && !msg.startsWith('⚠️')) return;
+    const warn = /^\s*⚠️/.test(msg);
+    if (t.classList.contains('show') && t.classList.contains('toast-warn') && !warn) return;
     t.classList.remove('actionable');
-    t.innerText = msg; t.classList.add('show');
+    t.classList.toggle('toast-warn', warn);
+    t.innerText = String(msg).replace(/^\s*(⚠️|📍|🗑️)\s*/u, '');
+    t.classList.add('show');
     clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), ms);
 }
 // Toast mit "Rückgängig"-Knopf – ersetzt Bestätigungsdialoge bei Löschaktionen.
@@ -1332,13 +1335,18 @@ function renderHome() {
 
     // Eyebrow + Headline aus echten Reisedaten (keine erfundenen Inhalte)
     const eb = document.getElementById('homeEyebrow'), hl = document.getElementById('homeHeadline');
-    if (eb) eb.textContent = [tripCountry, tripName && tripName !== tripCountry ? tripName : ''].filter(Boolean).join(' · ');
+    if (eb) {
+        const nm = (tripName || '').trim(), ct = (tripCountry || '').trim();
+        const hasCountry = !!ct && nm.toLowerCase().includes(ct.toLowerCase());
+        eb.textContent = !nm ? ct : (hasCountry || !ct ? nm : `${ct} · ${nm}`);
+    }
     if (hl) {
         const dd = Math.round((parseISODate(startDate) - parseISODate(todayISO())) / 864e5);
         const first = places[0] ? clean(places[0].name) : '';
         hl.textContent = !places.length ? (tripName || 'Deine Reise')
             : dd > 0 ? `Noch ${dd} ${dd === 1 ? 'Tag' : 'Tage'} bis ${first}.`
-            : dd === 0 ? `Heute geht's los nach ${first}.` : 'Gute Reise.';
+            : dd === 0 ? `Heute geht's los nach ${first}.`
+            : `${places.length} ${places.length === 1 ? 'Station' : 'Stationen'}${tripCountry ? ` in ${tripCountry}` : ''}`;
     }
     const next = document.getElementById('homeNext');
     if (next) {
@@ -2043,7 +2051,7 @@ function renderJournal() {
             </div>
             ${d.items.map(e => `
             <div class="journal-entry">
-                <div class="journal-body">${e.place ? `<span class="journal-place">📍 ${esc(e.place)}</span>` : ''}<div class="journal-text">${esc(e.text)}</div>${window.journalPlus?.entryHtml(e) || ''}</div>
+                <div class="journal-body">${e.place ? `<span class="journal-place">${esc(e.place)}</span>` : ''}<div class="journal-text">${esc(e.text)}</div>${window.journalPlus?.entryHtml(e) || ''}</div>
                 <button class="edit-btn" data-id="${esc(e.id)}" onclick="openJournalEdit(this.dataset.id)" aria-label="Eintrag bearbeiten">✏️</button>
                 <button class="del-btn" data-id="${esc(e.id)}" onclick="delJournalEntry(this.dataset.id)" aria-label="Eintrag löschen">✕</button>
             </div>`).join('')}
@@ -3344,7 +3352,7 @@ function drawMap() {
             iconSize: [16,16], iconAnchor: [8,8]
         });
         L.marker([userLocation.lat, userLocation.lng], { icon: meIcon, zIndexOffset: 1000 })
-            .addTo(layerGroup).bindPopup('📍 Dein Standort');
+            .addTo(layerGroup).bindPopup('Dein Standort');
     }
 
     if (ll.length) map.fitBounds(L.polyline(ll).getBounds(),{padding:[30,30]});
@@ -4035,10 +4043,10 @@ function renderActs() {
         div.innerHTML = `
             <div class="act-img-slot"></div>
             <div class="act-body">
-                <div class="act-type">${escHtml(a.type)} • ${escHtml(a.topPlace)}${liveDistance ? ` • 📍 ${liveDistance}` : ''}</div>
+                <div class="act-type">${escHtml(a.type)} • ${escHtml(a.topPlace)}${liveDistance ? ` • ${escHtml(liveDistance)}` : ''}</div>
                 <h3 class="act-title">${escHtml(a.title)}</h3>
                 <p class="act-desc clamped">${escHtml(a.desc)}</p>
-                ${a.notes ? `<p class="act-notes">📝 ${escHtml(a.notes)}</p>` : ''}
+                ${a.notes ? `<p class="act-notes">${escHtml(a.notes)}</p>` : ''}
                 <button class="act-desc-toggle" style="display:none">Mehr anzeigen</button>
                 ${ratingHtmlFor(a)}
                 <div class="act-btns">
