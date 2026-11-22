@@ -3485,19 +3485,20 @@ function attachHtml(ref, cat, title) {
     const f = window.documentsFeature;
     if (!f?.byRef) return '';
     const docs = f.byRef(ref);
-    // Jede Bestätigung ist eine Pille mit drei Teilen: öffnen | aktualisieren | löschen.
+    // Jede Bestätigung ist eine Pille: Tipp auf den Titel öffnet sie, „⋯“ bietet Neu lesen und Entfernen.
     const pill = d => `<span class="att-pill">` +
         `<button type="button" class="att-part att-open" data-att-open="${escHtml(d.id)}" aria-label="${escHtml(d.title)} öffnen">${ico(d.kind === 'pdf' ? 'file-pdf' : 'image', '📎')}<span>${escHtml(d.title)}</span></button>` +
-        `<button type="button" class="att-part att-refresh" data-att-scan="${escHtml(ref)}" data-att-doc="${escHtml(d.id)}" aria-label="${escHtml(d.title)}: aus dieser Bestätigung neu lesen" title="Neu lesen">${ico('arrows-clockwise', '↻')}</button>` +
-        `<button type="button" class="att-part att-del" data-att-del="${escHtml(d.id)}" aria-label="${escHtml(d.title)} aus der Station entfernen" title="Entfernen">${ico('x', '✕')}</button>` +
-        `</span>`;
+        `<details class="att-more"><summary class="att-part att-menu" aria-label="${escHtml(d.title)}: weitere Aktionen">${ico('dots-three', '⋯')}</summary><div class="att-menu-list">` +
+        `<button type="button" class="att-refresh" data-att-scan="${escHtml(ref)}" data-att-doc="${escHtml(d.id)}">${ico('arrows-clockwise', '↻')}<span>Neu lesen</span></button>` +
+        `<button type="button" class="att-del danger" data-att-del="${escHtml(d.id)}">${ico('trash', '✕')}<span>Entfernen</span></button>` +
+        `</div></details></span>`;
     return `<div class="att-row">${docs.map(pill).join('')}<button type="button" class="att-chip att-add" data-att-add="${escHtml(ref)}" data-att-cat="${escHtml(cat)}" data-att-title="${escHtml(String(title).slice(0, 80))}">${ico('paperclip', '📎')}<span>Bestätigung anhängen</span></button></div>`;
 }
 
 // Transportmittel liegt im transport-Feld der Zielstation; bei der ersten Station ist es die Anreise.
 // Rückreise ab der letzten Station: reiseweites Feld returnTransport.
 document.addEventListener('click', e => {
-    document.querySelectorAll('.place-more[open]').forEach(d => { if (!d.contains(e.target)) d.removeAttribute('open'); });
+    document.querySelectorAll('.place-more[open], .att-more[open]').forEach(d => { if (!d.contains(e.target)) d.removeAttribute('open'); });
 });
 
 // Anreise und Rückreise: eine aufklappbare Zeile mit Transportmittel, gebuchter Verbindung und Anhängen.

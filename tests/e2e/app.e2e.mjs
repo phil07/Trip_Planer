@@ -639,10 +639,14 @@ t('Buchungen an Stationen: erneut lesen und wieder entfernen', async () => {
     await page.waitForFunction(() => places[0].hotel === 'Hotel Gracery Shinjuku', null, { timeout: 15000 });
     // Erneut lesen: neue Schreibweise im Text, Name wird nach Rückfrage ersetzt
     await page.evaluate(() => { window.Tesseract = { recognize: async () => ({ data: { text: 'Hotel: Hotel Gracery Shinjuku Tokyo' } }) }; });
+    await card().locator('.att-menu').click();
     await card().locator('[data-att-scan]').click();
     await page.waitForFunction(() => places[0].hotel === 'Hotel Gracery Shinjuku Tokyo', null, { timeout: 15000 });
     // Entfernen: Bestätigung verschwindet aus der Station
     assert.equal(await card().locator('.att-pill').count(), 1);
+    // Die Liste wird nach dem Lesen neu gezeichnet; Menü erst öffnen, wenn es sichtbar bleibt.
+    await card().locator('.att-menu').click();
+    await card().locator('.att-del').waitFor({ state: 'visible', timeout: 1500 }).catch(() => card().locator('.att-menu').click());
     await card().locator('.att-del').click();
     await page.waitForFunction(() => !document.querySelector('#placesList .place-card.station .att-pill'), null, { timeout: 5000 });
     assert.deepEqual(errors, []);
@@ -663,6 +667,7 @@ t('Anreise: Flugdaten aus der Bestätigung werden eingetragen, Pille zum Entfern
     await page.waitForFunction(() => places[0].transit && places[0].transit.dep === '10:15', null, { timeout: 15000 });
     assert.equal(await page.evaluate(() => places[0].transit.train), 'LH 716');
     // Entfernen über die Pille
+    await page.locator('#placesList .transit-leg--end >> nth=0').locator('.att-pill .att-menu').click();
     await page.locator('#placesList .transit-leg--end >> nth=0').locator('.att-pill .att-del').click();
     await page.waitForFunction(() => !document.querySelector('#placesList .transit-leg--end .att-pill'), null, { timeout: 5000 });
     assert.deepEqual(errors, []);

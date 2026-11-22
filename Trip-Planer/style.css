@@ -1409,3 +1409,16 @@ button.budget-cat-toggle:focus-visible { outline: 2px solid var(--accent); outli
 .places-bar .fab-suggest { box-shadow: none; background: transparent; color: var(--primary-text); min-height: 44px; padding: 0 8px; font-weight: 600; }
 .places-bar .fab-suggest svg { background: transparent; padding: 0; width: 18px; height: 18px; }
 .place-notes .edit-btn { margin: -8px -6px -8px 0; flex: none; align-self: flex-start; }
+
+/* Buchungs-Pille: Titel öffnet, „⋯“ klappt Neu lesen / Entfernen auf */
+.att-pill { position: relative; }
+.att-more > summary { list-style: none; cursor: pointer; width: 44px; padding: 0; color: var(--muted); box-shadow: inset 1px 0 0 var(--border); }
+.att-more > summary::-webkit-details-marker { display: none; }
+.att-more[open] > summary { color: var(--label); }
+.att-menu-list { position: absolute; right: 0; top: calc(100% + 6px); z-index: 6; min-width: 176px; padding: 6px; border-radius: 16px;
+    background: var(--bg-elevated); box-shadow: 0 0 0 1px var(--border), 0 12px 28px -12px rgba(0,0,0,.35); display: flex; flex-direction: column; }
+.att-menu-list button { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 12px; border: 0; border-radius: 10px; background: none;
+    color: var(--label); font: inherit; font-size: 14px; font-weight: 500; text-align: left; cursor: pointer; width: 100%; }
+.att-menu-list button:active { background: var(--bg-secondary); }
+.att-menu-list .danger { color: var(--primary-text); }
+.place-card.station:has(.att-more[open]) { z-index: 5; }
