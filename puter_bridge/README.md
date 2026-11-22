@@ -7,13 +7,11 @@ Die App bettet sie als iframe ein und tauscht nur den Text der Routen-Anfrage pe
 
 Solange die Brücke nicht deployt ist, überspringt die App Puter einfach (Pollinations läuft weiter).
 
-## Einmalig einrichten (Cloudflare-Dashboard)
+## Veröffentlichen
 
-1. Workers & Pages → **Create** → **Import a repository** → `phil07/Trip_Planer` wählen.
-2. Projektname: **`japan-ki`** (muss exakt so heißen – daraus entsteht die Adresse).
-3. Unter *Advanced settings* → **Root directory**: `puter_bridge`
-4. Build command leer lassen, Deploy command `npx wrangler deploy` (Standard).
-5. Deployen. Danach muss `https://japan-ki.iphilipp07-869.workers.dev` die Seite „Puter ist eine zusätzliche …“ zeigen.
+Der GitHub-Workflow `.github/workflows/pwa-deploy.yml` veröffentlicht die Brücke bei jedem Push auf `main`
+zusammen mit der App (Schritt „KI-Brücke veröffentlichen (japan-ki)“). Eine Git-Verbindung im
+Cloudflare-Dashboard ist dafür nicht nötig und sollte getrennt bleiben.
 
 ## Sicherheit
 
