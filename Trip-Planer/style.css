@@ -1509,7 +1509,7 @@ button.budget-cat-toggle:focus-visible { outline: 2px solid var(--accent); outli
 .empty-acts .btn { margin-top: 12px; }
 
 /* Startseite: Spalten dürfen nie breiter werden als der Bildschirm (lange Routen und Hotelnamen kürzen sich mit „…“) */
-.home-scroll { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+.home-scroll { grid-template-columns: minmax(0, 1fr); }
 .home-scroll > * { min-width: 0; max-width: 100%; }
 .hero-card.home { min-width: 0; }
 
@@ -1545,3 +1545,8 @@ body .settings-card .theme-btn i { display: block; line-height: 1; }
 /* Knöpfe in Einstellungen und Dialogen: Text und Symbol mittig */
 .btn-icon, .settings-row { align-items: center; }
 .btn-row .btn-icon { justify-content: center; }
+:root[data-theme="dark"] .hero-card.home { box-shadow: none; }
+
+/* Aktivitäten „Neu laden“: quadratische Symbol-Box, damit es mittig sitzt und beim Drehen nicht eiert */
+.search-refresh i { display: grid; place-items: center; width: 24px; height: 24px; font-size: 20px; line-height: 1; transform-origin: 50% 50%; }
+.search-refresh.spinning i { display: grid; animation: locate-spin 1s linear infinite; }

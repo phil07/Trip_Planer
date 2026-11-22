@@ -503,7 +503,22 @@ t('Layout: Startseite läuft bei vielen Stationen und langen Namen nicht über d
         await page.waitForTimeout(150);
         const m = await page.evaluate(() => { const h = document.querySelector('.home-scroll'); return { sw: h.scrollWidth, cw: h.clientWidth }; });
         assert.ok(m.sw <= m.cw + 1, `Startseite bei ${w}px zu breit: ${m.sw} > ${m.cw}`);
+        // Handy: eine Spalte, die Karten nutzen die volle Breite
+        const wide = await page.evaluate(() => { const c = document.querySelector('#homeStats .stat-card'), h = document.querySelector('.home-scroll'); return c.getBoundingClientRect().width > h.clientWidth * 0.2 && document.querySelector('.home-next').getBoundingClientRect().width > h.clientWidth * 0.8; });
+        assert.ok(wide, `Startseite bei ${w}px nicht einspaltig`);
     }
+    assert.deepEqual(errors, []);
+});
+
+t('Aktivitäten: Neu-laden-Symbol sitzt mittig im Knopf', async () => {
+    await open();
+    await go('view-activities', 'Aktivitäten');
+    const off = await page.evaluate(() => {
+        const b = document.getElementById('activitiesFab').getBoundingClientRect(), i = document.querySelector('#activitiesFab i').getBoundingClientRect();
+        return { dx: Math.abs((b.left + b.width / 2) - (i.left + i.width / 2)), dy: Math.abs((b.top + b.height / 2) - (i.top + i.height / 2)), w: i.width, h: i.height };
+    });
+    assert.ok(off.dx <= 1 && off.dy <= 1, `Symbol nicht mittig: ${off.dx}/${off.dy}`);
+    assert.equal(off.w, off.h, 'Symbol-Box ist quadratisch');
     assert.deepEqual(errors, []);
 });
 
