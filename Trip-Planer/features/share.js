@@ -363,13 +363,13 @@
     // ── Einhängen: Menü-Button + Link-Auswertung ──
     function injectMenuButton() {
         if (document.getElementById('btnShareTrip')) return;
-        const row = document.querySelector('.menu-footer .btn-row');
-        if (!row) return;
+        const slot = document.getElementById('shareSlot') || document.querySelector('.menu-footer .btn-row');
+        if (!slot) return;
         const btn = document.createElement('button');
         btn.type = 'button'; btn.id = 'btnShareTrip'; btn.className = 'btn-icon share-menu-btn';
         btn.innerHTML = '<i class="ph-light ph-share-network" aria-hidden="true"></i> Reise teilen';
         btn.addEventListener('click', openShareDialog);
-        row.parentNode.insertBefore(btn, row);
+        slot.appendChild(btn);
     }
     function init() {
         injectMenuButton();

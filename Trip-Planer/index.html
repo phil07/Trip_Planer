@@ -84,6 +84,7 @@
             </div>
             <div class="home-stats" id="homeStats"></div>
             <div class="home-next" id="homeNext"></div>
+            <div class="home-steps" id="homeSteps" hidden></div>
             <div class="home-weather" id="homeWeather" hidden></div>
         </div>
     </div>
@@ -149,12 +150,11 @@
 
     <!-- ACTIVITIES -->
     <div class="view" id="view-activities">
-        <div class="search-bar"><input type="search" id="actSearch" placeholder="Aktivitäten durchsuchen…" aria-label="Aktivitäten durchsuchen" oninput="setActSearch(this.value)"></div>
+        <div class="search-bar search-bar-row"><input type="search" id="actSearch" placeholder="Aktivitäten durchsuchen…" aria-label="Aktivitäten durchsuchen" oninput="setActSearch(this.value)"><button type="button" class="search-refresh" id="activitiesFab" onclick="refreshActivities()" aria-label="Aktivitäten neu laden" title="Neu laden"><i class="ph-light ph-arrows-clockwise" data-fb="↻" aria-hidden="true"></i></button></div>
         <div class="filter-bar" id="activityFilters"></div>
         <div class="filter-bar type-filter-bar" id="typeFilters"></div>
         <div class="scroll-content" id="activitiesList"></div>
         <button class="fab fab-add-act" onclick="openAddActivity()" aria-label="Aktivität hinzufügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
-        <button class="fab fab-refresh" id="activitiesFab" onclick="refreshActivities()" aria-label="Aktivitäten neu laden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></button>
     </div>
 
     <!-- DAY PLAN -->
@@ -246,7 +246,8 @@
         <div class="scroll-content settings-list">
             <section class="settings-card" aria-labelledby="set-trip">
                 <h3 id="set-trip">Reise</h3>
-                <button type="button" class="settings-row" onclick="openSettings()"><i class="ph-light ph-suitcase-rolling" aria-hidden="true"></i><span>Name, Startdatum und Reiseland</span><i class="ph-light ph-caret-right" aria-hidden="true"></i></button>
+                <button type="button" class="settings-row" onclick="openSettings()"><i class="ph-light ph-suitcase-rolling" aria-hidden="true"></i><span>Reisedaten: Name, Startdatum, Reiseland</span><i class="ph-light ph-caret-right" aria-hidden="true"></i></button>
+                <button type="button" class="settings-row" onclick="tripsOpen()"><i class="ph-light ph-stack" aria-hidden="true"></i><span>Meine Reisen und neue Reise</span><i class="ph-light ph-caret-right" aria-hidden="true"></i></button>
             </section>
             <section class="settings-card" aria-labelledby="set-design">
                 <h3 id="set-design">Design</h3>
@@ -256,17 +257,18 @@
                     <button type="button" class="theme-btn" data-theme="auto" onclick="setTheme('auto')" title="Wie System" aria-label="Design wie System" aria-pressed="false">Auto</button>
                 </div>
             </section>
-            <section class="settings-card" aria-labelledby="set-cloud">
-                <h3 id="set-cloud">Cloud (Google Drive)</h3>
+            <section class="settings-card" aria-labelledby="set-data">
+                <h3 id="set-data">Daten und Sync</h3>
+                <h4 class="settings-sub" id="set-cloud">Cloud (Google Drive)</h4>
                 <p class="settings-hint" id="sync-status"></p>
                 <div class="btn-row">
                     <button type="button" class="btn-icon js-sync" id="btnSync" onclick="toggleSync()"><i class="ph-light ph-cloud-arrow-up" aria-hidden="true"></i> <span id="sync-label">Cloud verbinden</span></button>
                     <button type="button" class="btn-icon" id="btnSyncNow" onclick="syncNowUi()" style="display:none"><i class="ph-light ph-arrows-clockwise" aria-hidden="true"></i> Jetzt synchronisieren</button>
                 </div>
                 <div id="vaultBox"></div>
-            </section>
-            <section class="settings-card" aria-labelledby="set-backup">
-                <h3 id="set-backup">Backup</h3>
+                <h4 class="settings-sub">Teilen</h4>
+                <div class="btn-row" id="shareSlot"></div>
+                <h4 class="settings-sub" id="set-backup">Backup</h4>
                 <p class="settings-hint">Das Backup enthält die Reisedaten dieser Reise als Datei.</p>
                 <div class="btn-row">
                     <button type="button" class="btn-icon" onclick="exportTripData()"><i class="ph-light ph-download-simple" aria-hidden="true"></i> Backup</button>
@@ -289,19 +291,28 @@
                 </div>
             </section>
             <section class="settings-card" aria-labelledby="set-reset">
-                <h3 id="set-reset">Daten</h3>
+                <h3 id="set-reset">Zurücksetzen</h3>
                 <p class="settings-hint">Die Reisedaten liegen auf diesem Gerät.</p>
                 <button type="button" class="settings-row danger" onclick="appReset()"><i class="ph-light ph-trash" aria-hidden="true"></i><span>Alles zurücksetzen</span></button>
             </section>
         </div>
     </div>
 
+    <!-- Untere Leiste: die häufigsten Ziele mit einem Tipp; „Mehr“ öffnet das Menü -->
+    <nav class="bottom-nav" id="bottomNav" aria-label="Schnellzugriff">
+        <button type="button" class="bn-item active" aria-current="page" data-view="view-home" onclick="switchView('view-home','Start')"><i class="ph-light ph-house" data-fb="🏠" aria-hidden="true"></i><span>Start</span></button>
+        <button type="button" class="bn-item" data-view="view-map" onclick="switchView('view-map','Reiseroute Karte')"><i class="ph-light ph-map-trifold" data-fb="📍" aria-hidden="true"></i><span>Karte</span></button>
+        <button type="button" class="bn-item" data-view="view-places" onclick="switchView('view-places','')"><i class="ph-light ph-path" data-fb="📋" aria-hidden="true"></i><span>Stationen</span></button>
+        <button type="button" class="bn-item" data-view="view-dayplan" onclick="switchView('view-dayplan','Tagesplan')"><i class="ph-light ph-calendar-check" data-fb="🗓️" aria-hidden="true"></i><span>Tagesplan</span></button>
+        <button type="button" class="bn-item" id="bn-more" onclick="toggleMenu()" aria-controls="drawer"><i class="ph-light ph-dots-three-outline" data-fb="⋯" aria-hidden="true"></i><span>Mehr</span></button>
+    </nav>
+
     <!-- Drawer -->
     <div class="drawer-overlay" onclick="toggleMenu()"></div>
     <nav class="drawer" id="drawer" aria-label="Hauptmenü" inert>
         <div class="menu-header">
-            <h2 class="menu-title"><button type="button" class="menu-title-btn" id="drawer-tripname" onclick="openSettings()" aria-label="Reise-Einstellungen öffnen">Reise</button></h2>
-            <button type="button" class="menu-dates" onclick="openSettings()" aria-label="Reise-Einstellungen öffnen">
+            <h2 class="menu-title"><button type="button" class="menu-title-btn" id="drawer-tripname" onclick="openSettings()" aria-label="Reisedaten bearbeiten">Reise</button></h2>
+            <button type="button" class="menu-dates" onclick="openSettings()" aria-label="Reisedaten bearbeiten">
                 <span id="drawer-dates">–</span> · <span id="drawer-nights">–</span>
                 <span class="menu-countdown" id="drawer-countdown">–</span>
             </button>
@@ -315,6 +326,7 @@
             <button type="button" class="menu-item" id="menu-dayplan" onclick="switchView('view-dayplan','Tagesplan')"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-calendar-check" data-fb="🗓️"></i></span> Tagesplan</button>
             <div class="menu-divider"></div>
             <div class="menu-group-label">Extras</div>
+            <button type="button" class="menu-item" id="menu-pack" onclick="openPackFromMenu()"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-suitcase" data-fb="🧳"></i></span> Packliste</button>
             <button type="button" class="menu-item" id="menu-currency" onclick="switchView('view-currency','Währungsrechner')"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-currency-circle-dollar" data-fb="💱"></i></span> Währungsrechner</button>
             <button type="button" class="menu-item" id="menu-budget" onclick="switchView('view-budget','Reisekosten')"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-wallet" data-fb="💰"></i></span> Reisekosten</button>
             <button type="button" class="menu-item" id="menu-phrases" onclick="switchView('view-phrases', document.getElementById('menu-phrases-label').textContent)"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-translate" data-fb="🗣️"></i></span> <span id="menu-phrases-label">Sprachführer</span></button>
@@ -346,7 +358,7 @@
 
     <!-- Modals: Kopf + scrollender Body + fixe Aktionsleiste (Submit immer sichtbar) -->
     <dialog id="modal-settings" aria-labelledby="modal-settings-title">
-        <h3 id="modal-settings-title">Reise-Daten</h3>
+        <h3 id="modal-settings-title">Reisedaten</h3>
         <div class="dialog-body">
             <div class="form-group"><label for="s-tripname">Reisename</label><input type="text" id="s-tripname" placeholder="z. B. Sommerurlaub 2026"></div>
             <div class="form-group">
@@ -430,6 +442,7 @@
                 <textarea id="rw-prompt" maxlength="1000" rows="8" aria-describedby="rw-count" placeholder="Beschreibe hier deine Reise, z. B.:&#10;• ungefähre Reiseroute (Start, Ende, grobe Richtung)&#10;• was du unbedingt sehen oder erleben willst&#10;• Vorlieben: Städte oder Natur, Tempo, Unterkünfte, Essen&#10;• was du vermeiden möchtest"></textarea>
                 <div class="rw-count" id="rw-count" aria-live="off">0/1000</div>
             </div>
+            <div class="form-group" id="rw-country-wrap" hidden><label for="rw-country">Reiseland</label><input type="text" id="rw-country" list="s-tripcountry-list" placeholder="z. B. Italien, Japan, Thailand …" autocomplete="off"><div class="rw-error" id="rw-country-err" role="alert" hidden></div></div>
             <div class="form-group"><label for="rw-nights">Nächte insgesamt</label><input type="number" id="rw-nights" min="1" max="365" step="1" inputmode="numeric" required value="7" aria-describedby="rw-nights-err"><div class="rw-error" id="rw-nights-err" role="alert" hidden></div></div>
             <div class="rw-hint" id="rw-hint"></div>
             <p class="form-hint rw-privacy">🔒 Deine Wünsche und die aktuelle Route werden zur Verarbeitung an KI-Dienste (Pollinations, ggf. Puter) gesendet. Bitte keine persönlichen Daten wie Namen, Adressen oder Buchungsnummern eintragen.</p>

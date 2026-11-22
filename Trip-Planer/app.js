@@ -1370,6 +1370,7 @@ function renderHome() {
 
     window.weatherFeature?.renderHome();
     renderPack();
+    renderHomeSteps();
     window.reminders?.render();
 }
 
@@ -2471,6 +2472,7 @@ document.getElementById('packAddForm')?.addEventListener('submit', e => {
 (function () {
     let isOpen = false, dragging = false, startY = 0, startT = 0;
     window.closePackSheet = () => toggle(false);
+    window.openPackSheet = () => toggle(true);
     window.isPackSheetOpen = () => isOpen;
     function toggle(open) {
         isOpen = open;
@@ -2774,9 +2776,44 @@ window.addEventListener('storage', e => {
         setTimeout(() => location.reload(), 1500);
     }
 });
-function exportTripData() {
+
+// Kleiner Eingabedialog mit sichtbarer Beschriftung und Fehlermeldung am Feld (ersetzt prompt()).
+// Gibt den Text zurück oder null bei Abbruch.
+function askText({ title, label, value = '', placeholder = '', okLabel = 'OK', required = false, requiredMsg = 'Bitte einen Namen eingeben.', maxLength = 80 }) {
+    return new Promise(resolve => {
+        let d = document.getElementById('modal-asktext');
+        if (!d) {
+            d = document.createElement('dialog');
+            d.id = 'modal-asktext';
+            d.setAttribute('aria-labelledby', 'asktext-title');
+            d.innerHTML = `<h3 id="asktext-title"></h3>
+                <div class="dialog-body"><div class="form-group"><label for="asktext-input" id="asktext-label"></label><input type="text" id="asktext-input" autocomplete="off" aria-describedby="asktext-err"><div class="rw-error" id="asktext-err" role="alert" hidden></div></div></div>
+                <div class="dialog-actions"><button type="button" class="btn" id="asktext-ok"></button><button type="button" class="btn btn-secondary" id="asktext-cancel">Abbrechen</button></div>`;
+            document.body.appendChild(d);
+        }
+        const inp = d.querySelector('#asktext-input'), err = d.querySelector('#asktext-err'), ok = d.querySelector('#asktext-ok'), cancel = d.querySelector('#asktext-cancel');
+        d.querySelector('#asktext-title').textContent = title;
+        d.querySelector('#asktext-label').textContent = label;
+        inp.value = value; inp.placeholder = placeholder; inp.maxLength = maxLength; inp.setAttribute('aria-invalid', 'false');
+        err.hidden = true; ok.textContent = okLabel;
+        let done = false;
+        const finish = v => { if (done) return; done = true; d.removeEventListener('close', onClose); d.close(); resolve(v); };
+        const onClose = () => finish(null);
+        const submit = () => {
+            const v = inp.value.trim();
+            if (required && !v) { err.textContent = requiredMsg; err.hidden = false; inp.setAttribute('aria-invalid', 'true'); inp.focus(); return; }
+            finish(v);
+        };
+        ok.onclick = submit; cancel.onclick = () => finish(null);
+        inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } };
+        inp.oninput = () => { err.hidden = true; inp.setAttribute('aria-invalid', 'false'); };
+        d.addEventListener('close', onClose);
+        d.showModal(); inp.focus(); inp.select();
+    });
+}
+async function exportTripData() {
     const suggestion = tripName || 'Reise';
-    const label = prompt('Name für dieses Backup:', suggestion);
+    const label = await askText({ title: 'Backup speichern', label: 'Name für dieses Backup', value: suggestion, okLabel: 'Speichern' });
     if (label === null) return; // abgebrochen
     const data = {};
     EXPORT_KEYS.forEach(k => { const v = localStorage.getItem(k); if (v !== null) data[k] = v; });
@@ -2925,10 +2962,9 @@ function updateUndoImportBtn() {
     const btn = document.getElementById('btnUndoImport');
     if (btn) try { btn.hidden = !localStorage.getItem('tp_backup_before_import'); } catch (e) { btn.hidden = true; }
 }
-function tripNewFromSettings() {
-    const name = prompt('Name der neuen Reise (z. B. Sommerurlaub 2027):', '');
+async function tripNewFromSettings() {
+    const name = await askText({ title: 'Neue Reise', label: 'Name der Reise', placeholder: 'z. B. Sommerurlaub 2027', okLabel: 'Anlegen', required: true });
     if (name === null) return;
-    if (!name.trim()) { showToast('Bitte einen Namen eingeben'); return; }
     document.getElementById('modal-settings')?.close();
     tripCreate(name);
 }
@@ -3036,6 +3072,10 @@ async function saveHotel(placeId, newHotel) {
 
 // ─── NAV ──────────────────────────────────────────────────────────────────
 const app = document.getElementById('app'), bottomSheet = document.getElementById('bottomSheet');
+function openPackFromMenu() {
+    switchView('view-home', 'Start');
+    setTimeout(() => window.openPackSheet?.(), 380);
+}
 function toggleMenu(open) { setMenuOpen(typeof open === 'boolean' ? open : !app.classList.contains('menu-open')); }
 function setMenuOpen(open) {
     const drawer = document.getElementById('drawer'), btn = document.getElementById('menuBtn');
@@ -3047,6 +3087,7 @@ function setMenuOpen(open) {
     else { drawer.removeAttribute('role'); drawer.removeAttribute('aria-modal'); }
     btn?.setAttribute('aria-expanded', open);
     btn?.setAttribute('aria-label', open ? 'Menü schließen' : 'Menü öffnen');
+    document.getElementById('bn-more')?.setAttribute('aria-expanded', open);
     if (open && !wasOpen) (drawer.querySelector('.menu-item.active') || drawer.querySelector('.menu-item'))?.focus({ preventScroll: true });
     else if (!open && wasOpen && (!document.activeElement || document.activeElement === document.body || drawer.contains(document.activeElement))) btn?.focus({ preventScroll: true });
 }
@@ -3075,7 +3116,7 @@ function revealView(view) {
 }
 // Reihenfolge der Views im Menü – Grundlage für richtungsabhängige Slide-Übergänge
 const VIEW_ORDER = ['view-home', 'view-map', 'view-places', 'view-activities', 'view-dayplan', 'view-currency', 'view-budget', 'view-phrases', 'view-documents', 'view-journal', 'view-emergency', 'view-settings', 'view-logs'];
-function switchView(id, title) {
+function switchView(id, title, fromPop) {
     const cur = document.querySelector('.view.active');
     const prevIdx = cur ? VIEW_ORDER.indexOf(cur.id) : -1;
     const nextIdx = VIEW_ORDER.indexOf(id);
@@ -3093,6 +3134,14 @@ function switchView(id, title) {
     document.getElementById('menu-' + id.split('-')[1])?.classList.add('active');
     bottomSheet.classList.remove('open'); setMenuOpen(false);
     window.closePackSheet?.();
+    const quick = ['view-home', 'view-map', 'view-places', 'view-dayplan'];
+    document.querySelectorAll('#bottomNav .bn-item[data-view]').forEach(b => {
+        const on = b.dataset.view === id;
+        b.classList.toggle('active', on);
+        if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
+    document.getElementById('bn-more')?.classList.toggle('active', !quick.includes(id));
+    if (!fromPop) syncHistory(id);
     if (id === 'view-map' && map) setTimeout(() => map.invalidateSize(), 60);
     if (id === 'view-map' || id === 'view-activities') requestUserLocation();
     if (id === 'view-budget') renderBudget();
@@ -3104,6 +3153,26 @@ function switchView(id, title) {
     if (id === 'view-emergency') window.emergency?.render();
     try { localStorage.setItem('tp_lastview', JSON.stringify({ id, title: title || document.getElementById('pageTitle').innerText })); } catch (e) {}
 }
+
+// Verlauf: Zurück (Android-Geste, Browser) führt von einer Unterseite zur Startseite;
+// auf der Startseite verlässt Zurück die App. Es gibt höchstens einen zusätzlichen Eintrag.
+let popGuard = false;
+function syncHistory(id) {
+    try {
+        if (id === 'view-home') {
+            if (history.state && history.state.tpview) { popGuard = true; history.back(); }
+            return;
+        }
+        if (history.state && history.state.tpview) history.replaceState({ tpview: id }, '', location.href);
+        else history.pushState({ tpview: id }, '', location.href);
+    } catch (e) {}
+}
+window.addEventListener('popstate', () => {
+    if (popGuard) { popGuard = false; return; }
+    const cur = document.querySelector('.view.active');
+    if (app.classList.contains('menu-open')) { setMenuOpen(false); try { history.pushState({ tpview: cur?.id || 'view-home' }, '', location.href); } catch (e) {} return; }
+    if (cur && cur.id !== 'view-home') switchView('view-home', 'Start', true);
+});
 // Beim Neuladen (z. B. Pull-to-Refresh) auf der zuletzt geöffneten Seite
 // bleiben, statt immer wieder auf "Start" zu springen.
 const URL_VIEWS = { home: ['view-home', 'Start'], map: ['view-map', 'Reiseroute Karte'], places: ['view-places', ''],
@@ -3341,6 +3410,26 @@ const googleSearchDe = text => `https://www.google.de/search?hl=de&q=${encodeURI
 function openActivityWeb() {
     window.open(googleSearchDe(`${currentActTitle} ${tripCountry}`), '_blank');
 }
+
+
+// Einstiegshilfe auf der Startseite: drei Schritte, die sich selbst abhaken; verschwindet, wenn alles erledigt ist.
+function renderHomeSteps() {
+    const box = document.getElementById('homeSteps');
+    if (!box) return;
+    let hide = false;
+    try { hide = localStorage.getItem('tp_steps_hide') === '1'; } catch (e) {}
+    const booked = places.some(p => attachCount(`hotel:${Number(p.id)}`) || p.transit) || attachCount('arrival') || attachCount('return');
+    const steps = [
+        { done: !!(tripName || tripCountry), label: 'Reise einrichten', hint: 'Name, Land und Startdatum', act: 'openSettings()' },
+        { done: places.length > 0, label: 'Erste Station hinzufügen', hint: 'Oder die Route vorschlagen lassen', act: "switchView('view-places','')" },
+        { done: !!booked, label: 'Buchung anhängen', hint: 'Bestätigung an Hotel oder Anreise', act: "switchView('view-places','')" }
+    ];
+    if (hide || steps.every(x => x.done)) { box.hidden = true; box.innerHTML = ''; return; }
+    box.hidden = false;
+    box.innerHTML = `<div class="home-steps-head"><span class="home-card-title">So kommst du in Gang</span><button type="button" class="link-btn" onclick="hideHomeSteps()">Ausblenden</button></div>` +
+        `<ol class="home-steps-list">${steps.map(x => `<li class="${x.done ? 'done' : ''}"><button type="button" onclick="${x.act}"${x.done ? ' aria-disabled="true"' : ''}><span class="step-check" aria-hidden="true">${x.done ? '✓' : ''}</span><span class="step-text"><b>${x.label}</b><small>${x.hint}</small></span></button></li>`).join('')}</ol>`;
+}
+function hideHomeSteps() { try { localStorage.setItem('tp_steps_hide', '1'); } catch (e) {} renderHomeSteps(); }
 
 // ─── PLACES ───────────────────────────────────────────────────────────────
 function renderPlaces() {
@@ -4623,11 +4712,8 @@ function rwNightsError(msg) {
     inp?.setAttribute('aria-invalid', msg ? 'true' : 'false');
 }
 function openRouteWizard() {
-    if (!tripCountry) {
-        showToast('⚠️ Bitte zuerst ein Reiseland in den Reise-Einstellungen festlegen.');
-        openSettings();
-        return;
-    }
+    const cw = document.getElementById('rw-country-wrap');
+    if (cw) { cw.hidden = !!tripCountry; const ci = document.getElementById('rw-country'); if (ci) { ci.value = ''; ci.setAttribute('aria-invalid', 'false'); } const ce = document.getElementById('rw-country-err'); if (ce) ce.hidden = true; }
     puterBridgeReady().catch(() => {}); // Puter-Brücke im Hintergrund vorladen
     rwOptimize = places.length > 0;
     setRouteWizardLoading(false); // Sicherheitsnetz falls der Dialog beim letzten Mal mitten in der Ladephase (z. B. per Esc) geschlossen wurde
@@ -4915,6 +5001,19 @@ document.getElementById('modal-routewizard')?.addEventListener('close', () => {
     showToast('Routenerstellung abgebrochen.');
 });
 async function submitRouteWizard() {
+    // Fehlt das Reiseland, wird es hier gleich mit festgelegt (statt Umweg über die Reisedaten).
+    if (!tripCountry) {
+        const ci = document.getElementById('rw-country'), ce = document.getElementById('rw-country-err');
+        const val = (ci?.value || '').trim();
+        if (!val) {
+            if (ce) { ce.textContent = 'Bitte ein Reiseland eingeben.'; ce.hidden = false; }
+            ci?.setAttribute('aria-invalid', 'true'); ci?.focus();
+            return;
+        }
+        tripCountryManual = true;
+        applyTripCountry(val);
+        saveData();
+    }
     const rawNights = (document.getElementById('rw-nights')?.value || '').trim();
     const n = Number(rawNights);
     if (!rawNights || !Number.isInteger(n) || n < 1 || n !== clampNights(n)) {

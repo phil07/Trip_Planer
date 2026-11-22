@@ -380,7 +380,7 @@ t('Reise teilen: Kurzlink (verschlüsselt) mit QR-Code, Empfänger sieht die Rei
         const b = store.get(id);
         return b ? r.fulfill({ contentType: 'application/octet-stream', body: b }) : r.fulfill({ status: 404, body: '{}' });
     });
-    await page.click('#menuBtn');
+    await go('view-settings', 'Einstellungen');
     await page.click('#btnShareTrip');
     await page.waitForFunction(() => document.getElementById('share-link')?.value.includes('#s='));
     const link = await page.locator('#share-link').inputValue();
@@ -445,6 +445,51 @@ t('Stationen: laufende Station markiert, Leerzustand mit nächstem Schritt', asy
     assert.match(await page.locator('#placesList .place-card.station >> nth=0').locator('.station-status').innerText(), /Aktuell/i);
     await page.evaluate(() => { places = []; saveData(); renderPlaces(); });
     assert.equal(await page.locator('#placesList .station-empty .empty-cta').count(), 1);
+    assert.deepEqual(errors, []);
+});
+
+t('Navigation: untere Leiste, Zurück zur Startseite, Packliste im Menü', async () => {
+    await open();
+    assert.equal(await page.locator('#bottomNav .bn-item').count(), 5);
+    assert.equal(await page.locator('#bottomNav .bn-item.active').getAttribute('data-view'), 'view-home');
+    await page.click('#bottomNav [data-view="view-places"]');
+    await page.waitForFunction(() => document.getElementById('view-places').classList.contains('active'));
+    assert.equal(await page.locator('#bottomNav [data-view="view-places"]').getAttribute('aria-current'), 'page');
+    await page.click('#bottomNav [data-view="view-dayplan"]');
+    await page.waitForFunction(() => document.getElementById('view-dayplan').classList.contains('active'));
+    // Zurück führt zur Startseite (nicht aus der App)
+    await page.goBack();
+    await page.waitForFunction(() => document.getElementById('view-home').classList.contains('active'));
+    // „Mehr“ öffnet das Menü, Packliste ist dort auffindbar
+    await page.click('#bn-more');
+    await page.waitForFunction(() => document.getElementById('app').classList.contains('menu-open'));
+    assert.equal(await page.locator('#menu-pack').count(), 1);
+    await page.click('#menu-pack');
+    await page.waitForFunction(() => window.isPackSheetOpen && window.isPackSheetOpen());
+    assert.deepEqual(errors, []);
+});
+
+t('Navigation: neue Reise per Formular, Route-Dialog fragt fehlendes Land selbst', async () => {
+    await open();
+    await go('view-settings', 'Einstellungen');
+    await page.evaluate(() => { tripNewFromSettings(); });
+    await page.waitForFunction(() => document.getElementById('modal-asktext').open);
+    await page.click('#asktext-ok');
+    assert.equal(await page.locator('#asktext-err').isVisible(), true, 'Fehler am Feld');
+    assert.equal(await page.locator('#asktext-input').getAttribute('aria-invalid'), 'true');
+    await page.click('#asktext-cancel');
+    // Route-Dialog ohne Reiseland zeigt ein Landfeld
+    await page.evaluate(() => { tripCountry = ''; openRouteWizard(); });
+    assert.equal(await page.locator('#rw-country-wrap').isVisible(), true);
+    assert.deepEqual(errors, []);
+});
+
+t('Start: Einstiegs-Schritte haken sich ab und lassen sich ausblenden', async () => {
+    await open({ tp_onboarded: '1', tp_start: day(5), tp_tripname: 'Test', tp_tripcountry: 'Japan', tp_tripcountry_manual: '1', tp_crawled: '1', tp_places: '[]', tp_acts: '[]' });
+    assert.equal(await page.locator('#homeSteps').isVisible(), true);
+    assert.equal(await page.locator('#homeSteps li.done').count(), 1);
+    await page.click('#homeSteps .link-btn');
+    assert.equal(await page.locator('#homeSteps').isVisible(), false);
     assert.deepEqual(errors, []);
 });
 
