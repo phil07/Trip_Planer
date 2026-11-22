@@ -285,7 +285,7 @@
         if (state === 'idle') { load(); }
         listUrls.forEach(u => URL.revokeObjectURL(u));
         listUrls = [];
-        const note = `<div class="doc-note">${icon('lock-simple', '🔒')}<div><b>Verschlüsselt auf diesem Gerät.</b> Dokumente sind offline verfügbar. Mit einem Sync-Passwort (Einstellungen → Cloud) werden sie verschlüsselt in Google Drive gesichert; das „Vollständige Backup“ enthält sie ebenfalls. Ohne beides liegen sie nur hier – Originale also zusätzlich sicher aufbewahren.<span class="doc-storage" id="docStorageInfo"></span></div></div>`;
+        const note = `<div class="doc-note">${icon('lock-simple', '🔒')}<div><b>Verschlüsselt auf diesem Gerät.</b> Offline verfügbar. Mit Sync-Passwort (Einstellungen → Cloud) auch verschlüsselt in Google Drive, im Vollständigen Backup ebenfalls. Originale trotzdem sicher aufbewahren.<span class="doc-storage" id="docStorageInfo"></span></div></div>`;
         const fab = document.getElementById('docFab');
         if (fab) fab.hidden = state === 'error';
         if (state === 'idle' || state === 'loading') { list.innerHTML = note + '<div class="empty-acts">Lade Dokumente …</div>'; return; }
@@ -294,7 +294,7 @@
             return;
         }
         if (!docs.length) {
-            list.innerHTML = note + '<div class="empty-acts">🛂 Noch keine Dokumente.<br>Speichere Pass, Tickets, Hotelbuchungen oder JR-Pass als Foto oder PDF – auch ohne Netz griffbereit.<br><button type="button" class="btn empty-cta" data-doc-add>Dokument hinzufügen</button></div>';
+            list.innerHTML = note + '<div class="empty-acts">Noch keine Dokumente.<br>Pass, Tickets, Hotelbuchungen oder JR-Pass als Foto oder PDF speichern.<br><button type="button" class="btn empty-cta" data-doc-add>Dokument hinzufügen</button></div>';
             updateStorageInfo();
             return;
         }
