@@ -1569,3 +1569,7 @@ body .settings-card .theme-btn i { display: block; line-height: 1; }
 /* Route optimieren auf Stationen: ruhige Fläche mit Akzent nur am Icon, keine rote Fläche neben der Liste. */
 .places-bar .fab-suggest { background: var(--bg-elevated); color: var(--label); box-shadow: none; border: 1px solid var(--border); }
 .places-bar .fab-suggest svg { color: var(--primary-text); }
+/* Stationen-Karte: Dokument- und Notizhinweis als Text hinter der Unterkunft, keine Zusatzpillen. */
+.station-sub > .station-count { flex: none; padding: 0; border-radius: 0; background: none; color: var(--muted); font-size: var(--fs-footnote); }
+.station-sub > .station-count::before { content: "·"; margin-right: 6px; color: var(--label-tertiary); }
+.station-sub > span:not(.station-count) { flex: 0 1 auto; }

@@ -238,7 +238,7 @@ t('Stationen: eingeklappt kompakt, Tipp klappt Details auf', async () => {
     await go('view-places', 'Stationen');
     const card = page.locator('#placesList .place-card.station >> nth=0');
     assert.equal(await card.locator('.station-details').isVisible(), false);
-    assert.match(await card.locator('.station-head').innerText(), /Station 1[\s\S]*N(acht|ächte)/);
+    assert.match(await card.locator('.station-head').innerText(), /\d{2}\.\d{2}\.[\s\S]*N(acht|ächte)/);
     await card.locator('.station-head').click();
     assert.equal(await card.locator('.nights-row').isVisible(), true);
     assert.equal(await card.locator('.station-head').getAttribute('aria-expanded'), 'true');

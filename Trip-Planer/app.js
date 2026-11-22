@@ -3500,7 +3500,7 @@ function renderPlaces() {
                 <button type="button" class="station-head" aria-expanded="${isOpen}" aria-controls="st-det-${pid}" onclick="toggleStation(${pid})">
                     <span class="station-head-text">
                         <span class="station-name" role="heading" aria-level="3">${escHtml(displayName(p.name,i))}${status ? `<span class="station-status">${status}</span>` : ''}</span>
-                        <span class="place-dates">Station ${i+1} · ${cd.strStart} – ${cd.strEnd} · ${nights} ${nights === 1 ? 'Nacht' : 'Nächte'}</span>
+                        <span class="place-dates">${cd.strStart} – ${cd.strEnd} · ${nights} ${nights === 1 ? 'Nacht' : 'Nächte'}</span>
                         <span class="station-sub">${ico('bed', '🛏')}<span>${escHtml(p.hotel) || 'Unterkunft offen'}</span>${nDocs ? `<span class="station-count">${nDocs} ${nDocs === 1 ? 'Dokument' : 'Dokumente'}</span>` : ''}${p.notes ? `<span class="station-count">Notiz</span>` : ''}</span>
                     </span>
                     ${ico('caret-down')}
