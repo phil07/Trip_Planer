@@ -2,7 +2,7 @@
 importScripts('version.js'); // sets self.APP_VERSION – single source of truth
 importScripts('features/reminders-sw.js'); // Erinnerungen vor Stationswechseln (Periodic Sync)
 const CACHE = 'trip-planer-' + self.APP_VERSION;
-const PRECACHE = ['./', './index.html', './style.css', './app.js', './version.js', './manifest.json',
+const PRECACHE = ['./', './index.html', './style.css', './app.js', './sync.js', './version.js', './manifest.json',
   './icons/icon-192.svg', './icons/icon-512.svg', './icons/icon-192-v2.png', './icons/icon-512-v2.png',
   './icons/icon-192-maskable-v2.png', './icons/icon-512-maskable-v2.png',
   './vendor/leaflet/leaflet.js', './vendor/leaflet/leaflet.css', './vendor/leaflet/images/layers.png',
@@ -18,7 +18,7 @@ const PRECACHE = ['./', './index.html', './style.css', './app.js', './version.js
 const TILE_CACHE = 'trip-planer-tiles';
 const TILE_CACHE_MAX = 300;
 // Fremd-Hosts, deren Dateien (versioniert, CSS/Fonts) offline aus dem Cache kommen dürfen.
-const CDN_HOSTS = ['cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];
+const CDN_HOSTS = ['cdn.jsdelivr.net', 'cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 // ─── INSTALL ──────────────────────────────────────────────────────────────────
 self.addEventListener('install', e => {

@@ -1,0 +1,68 @@
+name: PWA veröffentlichen
+
+# Veröffentlicht die PWA (Ordner Trip-Planer/ + Worker) bei jedem Push auf main auf Cloudflare –
+# aus demselben Stand wie die APK (android-release.yml). So bleiben Web-App und Android-App gleich.
+# Voraussetzung: die Repository-Secrets CLOUDFLARE_API_TOKEN und CLOUDFLARE_ACCOUNT_ID (siehe docs/PWA.md).
+# Fehlen sie, wird der Schritt übersprungen und der Lauf bleibt grün.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Trip-Planer/**'
+      - 'worker/**'
+      - 'wrangler.jsonc'
+      - '.github/workflows/pwa-deploy.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: pwa-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: PWA auf Cloudflare veröffentlichen
+    runs-on: ubuntu-latest
+    env:
+      HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Unit-Tests (vor dem Veröffentlichen)
+        run: |
+          npm install --no-audit --no-fund
+          npm test
+
+      - name: Version
+        id: ver
+        run: echo "version=$(sed -n "s/.*APP_VERSION = '\(v[0-9]*\)'.*/\1/p" Trip-Planer/version.js)" >> "$GITHUB_OUTPUT"
+
+      - name: Hinweis, wenn die Cloudflare-Secrets fehlen
+        if: env.HAS_TOKEN != 'true'
+        run: echo "::warning::CLOUDFLARE_API_TOKEN oder CLOUDFLARE_ACCOUNT_ID fehlen – PWA ${{ steps.ver.outputs.version }} wurde nicht veröffentlicht. Einrichtung siehe docs/PWA.md."
+
+      - name: Veröffentlichen
+        if: env.HAS_TOKEN == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4.156.0 deploy --message "${{ steps.ver.outputs.version }} (${{ github.sha }})"
+
+      - name: Prüfen, ob die neue Version live ist
+        if: env.HAS_TOKEN == 'true'
+        run: |
+          want="${{ steps.ver.outputs.version }}"
+          for i in 1 2 3 4 5 6; do
+            live=$(curl -fsS "https://japan.iphilipp07-869.workers.dev/version.js?ci=$GITHUB_RUN_ID" | sed -n "s/.*APP_VERSION = '\(v[0-9]*\)'.*/\1/p")
+            echo "live: $live, erwartet: $want"
+            [ "$live" = "$want" ] && exit 0
+            sleep 10
+          done
+          echo "::error::Live ist $live statt $want."
+          exit 1
