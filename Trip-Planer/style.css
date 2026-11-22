@@ -1507,3 +1507,41 @@ button.budget-cat-toggle:focus-visible { outline: 2px solid var(--accent); outli
 /* Leerzustände: ein ruhiger Satz, optional ein Knopf */
 .empty-acts { text-align: center; color: var(--muted); font-size: var(--fs-footnote); line-height: 1.5; padding: 24px 16px; }
 .empty-acts .btn { margin-top: 12px; }
+
+/* Startseite: Spalten dürfen nie breiter werden als der Bildschirm (lange Routen und Hotelnamen kürzen sich mit „…“) */
+.home-scroll { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+.home-scroll > * { min-width: 0; max-width: 100%; }
+.hero-card.home { min-width: 0; }
+
+/* Hotelname immer vollständig: umbrechen statt mit „…“ kürzen */
+.hotel-row-btn { height: auto; align-items: flex-start; padding-top: 10px; padding-bottom: 10px; }
+.hotel-row-btn .hotel-name { align-items: flex-start; }
+.hotel-row-btn .hotel-name > i, .hotel-row-btn .hotel-name > svg { margin-top: 2px; flex: none; }
+.hotel-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hotel-row-btn .hotel-text > span:first-child { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.35; }
+.hotel-hint { display: block; flex: none; }
+.hotel-row-btn > i:last-child { margin-top: 2px; }
+.station-sub { align-items: flex-start; flex-wrap: wrap; }
+.station-sub > span:not(.station-count) { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; flex: 1 1 auto; }
+.meta-chip { border-radius: var(--radius-md); align-items: flex-start; }
+.meta-chip span { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.home-next .chip-line { flex-wrap: wrap; overflow: visible; }
+.home-next .meta-chip { flex: 0 1 auto; max-width: 100%; }
+.home-next .taxi-home { height: auto; min-height: 48px; overflow: visible; flex-wrap: wrap; text-align: left; border-radius: var(--radius-md); }
+.home-next .taxi-home .taxi-home-sub { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; flex: 1 1 100%; }
+
+/* Startseite: Einstiegs-Schritte über die volle Breite (sonst entsteht eine dritte Spalte) */
+.home-steps { grid-column: 1 / -1; grid-row: auto; }
+/* Einstellungen: Zeilen mit Abstand, damit sich die Knöpfe nicht berühren */
+.settings-row + .settings-row { margin-top: 8px; }
+/* Aktivitäten: Symbol mittig im Kreis */
+.search-refresh { display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; }
+.search-refresh i { display: block; line-height: 1; margin: 0; }
+
+/* Einstellungen: Design-Auswahl über die volle Breite, drei gleich breite Felder, Inhalt mittig */
+.settings-card .theme-switcher { display: flex; width: 100%; margin: 0; }
+body .settings-card .theme-btn { flex: 1 1 0; min-width: 0; height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-align: center; }
+body .settings-card .theme-btn i { display: block; line-height: 1; }
+/* Knöpfe in Einstellungen und Dialogen: Text und Symbol mittig */
+.btn-icon, .settings-row { align-items: center; }
+.btn-row .btn-icon { justify-content: center; }

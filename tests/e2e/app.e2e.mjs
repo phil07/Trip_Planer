@@ -448,7 +448,7 @@ t('Stationen: laufende Station markiert, Leerzustand mit nächstem Schritt', asy
     assert.deepEqual(errors, []);
 });
 
-t('Navigation: untere Leiste, Zurück zur Startseite, Packliste im Menü', async () => {
+t('Navigation: untere Leiste, Zurück zur Startseite, Packliste nur auf Start', async () => {
     await open();
     assert.equal(await page.locator('#bottomNav .bn-item').count(), 5);
     assert.equal(await page.locator('#bottomNav .bn-item.active').getAttribute('data-view'), 'view-home');
@@ -463,9 +463,10 @@ t('Navigation: untere Leiste, Zurück zur Startseite, Packliste im Menü', async
     // „Mehr“ öffnet das Menü, Packliste ist dort auffindbar
     await page.click('#bn-more');
     await page.waitForFunction(() => document.getElementById('app').classList.contains('menu-open'));
-    assert.equal(await page.locator('#menu-pack').count(), 1);
-    await page.click('#menu-pack');
-    await page.waitForFunction(() => window.isPackSheetOpen && window.isPackSheetOpen());
+    assert.equal(await page.locator('#menu-pack').count(), 0, 'Packliste ist kein eigener Menüpunkt');
+    await page.click('#menu-home');
+    await page.waitForFunction(() => !document.getElementById('app').classList.contains('menu-open'));
+    assert.equal(await page.locator('#packHandle').isVisible(), true, 'Packliste liegt auf der Startseite');
     assert.deepEqual(errors, []);
 });
 
@@ -490,6 +491,19 @@ t('Start: Einstiegs-Schritte haken sich ab und lassen sich ausblenden', async ()
     assert.equal(await page.locator('#homeSteps li.done').count(), 1);
     await page.click('#homeSteps .link-btn');
     assert.equal(await page.locator('#homeSteps').isVisible(), false);
+    assert.deepEqual(errors, []);
+});
+
+t('Layout: Startseite läuft bei vielen Stationen und langen Namen nicht über den Bildschirm', async () => {
+    const names = ['Tokyo', 'Fukuoka', 'Kumamoto', 'Miyazaki', 'Kagoshima', 'Osaka', 'Kyoto', 'Nara', 'Kobe', 'Himeji', 'Hiroshima', 'Nagoya', 'Sapporo', 'Sendai', 'Nagano'];
+    const seed = { ...FIXTURE(), tp_places: JSON.stringify(names.map((n, i) => ({ id: i + 1, name: n, nights: 2, lat: 35 - i * .3, lng: 139 - i * .3, hotel: 'Hotel Tokyo Trip Ueno Nishi Nippori Annex', hotelLat: 35, hotelLng: 139, transport: i ? 'Zug' : 'Flug' }))) };
+    await open(seed);
+    for (const w of [360, 411]) {
+        await page.setViewportSize({ width: w, height: 800 });
+        await page.waitForTimeout(150);
+        const m = await page.evaluate(() => { const h = document.querySelector('.home-scroll'); return { sw: h.scrollWidth, cw: h.clientWidth }; });
+        assert.ok(m.sw <= m.cw + 1, `Startseite bei ${w}px zu breit: ${m.sw} > ${m.cw}`);
+    }
     assert.deepEqual(errors, []);
 });
 

@@ -3072,10 +3072,6 @@ async function saveHotel(placeId, newHotel) {
 
 // ─── NAV ──────────────────────────────────────────────────────────────────
 const app = document.getElementById('app'), bottomSheet = document.getElementById('bottomSheet');
-function openPackFromMenu() {
-    switchView('view-home', 'Start');
-    setTimeout(() => window.openPackSheet?.(), 380);
-}
 function toggleMenu(open) { setMenuOpen(typeof open === 'boolean' ? open : !app.classList.contains('menu-open')); }
 function setMenuOpen(open) {
     const drawer = document.getElementById('drawer'), btn = document.getElementById('menuBtn');
@@ -3512,7 +3508,7 @@ function renderPlaces() {
                     <section class="st-group" aria-label="Unterkunft">
                         <h4 class="st-title">Unterkunft</h4>
                         <button type="button" class="hotel-row hotel-row-btn" onclick="toggleHotelEdit(${pid})" aria-label="Unterkunft ${p.hotel ? 'ändern' : 'eintragen'}">
-                            <span class="hotel-name">${ico(p.hotelLat ? 'map-pin' : 'bed')}<span>${escHtml(p.hotel)||'Unterkunft eintragen'}</span></span>${markerHint}${ico('pencil-simple', '✏️')}
+                            <span class="hotel-name">${ico(p.hotelLat ? 'map-pin' : 'bed')}<span class="hotel-text"><span>${escHtml(p.hotel)||'Unterkunft eintragen'}</span>${markerHint}</span></span>${ico('pencil-simple', '✏️')}
                         </button>
                         <div class="hotel-input-wrap${hotelOpen ? ' open' : ''}" id="${editId}">
                             <input type="text" id="hi-${pid}" value="${escHtml(p.hotel)}" placeholder="Unterkunft eingeben…" aria-label="Unterkunft">
