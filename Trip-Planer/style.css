@@ -1573,3 +1573,5 @@ body .settings-card .theme-btn i { display: block; line-height: 1; }
 .station-sub > .station-count { flex: none; padding: 0; border-radius: 0; background: none; color: var(--muted); font-size: var(--fs-footnote); }
 .station-sub > .station-count::before { content: "·"; margin-right: 6px; color: var(--label-tertiary); }
 .station-sub > span:not(.station-count) { flex: 0 1 auto; }
+/* Menü-Kopf: Reisestand in Satzschreibweise, ohne Versalien. */
+#drawer-countdown { text-transform: none; letter-spacing: normal; font-weight: 500; }

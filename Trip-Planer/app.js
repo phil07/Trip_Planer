@@ -1301,9 +1301,9 @@ function calculateDates() {
         ? `${total} ${nightsWord(total)}, ${places.length} Orte, ${acts.length} Aktivitäten`
         : `Reise startete vor ${-diffDays} Tagen`;
     const dCount = document.getElementById('drawer-countdown');
-    if (dCount) dCount.textContent = diffDays === 0 ? "Heute geht's los ✈️" : diffDays > 0
-        ? `Noch ${diffDays} ${diffDays === 1 ? 'Tag' : 'Tage'} bis zum Start ✈️`
-        : `Reise läuft seit ${-diffDays} Tag${-diffDays === 1 ? '' : 'en'} ✈️`;
+    if (dCount) dCount.textContent = diffDays === 0 ? "Heute geht's los" : diffDays > 0
+        ? `Noch ${diffDays} ${diffDays === 1 ? 'Tag' : 'Tage'} bis zum Start`
+        : `Reise läuft seit ${-diffDays} Tag${-diffDays === 1 ? '' : 'en'}`;
     // Restzeit-Balken: voll vor Reisebeginn, leert sich bis zum Reiseende
     const daysLeft = Math.round((cur - parseISODate(todayISO())) / 864e5);
     const pct = total > 0 ? Math.max(0, Math.min(100, Math.round(daysLeft / total * 100))) : 0;
@@ -4289,7 +4289,7 @@ function renderDayPlan() {
 
     const favs = acts.filter(a => a.favorite);
     if (!favs.length && !planPoints.length) {
-        list.innerHTML = `<div class="empty-acts">Noch keine Favoriten.<br>Markiere Aktivitäten in „Aktivitäten & Essen“ mit ♡ – hier kannst du sie dann einzelnen Reisetagen zuordnen und als Route in Google Maps öffnen.<br>Eigene Punkte legst du mit <b>+</b> an.<br><button type="button" class="btn empty-cta" onclick="switchView('view-activities','Aktivitäten')">Aktivitäten entdecken</button></div>`;
+        list.innerHTML = `<div class="empty-acts">Noch keine Favoriten.<br>Markiere Aktivitäten mit ♡, dann kannst du sie Reisetagen zuordnen.<br><button type="button" class="btn empty-cta" onclick="switchView('view-activities','Aktivitäten')">Aktivitäten entdecken</button></div>`;
         window.calendarExport?.decorateDayPlan(list);
         window.transit?.renderDayPlan(list);
         return;
