@@ -1444,8 +1444,6 @@ button.budget-cat-toggle:focus-visible { outline: 2px solid var(--accent); outli
     color: var(--label); font-size: var(--fs-title3); cursor: pointer; }
 .search-refresh:active { transform: scale(.94); }
 .search-refresh:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.search-refresh.spinning i { display: inline-block; animation: locate-spin 1s linear infinite; }
-@media (prefers-reduced-motion: reduce) { .search-refresh.spinning i { animation: none; } }
 
 /* Einstellungen: Unterabschnitte in „Daten und Sync“ */
 .settings-sub { margin: 16px 0 6px; font-size: var(--fs-footnote); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
@@ -1536,7 +1534,6 @@ button.budget-cat-toggle:focus-visible { outline: 2px solid var(--accent); outli
 .settings-row + .settings-row { margin-top: 8px; }
 /* Aktivitäten: Symbol mittig im Kreis */
 .search-refresh { display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; }
-.search-refresh i { display: block; line-height: 1; margin: 0; }
 
 /* Einstellungen: Design-Auswahl über die volle Breite, drei gleich breite Felder, Inhalt mittig */
 .settings-card .theme-switcher { display: flex; width: 100%; margin: 0; }
@@ -1547,6 +1544,8 @@ body .settings-card .theme-btn i { display: block; line-height: 1; }
 .btn-row .btn-icon { justify-content: center; }
 :root[data-theme="dark"] .hero-card.home { box-shadow: none; }
 
-/* Aktivitäten „Neu laden“: quadratische Symbol-Box, damit es mittig sitzt und beim Drehen nicht eiert */
-.search-refresh i { display: grid; place-items: center; width: 24px; height: 24px; font-size: 20px; line-height: 1; transform-origin: 50% 50%; }
-.search-refresh.spinning i { display: grid; animation: locate-spin 1s linear infinite; }
+
+/* „Neu laden“ als SVG: Mittelpunkt liegt exakt bei 12/12, die Drehung bleibt ruhig */
+.search-refresh svg { display: block; width: 20px; height: 20px; flex: none; transform-origin: 50% 50%; }
+.search-refresh.spinning svg { animation: locate-spin 1s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .search-refresh.spinning svg { animation: none; } }

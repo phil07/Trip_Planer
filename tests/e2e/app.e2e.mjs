@@ -514,11 +514,20 @@ t('Aktivitäten: Neu-laden-Symbol sitzt mittig im Knopf', async () => {
     await open();
     await go('view-activities', 'Aktivitäten');
     const off = await page.evaluate(() => {
-        const b = document.getElementById('activitiesFab').getBoundingClientRect(), i = document.querySelector('#activitiesFab i').getBoundingClientRect();
+        const b = document.getElementById('activitiesFab').getBoundingClientRect(), i = document.querySelector('#activitiesFab svg').getBoundingClientRect();
         return { dx: Math.abs((b.left + b.width / 2) - (i.left + i.width / 2)), dy: Math.abs((b.top + b.height / 2) - (i.top + i.height / 2)), w: i.width, h: i.height };
     });
     assert.ok(off.dx <= 1 && off.dy <= 1, `Symbol nicht mittig: ${off.dx}/${off.dy}`);
     assert.equal(off.w, off.h, 'Symbol-Box ist quadratisch');
+    // Während der Drehung bleibt der Mittelpunkt an derselben Stelle (kein Eiern)
+    await page.evaluate(() => document.getElementById('activitiesFab').classList.add('spinning'));
+    const centers = [];
+    for (let k = 0; k < 4; k++) {
+        await page.waitForTimeout(130);
+        centers.push(await page.evaluate(() => { const r = document.querySelector('#activitiesFab svg').getBoundingClientRect(), b = document.getElementById('activitiesFab').getBoundingClientRect(); return [r.left + r.width / 2 - (b.left + b.width / 2), r.top + r.height / 2 - (b.top + b.height / 2)]; }));
+    }
+    const spread = Math.max(...centers.map(c => Math.hypot(c[0], c[1])));
+    assert.ok(spread < 0.5, `Symbol weicht beim Drehen von der Knopfmitte ab um ${spread.toFixed(2)} px`);
     assert.deepEqual(errors, []);
 });
 
