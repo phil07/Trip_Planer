@@ -1348,3 +1348,64 @@ button.budget-cat-toggle:focus-visible { outline: 2px solid var(--accent); outli
 .att-refresh:hover { color: var(--label); }
 .att-del:hover { color: var(--accent-text); }
 .att-part:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* ─── Stationen: ruhige Karten, Zeitstrahl, Gruppen (Stufe 1) ─── */
+.drag-handle { display: none; }
+@media (pointer: fine) { .drag-handle { display: flex; } }
+.place-card.station { position: relative; padding: 10px 8px 10px 14px; }
+.place-card.station.is-past .station-head-text { opacity: .62; }
+.station-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 18px; letter-spacing: -.01em; margin: 0; }
+.station-status { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px;
+    background: var(--primary-soft); color: var(--primary-text); }
+.place-dates { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.station-sub { margin-top: 2px; }
+.station-sub > .station-count { flex: none; padding: 1px 8px; border-radius: 999px; background: var(--bg-secondary); font-size: 12px; }
+.place-card.is-open .station-sub { display: none; }
+
+.st-group { margin-top: 14px; }
+.st-title { margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.st-nights { margin-top: 8px; }
+.hotel-row-btn { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; margin: 0; padding: 6px 12px; border: 0; border-radius: var(--radius-sm);
+    background: var(--bg-secondary); color: var(--label); font: inherit; font-size: 14px; font-weight: 500; text-align: left; cursor: pointer; flex-wrap: nowrap; }
+.hotel-row-btn .hotel-name { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.hotel-row-btn .hotel-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hotel-row-btn > i:last-child { flex: none; color: var(--muted); font-size: 16px; }
+.hotel-row-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hotel-hint { flex: none; font-size: 11.5px; color: var(--muted); }
+.st-link { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 6px; padding: 8px 14px; border: 0; border-radius: 999px;
+    background: transparent; color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: inset 0 0 0 1px var(--border); }
+.st-link:active { transform: scale(.98); }
+.st-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.st-group .att-row { margin-top: 0; }
+.place-notes { margin-top: 0; }
+
+/* Touch-Ziele: sichtbar klein, Trefferfläche mindestens 44 Pixel */
+.edit-btn, .more-btn { min-width: 44px; min-height: 44px; width: 44px; height: 44px; }
+.nights-btn { width: 44px; height: 44px; }
+.nights-val, button.nights-val { min-width: 72px; height: 44px; }
+.att-chip { min-height: 44px; }
+.att-part { min-height: 44px; }
+.att-open { padding-left: 14px; }
+.more-menu .menu-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 4px 2px 12px; font-size: 14px; font-weight: 500; color: var(--label); }
+.more-menu .menu-pair { display: flex; gap: 4px; }
+.more-menu .menu-pair button { width: 44px; min-height: 44px; justify-content: center; padding: 0; border-radius: 999px; background: var(--bg-secondary); }
+
+/* Zeitstrahl: eine Linie, ein Punkt je Station */
+#placesList.timeline { position: relative; padding-left: 40px; }
+#placesList.timeline::before { content: ""; position: absolute; left: 26px; top: 28px; bottom: 28px; width: 2px; border-radius: 2px; background: var(--border); }
+#placesList.timeline .place-card.station::before { content: ""; position: absolute; left: -21px; top: 22px; width: 12px; height: 12px; border-radius: 50%;
+    background: var(--bg); box-shadow: 0 0 0 2px var(--muted); z-index: 2; }
+#placesList.timeline .place-card.station.is-past::before { background: var(--muted); }
+#placesList.timeline .place-card.station.is-current::before { background: var(--primary); box-shadow: 0 0 0 2px var(--primary), 0 0 0 6px var(--primary-soft); }
+#placesList.timeline .transit-leg { margin: 6px 0; background: transparent; box-shadow: none; }
+#placesList.timeline .transit-leg > summary { padding: 6px 8px; }
+#placesList.timeline .transit-leg[open] { background: var(--bg-secondary); box-shadow: inset 0 0 0 1px var(--border); }
+#placesList.timeline .transit-leg > summary::before { content: ""; position: absolute; left: -17px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--muted); }
+#placesList.timeline .transit-leg { position: relative; }
+.station-empty { margin-top: 24px; }
+
+/* Liste: „Route vorschlagen“ als leiser Textknopf statt zweitem schwebenden Knopf */
+.places-bar { justify-content: flex-start; padding: 4px 20px 0; }
+.places-bar .fab-suggest { box-shadow: none; background: transparent; color: var(--primary-text); min-height: 44px; padding: 0 8px; font-weight: 600; }
+.places-bar .fab-suggest svg { background: transparent; padding: 0; width: 18px; height: 18px; }
+.place-notes .edit-btn { margin: -8px -6px -8px 0; flex: none; align-self: flex-start; }

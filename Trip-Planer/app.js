@@ -3360,11 +3360,23 @@ function renderPlaces() {
         const span = document.getElementById('fabSuggestLabel'); if (span) span.textContent = lbl;
     }
 
+    list.classList.toggle('timeline', places.length > 0);
+    if (!places.length) {
+        list.innerHTML = `<div class="empty-acts station-empty">Noch keine Stationen.<br>Füge deine erste Station hinzu oder lass dir eine Route vorschlagen.<br><button type="button" class="btn empty-cta" onclick="document.getElementById('modal-place').showModal()">Erste Station hinzufügen</button></div>`;
+        return;
+    }
+    // Fortschritt: laufende Station markieren, vergangene dämpfen (wie auf der Startseite).
+    const today = todayISO();
+    const upIdx = computedData.findIndex(c => c && c.isoEnd > today);
+    const curIdx = upIdx >= 0 && computedData[upIdx].isoStart <= today ? upIdx : -1;
+    const nextIdx = curIdx < 0 && upIdx > 0 ? upIdx : -1;
+    const finePointer = window.matchMedia?.('(pointer: fine)').matches;
+
     const frag = document.createDocumentFragment();
     if (places.length) frag.appendChild(buildTransportLeg(null, true, places[0]));
     places.forEach((p, i) => {
         const cd = computedData[i] || { strStart: '', strEnd: '' };
-        const card = document.createElement('div'); card.className = 'place-card station'; card.draggable = true;
+        const card = document.createElement('div'); card.className = 'place-card station'; card.draggable = !!finePointer;
         card.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', i); setTimeout(() => card.classList.add('dragging'), 40); });
         card.addEventListener('dragend', () => card.classList.remove('dragging'));
         card.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('drag-over'); });
@@ -3375,45 +3387,59 @@ function renderPlaces() {
             if (!isNaN(from) && from !== i) { const item = places.splice(from,1)[0]; places.splice(i,0,item); saveData(); }
         });
 
-        const hotelGeoHint = p.hotelLat ? '' : ' <span style="color:var(--label-tertiary);font-size:10px">(kein Marker)</span>';
         const pid = Number(p.id);
         const editId = `hotel-edit-${pid}`;
         const isOpen = openStations.has(pid);
         const nights = clampNights(p.nights);
         const nDocs = attachCount(`hotel:${pid}`);
+        const status = i === curIdx ? 'Aktuell' : i === nextIdx ? 'Als Nächstes' : '';
         card.dataset.pid = pid;
         card.classList.toggle('is-open', isOpen);
+        card.classList.toggle('is-current', i === curIdx);
+        card.classList.toggle('is-past', !!(computedData[i] && computedData[i].isoEnd <= today));
+        const markerHint = p.hotel && !p.hotelLat ? `<span class="hotel-hint">Karte: Stationsmitte</span>` : '';
+        const hotelOpen = !p.hotel;
 
-        // Eingeklappt: eine kompakte Kopfzeile. Aufgeklappt: Unterkunft, Anhänge, Notizen, Nächte.
+        // Eingeklappt: drei ruhige Zeilen. Aufgeklappt: Nächte, Unterkunft, Buchungen, Notiz.
         card.innerHTML = `
             <div class="drag-handle" aria-hidden="true">≡</div>
             <div class="place-body">
                 <button type="button" class="station-head" aria-expanded="${isOpen}" aria-controls="st-det-${pid}" onclick="toggleStation(${pid})">
                     <span class="station-head-text">
-                        <span class="station-num">Station ${i+1}</span>
-                        <span class="station-name" role="heading" aria-level="3">${escHtml(displayName(p.name,i))}</span>
-                        <span class="place-dates">${cd.strStart} – ${cd.strEnd} · ${nights} ${nights === 1 ? 'Nacht' : 'Nächte'}</span>
-                        <span class="station-sub">${ico('bed', '🛏')}<span>${escHtml(p.hotel) || 'Unterkunft offen'}</span>${p.notes ? ico('note-pencil', '📝') : ''}${nDocs ? ico('paperclip', '📎') : ''}</span>
+                        <span class="station-name" role="heading" aria-level="3">${escHtml(displayName(p.name,i))}${status ? `<span class="station-status">${status}</span>` : ''}</span>
+                        <span class="place-dates">Station ${i+1} · ${cd.strStart} – ${cd.strEnd} · ${nights} ${nights === 1 ? 'Nacht' : 'Nächte'}</span>
+                        <span class="station-sub">${ico('bed', '🛏')}<span>${escHtml(p.hotel) || 'Unterkunft offen'}</span>${nDocs ? `<span class="station-count">${nDocs} ${nDocs === 1 ? 'Dokument' : 'Dokumente'}</span>` : ''}${p.notes ? `<span class="station-count">Notiz</span>` : ''}</span>
                     </span>
                     ${ico('caret-down')}
                 </button>
                 <div class="station-details" id="st-det-${pid}" ${isOpen ? '' : 'hidden'}>
-                    <div class="hotel-row">
-                        <span class="hotel-name">${ico(p.hotelLat ? 'map-pin' : 'bed')}<span style="overflow:hidden;text-overflow:ellipsis">${escHtml(p.hotel)||'Unterkunft offen'}${hotelGeoHint}</span></span>
-                        <button class="edit-btn" onclick="toggleHotelEdit(${pid})" aria-label="Unterkunft bearbeiten" title="Unterkunft bearbeiten">${ico('pencil-simple', '✏️')}</button>
+                    <div class="st-group st-nights">
+                        <div class="nights-row">
+                            <button class="nights-btn" onclick="changeNights(${i},-1)" aria-label="Weniger Nächte">−</button>
+                            <button type="button" class="nights-val" data-i="${i}" onclick="editNights(+this.dataset.i, this)" aria-label="Nächte direkt eingeben">${nights} ${nights === 1 ? 'Nacht' : 'Nächte'}</button>
+                            <button class="nights-btn" onclick="changeNights(${i},1)" aria-label="Mehr Nächte">+</button>
+                        </div>
                     </div>
-                    ${p.hotel ? `<button type="button" class="btn-icon taxi-open" onclick="taxiCard.openPlace(${pid})">${ico('taxi', '🚕')} Taxi-Karte</button>` : ''}
-                    <div class="hotel-input-wrap" id="${editId}">
-                        <input type="text" id="hi-${pid}" value="${escHtml(p.hotel)}" placeholder="Unterkunft eingeben…">
-                        <button class="hotel-save-btn" onclick="saveHotelFromInput(${pid})">OK</button>
-                    </div>
-                    ${attachHtml(`hotel:${pid}`, 'hotel', `Buchung ${p.hotel || clean(p.name)}`)}
-                    ${p.notes ? `<div class="place-notes">${ico('note-pencil', '📝')}<span>${linkify(p.notes)}</span><button type="button" class="edit-btn" onclick="openPlaceNotes(${pid})" aria-label="Notizen zu ${escHtml(clean(p.name))} bearbeiten" title="Notizen bearbeiten">${ico('pencil-simple', '✏️')}</button></div>` : ''}
-                    <div class="nights-row">
-                        <button class="nights-btn" onclick="changeNights(${i},-1)" aria-label="Weniger Nächte">−</button>
-                        <button type="button" class="nights-val" data-i="${i}" onclick="editNights(+this.dataset.i, this)" aria-label="Nächte direkt eingeben">${nights} N</button>
-                        <button class="nights-btn" onclick="changeNights(${i},1)" aria-label="Mehr Nächte">+</button>
-                    </div>
+                    <section class="st-group" aria-label="Unterkunft">
+                        <h4 class="st-title">Unterkunft</h4>
+                        <button type="button" class="hotel-row hotel-row-btn" onclick="toggleHotelEdit(${pid})" aria-label="Unterkunft ${p.hotel ? 'ändern' : 'eintragen'}">
+                            <span class="hotel-name">${ico(p.hotelLat ? 'map-pin' : 'bed')}<span>${escHtml(p.hotel)||'Unterkunft eintragen'}</span></span>${markerHint}${ico('pencil-simple', '✏️')}
+                        </button>
+                        <div class="hotel-input-wrap${hotelOpen ? ' open' : ''}" id="${editId}">
+                            <input type="text" id="hi-${pid}" value="${escHtml(p.hotel)}" placeholder="Unterkunft eingeben…" aria-label="Unterkunft">
+                            <button class="hotel-save-btn" onclick="saveHotelFromInput(${pid})">OK</button>
+                        </div>
+                        ${p.hotel ? `<button type="button" class="st-link taxi-open" onclick="taxiCard.openPlace(${pid})">${ico('taxi', '🚕')}<span>Taxi-Karte</span></button>` : ''}
+                    </section>
+                    <section class="st-group" aria-label="Buchungen">
+                        <h4 class="st-title">Buchungen</h4>
+                        ${attachHtml(`hotel:${pid}`, 'hotel', `Buchung ${p.hotel || clean(p.name)}`)}
+                    </section>
+                    <section class="st-group" aria-label="Notiz">
+                        <h4 class="st-title">Notiz</h4>
+                        ${p.notes ? `<div class="place-notes">${ico('note-pencil', '📝')}<span>${linkify(p.notes)}</span><button type="button" class="edit-btn" onclick="openPlaceNotes(${pid})" aria-label="Notizen zu ${escHtml(clean(p.name))} bearbeiten" title="Notizen bearbeiten">${ico('pencil-simple', '✏️')}</button></div>`
+                            : `<button type="button" class="st-link" onclick="openPlaceNotes(${pid})">${ico('note-pencil', '📝')}<span>Notiz hinzufügen</span></button>`}
+                    </section>
                 </div>
             </div>
             <div class="place-side">
@@ -3421,9 +3447,10 @@ function renderPlaces() {
                     <summary class="more-btn" aria-label="${escHtml(clean(p.name))}: Aktionen">${ico('dots-three-vertical', '⋯')}</summary>
                     <div class="more-menu">
                         <button type="button" onclick="openRenamePlace(${pid})">${ico('pencil-simple', '✏️')} Umbenennen</button>
-                        <button type="button" onclick="openPlaceNotes(${pid})">${ico('note-pencil', '📝')} ${p.notes ? 'Notizen bearbeiten' : 'Notiz hinzufügen'}</button>
-                        <button type="button" data-i="${i}" data-d="-1" onclick="movePlace(+this.dataset.i, +this.dataset.d)" ${i === 0 ? 'disabled' : ''}>${ico('arrow-up', '↑')} Nach oben</button>
-                        <button type="button" data-i="${i}" data-d="1" onclick="movePlace(+this.dataset.i, +this.dataset.d)" ${i === places.length - 1 ? 'disabled' : ''}>${ico('arrow-down', '↓')} Nach unten</button>
+                        <div class="menu-row"><span>Reihenfolge</span><span class="menu-pair">
+                            <button type="button" data-i="${i}" data-d="-1" onclick="movePlace(+this.dataset.i, +this.dataset.d)" aria-label="Nach oben" ${i === 0 ? 'disabled' : ''}>${ico('arrow-up', '↑')}</button>
+                            <button type="button" data-i="${i}" data-d="1" onclick="movePlace(+this.dataset.i, +this.dataset.d)" aria-label="Nach unten" ${i === places.length - 1 ? 'disabled' : ''}>${ico('arrow-down', '↓')}</button>
+                        </span></div>
                         <button type="button" class="danger" onclick="delPlace(${pid})">${ico('trash', '✕')} Löschen</button>
                     </div>
                 </details>
@@ -3431,10 +3458,8 @@ function renderPlaces() {
         frag.appendChild(card);
         const nxt = places[i + 1];
         if (nxt && window.transit) {
-            // Etappe: eine Zeile, aufgeklappt mit Transportmittel, Verbindung, Links und Anhängen.
-            const leg = window.transit.legEl(i);
-            leg.querySelector('.transit-actions')?.prepend(transportBtn(nxt.id));
-            frag.appendChild(leg);
+            // Etappe: eine Zeile; Details (Transport und Buchung, Anhänge, Routen) nach Tipp.
+            frag.appendChild(window.transit.legEl(i));
         } else if (nxt) frag.appendChild(buildLegButton(nxt, false, nxt));
         else frag.appendChild(buildTransportLeg(null, false, p));
     });
@@ -3475,17 +3500,6 @@ document.addEventListener('click', e => {
     document.querySelectorAll('.place-more[open]').forEach(d => { if (!d.contains(e.target)) d.removeAttribute('open'); });
 });
 
-// Knopf „Transportmittel ändern“ im aufgeklappten Bereich. key: Stations-ID der Zielstation, 'arrival' oder 'return'.
-function transportBtn(key) {
-    const tr = clean((key === 'return' ? returnTransport : key === 'arrival' ? arrivalTransport : places.find(p => p.id === key)?.transport) || '');
-    const set = tr && tr !== 'Ausstehend';
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'transit-link transport-btn';
-    btn.innerHTML = `${ico(transportMode(tr).icon)}<span>${escHtml(set ? `Transportmittel: ${tr}` : 'Transportmittel festlegen')}</span>${ico('pencil-simple')}`;
-    btn.onclick = () => openTransport(key);
-    return btn;
-}
 // Anreise und Rückreise: eine aufklappbare Zeile mit Transportmittel, gebuchter Verbindung und Anhängen.
 function buildTransportLeg(target, isArrival, from) {
     const kind = isArrival ? 'arrival' : 'return';
@@ -3507,11 +3521,10 @@ function buildTransportLeg(target, isArrival, from) {
             ${attachHtml(kind, 'ticket', title)}
         </div>`;
     const actions = el.querySelector('.transit-actions');
-    actions.appendChild(transportBtn(kind));
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'transit-link transit-edit';
-    btn.innerHTML = `${ico(booking ? 'pencil-simple' : 'plus', booking ? '✏️' : '+')}<span>${booking ? 'Gebuchte Verbindung bearbeiten' : 'Gebuchte Verbindung eintragen'}</span>`;
+    btn.innerHTML = `${ico(booking ? 'pencil-simple' : 'plus', booking ? '✏️' : '+')}<span>${booking ? 'Transport und Buchung ändern' : 'Transport und Buchung eintragen'}</span>`;
     btn.onclick = () => window.transit?.openEditor(isArrival ? 0 : -1, kind);
     actions.appendChild(btn);
     return el;
@@ -3690,9 +3703,7 @@ function movePlace(i, d) {
     haptic();
     [places[i], places[j]] = [places[j], places[i]];
     saveData();
-    const btns = document.querySelectorAll(`#placesList .reorder-btn[data-i="${j}"]`);
-    const target = [...btns].find(b => +b.dataset.d === d && !b.disabled) || [...btns].find(b => !b.disabled);
-    target?.focus({ preventScroll: true });
+    document.querySelector(`#placesList .place-card[data-pid="${Number(places[j].id)}"] .station-head`)?.focus({ preventScroll: true });
 }
 // Löschen ohne Rückfrage, dafür mit "Rückgängig": Station samt ihrer Aktivitäten
 // (sofern keine andere Station denselben Ort trägt) wird an alter Position wiederhergestellt.

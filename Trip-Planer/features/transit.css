@@ -50,3 +50,14 @@ details.transit-day[open] > summary > i:last-child { transform: rotate(180deg); 
 details.transit-day[open] > summary { margin-bottom: 10px; }
 details.transit-day .transit-sum-text { white-space: normal; overflow: visible; }
 details.transit-day > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 10px; }
+
+/* Etappe: zwei Ebenen. Oben Buchung und Anhänge, darunter „Routen und Richtwert“ */
+.transit-routes { margin-top: 10px; border-radius: 14px; }
+.transit-routes > summary { list-style: none; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 4px; cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 600; }
+.transit-routes > summary::-webkit-details-marker { display: none; }
+.transit-routes > summary > i:first-child { font-size: 16px; }
+.transit-routes > summary > i:last-child { margin-left: auto; font-size: 13px; transition: transform .3s var(--ease-out); }
+.transit-routes[open] > summary > i:last-child { transform: rotate(180deg); }
+.transit-routes > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.transit-routes .transit-actions { margin-top: 2px; }
+#modal-transit .tr-modes { margin-bottom: 12px; }

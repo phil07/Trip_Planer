@@ -140,20 +140,23 @@
         const basis = info.km == null ? 'Ohne Koordinaten – Google Maps sucht nach den Namen.'
             : `${info.a.hotel ? 'Hotel' : 'Stationsmitte'} → ${info.b.hotel ? 'Hotel' : 'Stationsmitte'} · Luftlinie ${esc(fmtKm(info.km))} · geschätzt per ${esc(info.est.mode)}${info.est.note ? ` (${esc(info.est.note)})` : ''}${info.km > 900 && info.est.mode !== 'Flug' ? ' · Flug ist ggf. schneller' : ''}. Nur ein grober Richtwert.`;
         const t = info.to.transit;
+        // Ebene 1: gebuchte Verbindung, ein Knopf für Transport und Buchung, Anhänge.
+        // Ebene 2 („Routen und Richtwert“): Karten-Links und die Erklärung der Schätzung.
         return `
-            <div class="transit-facts">
-                <span class="transit-fact">${ico('ruler', '📏')} ${info.km == null ? '–' : `ca. ${esc(fmtKm(info.est.dist))}`}</span>
-                <span class="transit-fact">${ico('clock', '⏱')} ${info.km == null ? '–' : `ca. ${esc(fmtDuration(info.est.min))}`}</span>
-            </div>
-            <p class="transit-basis">${basis}</p>
             ${connectionHtml(t)}
             <div class="transit-actions">
-                <a class="transit-link" href="${esc(info.gmaps)}" target="_blank" rel="noopener">${ico('map-trifold', '🗺')}<span>${info.est && info.est.gm === 'driving' ? 'Route in Google Maps (Auto)' : info.est && info.est.gm === 'walking' ? 'Route in Google Maps (zu Fuß)' : 'Verbindung in Google Maps (ÖPNV)'}</span></a>
-                ${info.japan && onRails(info) ? `<a class="transit-link" href="https://world.jorudan.co.jp/mln/en/" target="_blank" rel="noopener">${ico('train', '🚄')}<span>Japan Transit Planner (Jorudan)</span></a>
-                <a class="transit-link" href="https://japantravel.navitime.com/en/" target="_blank" rel="noopener">${ico('compass', '🧭')}<span>NAVITIME Japan Travel</span></a>` : ''}
-                <button type="button" class="transit-link transit-edit" data-i="${idx}">${ico(t ? 'pencil-simple' : 'plus', t ? '✏️' : '+')}<span>${t ? 'Verbindung bearbeiten' : 'Gebuchte Verbindung eintragen'}</span></button>
+                <button type="button" class="transit-link transit-edit" data-i="${idx}">${ico(t ? 'pencil-simple' : 'plus', t ? '✏️' : '+')}<span>${t ? 'Transport und Buchung ändern' : 'Transport und Buchung eintragen'}</span></button>
             </div>
-            ${typeof attachHtml === 'function' ? attachHtml('leg:' + info.to.id, transportMode(info.to.transport).label === 'Flug' ? 'ticket' : 'jrpass', `${info.fromName} → ${info.toName}`) : ''}`;
+            ${typeof attachHtml === 'function' ? attachHtml('leg:' + info.to.id, transportMode(info.to.transport).label === 'Flug' ? 'ticket' : 'jrpass', `${info.fromName} → ${info.toName}`) : ''}
+            <details class="transit-routes">
+                <summary>${ico('map-trifold', '🗺')}<span>Routen und Richtwert</span>${ico('caret-down')}</summary>
+                <div class="transit-actions">
+                    <a class="transit-link" href="${esc(info.gmaps)}" target="_blank" rel="noopener">${ico('map-trifold', '🗺')}<span>${info.est && info.est.gm === 'driving' ? 'Route in Google Maps (Auto)' : info.est && info.est.gm === 'walking' ? 'Route in Google Maps (zu Fuß)' : 'Verbindung in Google Maps (ÖPNV)'}</span></a>
+                    ${info.japan && onRails(info) ? `<a class="transit-link" href="https://world.jorudan.co.jp/mln/en/" target="_blank" rel="noopener">${ico('train', '🚄')}<span>Japan Transit Planner (Jorudan)</span></a>
+                    <a class="transit-link" href="https://japantravel.navitime.com/en/" target="_blank" rel="noopener">${ico('compass', '🧭')}<span>NAVITIME Japan Travel</span></a>` : ''}
+                </div>
+                <p class="transit-basis">${basis}</p>
+            </details>`;
     }
     function wire(root) {
         root.querySelectorAll('.transit-edit').forEach(b => b.addEventListener('click', () => openEditor(+b.dataset.i)));
@@ -235,9 +238,11 @@
         d.id = 'modal-transit';
         d.setAttribute('aria-labelledby', 'modal-transit-title');
         d.innerHTML = `
-            <h3 id="modal-transit-title">Zugverbindung</h3>
+            <h3 id="modal-transit-title">Transport und Buchung</h3>
             <div class="dialog-body">
                 <p class="tr-route" id="transit-route"></p>
+                <div class="chip-group tr-modes" id="transit-modes" role="radiogroup" aria-label="Transportmittel wählen"></div>
+                <div class="form-group"><label for="transit-tdetail">Zusatz zum Transportmittel (optional)</label><input type="text" id="transit-tdetail" maxlength="80" placeholder="z. B. JR Pass, Nachtzug"></div>
                 <div class="form-group"><label for="transit-train">Zug</label><input type="text" id="transit-train" maxlength="60" placeholder="z. B. Nozomi 215"></div>
                 <div class="form-group"><label for="transit-dep">Abfahrt</label><input type="time" id="transit-dep"></div>
                 <div class="form-group" id="transit-terminal-wrap"><label for="transit-terminal">Terminal</label><input type="text" id="transit-terminal" maxlength="20" placeholder="z. B. 2" autocomplete="off"></div>
@@ -266,8 +271,9 @@
             : kind === 'return' ? `Rückreise ab ${clean(places[places.length - 1].name)}`
             : `${clean(places[idx].name)} → ${clean(places[idx + 1].name)}`;
         d.querySelector('#transit-route').textContent = route;
+        renderModes(d, kind, idx);
         applyLabels(d, transportLabelFor(kind, idx));
-        d.querySelector('#modal-transit-title').textContent = kind === 'leg' ? 'Zugverbindung' : kind === 'arrival' ? 'Anreise buchen' : 'Rückreise buchen';
+        d.querySelector('#transit-tdetail').value = transportDetail(transportOf(kind, idx));
         d.querySelector('#transit-train').value = t.train || '';
         d.querySelector('#transit-dep').value = t.dep || '';
         d.querySelector('#transit-seat').value = t.seat || '';
@@ -277,10 +283,36 @@
         d.querySelector('#transit-del').hidden = !bookingOf(kind, idx);
         d.showModal();
     }
-    // Verkehrsmittel der Verbindung: Anreise/Rückreise bzw. Transportmittel der Zielstation.
-    function transportLabelFor(kind, idx) {
+    // Transportmittel (Text) der Verbindung: Anreise/Rückreise bzw. Zielstation der Etappe.
+    function transportOf(kind, idx) {
         const tr = kind === 'arrival' ? arrivalTransport : kind === 'return' ? returnTransport : (places[idx + 1]?.transport || '');
-        return transportMode(clean(tr)).label;
+        const v = clean(tr || '');
+        return v === 'Ausstehend' ? '' : v;
+    }
+    function setTransport(kind, idx, value) {
+        if (kind === 'arrival') arrivalTransport = value;
+        else if (kind === 'return') returnTransport = value;
+        else if (places[idx + 1]) places[idx + 1].transport = value || 'Ausstehend';
+    }
+    function transportLabelFor(kind, idx) { return transportMode(transportOf(kind, idx)).label; }
+    // Zusatz hinter dem Transportmittel („Flug · LH 716“ → „LH 716“).
+    function transportDetail(cur) {
+        const mode = transportMode(cur);
+        return cur && mode.label && cur.startsWith(mode.label) ? cur.slice(mode.label.length).replace(/^\s*[·,–-]\s*/, '') : (cur && !mode.label ? cur : '');
+    }
+    function renderModes(d, kind, idx) {
+        const box = d.querySelector('#transit-modes');
+        const cur = transportLabelFor(kind, idx);
+        box.innerHTML = TRANSPORT_MODES.map(m => {
+            const on = cur === m.label;
+            return `<button type="button" class="chip${on ? ' active' : ''}" role="radio" aria-checked="${on}" data-mode="${esc(m.label)}">${ico(m.icon, m.fb)} ${esc(m.label)}</button>`;
+        }).join('');
+        box.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+            const wasOn = c.classList.contains('active');
+            box.querySelectorAll('.chip').forEach(x => { x.classList.remove('active'); x.setAttribute('aria-checked', 'false'); });
+            if (!wasOn) { c.classList.add('active'); c.setAttribute('aria-checked', 'true'); }
+            applyLabels(d, wasOn ? '' : c.dataset.mode);
+        });
     }
     // Beschriftung der Felder je Verkehrsmittel: Flug und Bahn haben andere Angaben als Bus oder Auto.
     function applyLabels(d, mode) {
@@ -313,17 +345,22 @@
         const leg = kind === 'leg' ? places[editIdx + 1] : null;
         const wasOpen = leg && openLegs.has(String(leg.id));
         const v = id => d.querySelector(id).value;
+        const prevTransport = transportOf(kind, editIdx);
+        const mode = d.querySelector('#transit-modes .chip.active')?.dataset.mode || '';
+        const tdetail = v('#transit-tdetail').trim().slice(0, 80);
+        setTransport(kind, editIdx, [mode, tdetail].filter(Boolean).join(' · '));
         setBooking(kind, editIdx, normTransit({ train: v('#transit-train'), dep: v('#transit-dep'), terminal: v('#transit-terminal'),
             gate: v('#transit-gate'), seat: v('#transit-seat'), note: v('#transit-note') }));
         if (leg) openLegs.add(String(leg.id));
         const current = bookingOf(kind, editIdx);
         if (!saveData()) {
             setBooking(kind, editIdx, previous);
+            setTransport(kind, editIdx, prevTransport);
             if (leg) { if (wasOpen) openLegs.add(String(leg.id)); else openLegs.delete(String(leg.id)); }
             return;
         }
         d.close(); haptic();
-        showToast(current ? 'Verbindung gespeichert.' : 'Verbindung entfernt.');
+        showToast(current ? 'Transport und Buchung gespeichert.' : 'Gespeichert. Keine Buchung hinterlegt.');
     }
     function remove() {
         const d = dialog(), kind = editKind;

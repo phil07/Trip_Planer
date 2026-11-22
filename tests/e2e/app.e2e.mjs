@@ -218,8 +218,8 @@ t('Stationen: umbenennen behält die Station und ihre Aktivitäten', async () =>
 t('Stationen: Notiz hinzufügen und auf der Karte anzeigen', async () => {
     await open();
     await go('view-places', 'Stationen');
-    await page.click('.place-more summary >> nth=0');
-    await page.click('text=Notiz hinzufügen >> nth=0');
+    await page.locator('#placesList .station-head >> nth=0').click();
+    await page.click('#placesList .st-link:has-text("Notiz hinzufügen") >> nth=0');
     await page.waitForFunction(() => document.getElementById('modal-place-notes').open);
     await page.fill('#pn-text', 'Check-in ab 15 Uhr, siehe https://example.com/buchung.');
     await page.click('#modal-place-notes .btn:not(.btn-secondary)');
@@ -246,7 +246,7 @@ t('Stationen: eingeklappt kompakt, Tipp klappt Details auf', async () => {
     const arrival = page.locator('#placesList .transit-leg--end >> nth=0');
     assert.match(await arrival.locator('summary').innerText(), /Anreise nach/);
     await arrival.locator('summary').click();
-    assert.match(await arrival.innerText(), /Transportmittel[\s\S]*Gebuchte Verbindung/);
+    assert.match(await arrival.innerText(), /Transport und Buchung/);
     assert.deepEqual(errors, []);
 });
 
@@ -406,16 +406,46 @@ t('Stationen: Etappen-Symbol und Links folgen dem Verkehrsmittel (Mietwagen ≠ 
     const legs = page.locator('#placesList .transit-leg:not(.transit-leg--end)');
     // Osaka: Mietwagen -> Auto-Symbol, kein Zug-Planer, Route für Auto
     const osaka = legs.nth(1);
-    await osaka.locator('summary').click();
-    assert.equal(await osaka.locator('summary .ph-car').count(), 1);
-    assert.equal(await osaka.locator('summary .ph-train-simple').count(), 0);
+    await osaka.locator(':scope > summary').click();
+    await osaka.locator('.transit-routes > summary').click();
+    assert.equal(await osaka.locator(':scope > summary .ph-car').count(), 1);
+    assert.equal(await osaka.locator(':scope > summary .ph-train-simple').count(), 0);
     assert.match(await osaka.innerText(), /Route in Google Maps \(Auto\)/);
     assert.doesNotMatch(await osaka.innerText(), /Jorudan/);
     // Kyoto: Zug -> Zug-Symbol und Zug-Planer
     const kyoto = legs.nth(0);
-    await kyoto.locator('summary').click();
-    assert.equal(await kyoto.locator('summary .ph-train-regional').count(), 1);
+    await kyoto.locator(':scope > summary').click();
+    await kyoto.locator('.transit-routes > summary').click();
+    assert.equal(await kyoto.locator(':scope > summary .ph-train-regional').count(), 1);
     assert.match(await kyoto.innerText(), /Jorudan/);
+});
+
+t('Stationen: ein Dialog für Transportmittel und Buchung', async () => {
+    await open();
+    await go('view-places', '');
+    const leg = page.locator('#placesList .transit-leg:not(.transit-leg--end)').nth(0);
+    await leg.locator(':scope > summary').click();
+    assert.equal(await leg.locator('.transit-edit').count(), 1, 'ein Knopf statt zwei');
+    await leg.locator('.transit-edit').click();
+    await page.waitForFunction(() => document.getElementById('modal-transit').open);
+    assert.match(await page.locator('#modal-transit-title').innerText(), /Transport und Buchung/);
+    assert.equal(await page.locator('#transit-modes .chip.active').getAttribute('data-mode'), 'Zug');
+    await page.click('#transit-modes .chip[data-mode="Bus"]');
+    assert.match(await page.locator('label[for="transit-train"]').innerText(), /Linie/);
+    await page.fill('#transit-tdetail', 'Express');
+    await page.click('#transit-save');
+    const places = await page.evaluate(() => JSON.parse(localStorage.getItem('tp_places')));
+    assert.equal(places[1].transport, 'Bus · Express');
+    assert.deepEqual(errors, []);
+});
+
+t('Stationen: laufende Station markiert, Leerzustand mit nächstem Schritt', async () => {
+    await open({ ...FIXTURE(), tp_start: day(-1) });
+    await go('view-places', '');
+    assert.match(await page.locator('#placesList .place-card.station >> nth=0').locator('.station-status').innerText(), /Aktuell/i);
+    await page.evaluate(() => { places = []; saveData(); renderPlaces(); });
+    assert.equal(await page.locator('#placesList .station-empty .empty-cta').count(), 1);
+    assert.deepEqual(errors, []);
 });
 
 t('Währungsrechner: Schnellbeträge rechnen um, Kursverlauf zeigt 30 Tage', async () => {
