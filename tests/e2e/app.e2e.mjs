@@ -873,8 +873,11 @@ t('Aktivitäten: fehlende Beschreibungen schreibt die KI', async () => {
         const d = asked.map(x => ({ i: x.i, t: `${x.name} ist ein bekannter Ort in ${x.ort}, gut für einen Besuch.` }));
         r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ d }) });
     });
-    await page.evaluate(() => fillMissingDescs());
+    const ja = '水鏡天満宮（すいきょうてんまんぐう）は、福岡県福岡市中央区天神一丁目にある天満宮の1つである。';
+    await page.evaluate(ja => { acts.find(a => a.title === 'Fushimi Inari').desc = ja; fillMissingDescs(); }, ja);
     await page.waitForFunction(() => acts.find(a => a.title === 'Fushimi Inari')?.desc.includes('bekannter Ort'), null, { timeout: 5000 });
+    assert.equal(asked.find(x => x.original === 'Fushimi Inari').hinweis, ja, 'fremdsprachiger Text geht als Quelle an die KI');
+    assert.equal(await page.evaluate(() => acts.find(a => a.title === 'Fushimi Inari').descDe), true);
     assert.ok(asked.length >= 3, 'alle Einträge mit Platzhalter wurden angefragt');
     assert.deepEqual(errors, []);
 });
