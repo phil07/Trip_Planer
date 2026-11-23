@@ -1383,9 +1383,10 @@ function renderHome() {
 }
 
 // ─── REISEKOSTEN & BUDGET ────────────────────────────────────────────────
-const BUDGET_CATS = [['🏨','Hotel'],['🍜','Essen'],['🚄','Transport'],['🎡','Aktivitäten'],['🛍️','Shopping']];
+const BUDGET_CATS = [['bed','Hotel','🏨'],['fork-knife','Essen','🍜'],['train','Transport','🚄'],['ticket','Aktivitäten','🎡'],['handbag','Shopping','🛍️']];
+// Icon je Kategorie (Phosphor-Linie statt Emoji). Gespeichert wird nur der Name.
+const catIco = c => { const f = BUDGET_CATS.find(([,k]) => k === c); return f ? ico(f[0], f[2]) : ico('wallet', '💰'); };
 const catOf = v => String(v).replace(/^\S+\s/, '');
-const catEmoji = c => (BUDGET_CATS.find(([,k]) => k === c) || ['💰','💰'])[0];
 // esc() ist bereits weiter oben (Zeile ~1999) definiert – hier nicht erneut deklarieren
 // (führte zu "Identifier 'esc' has already been declared" und einem kompletten App-Crash).
 // Akzeptiert "1.234,56", "12,5", "12.5", "1,234.56"; NaN bei Unsinn oder > 1e7.
@@ -1671,7 +1672,7 @@ function renderBudget() {
             return `
             <div class="budget-cat" data-catrow="${c}">
                 <button type="button" class="budget-cat-top budget-cat-toggle" data-cat="${c}" aria-expanded="${openBudgetCats.has(c)}" onclick="toggleBudgetCat(this.dataset.cat, this)" aria-label="${c}: Budget ändern">
-                    <span class="budget-cat-name">${emo} ${c}</span>
+                    <span class="budget-cat-name">${ico(emo, BUDGET_CATS.find(([, k]) => k === c)?.[2])} ${c}</span>
                     <span class="budget-cat-spent">${fmtEuro(sp)}${pl ? ` / ${fmtEuro(pl)}` : ''} ${ico('pencil-simple')}</span>
                 </button>
                 <div class="budget-progress"><div class="budget-progress-fill${sp > pl ? ' over' : ''}" style="width:${pl ? Math.max(cp, 2) : 0}%"></div></div>
@@ -1685,7 +1686,7 @@ function renderBudget() {
     entriesCont.innerHTML = `
         ${budget.entries.length ? budget.entries.slice().reverse().map(e => `
             <div class="budget-entry">
-                <span class="budget-e-cat">${catEmoji(e.cat)}</span>
+                <span class="budget-e-cat">${catIco(e.cat)}</span>
                 <div class="budget-e-main">
                     <div class="budget-e-desc">${esc(e.desc) || esc(e.cat)}</div>
                     <div class="budget-e-meta">${esc([e.place, e.date && fmtDate(e.date)].filter(Boolean).join(' · '))}</div>
@@ -1774,7 +1775,7 @@ function patchBudgetSummary() {
     });
 }
 function openBudgetModal() {
-    document.getElementById('b-cat').innerHTML = BUDGET_CATS.map(([emo, c]) => `<option>${emo} ${c}</option>`).join('');
+    document.getElementById('b-cat').innerHTML = BUDGET_CATS.map(([, c]) => `<option>${c}</option>`).join('');
     document.getElementById('b-place').innerHTML = '<option value="">— ohne Ort —</option>' + places.map(p => `<option>${esc(displayName(p.name, places.indexOf(p)))}</option>`).join('');
     document.getElementById('b-desc').value = '';
     document.getElementById('b-amount').value = '';
