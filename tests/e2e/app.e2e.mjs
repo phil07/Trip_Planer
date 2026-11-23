@@ -751,6 +751,11 @@ t('Anreise: Flugdaten aus der Bestätigung werden eingetragen, Pille zum Entfern
     assert.equal(await page.evaluate(() => places[0].transit.train), 'LH 716');
     // Entfernen über die Pille
     await page.locator('#placesList .transit-leg--end >> nth=0').locator('.att-pill .att-menu').click();
+    // Das Menü darf nicht vom Pillen-Rahmen abgeschnitten werden: der Knopf muss an seiner Mitte treffbar sein.
+    const delBox = await page.locator('#placesList .transit-leg--end >> nth=0').locator('.att-pill .att-del').boundingBox();
+    assert.ok(delBox, 'Menü ist sichtbar');
+    const hit = await page.evaluate(([x, y]) => { const el = document.elementFromPoint(x, y); return !!el?.closest('.att-del'); }, [delBox.x + delBox.width / 2, delBox.y + delBox.height / 2]);
+    assert.equal(hit, true, 'Menü-Knopf ist nicht abgeschnitten');
     await page.locator('#placesList .transit-leg--end >> nth=0').locator('.att-pill .att-del').click();
     await page.waitForFunction(() => !document.querySelector('#placesList .transit-leg--end .att-pill'), null, { timeout: 5000 });
     assert.deepEqual(errors, []);

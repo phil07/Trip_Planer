@@ -1407,7 +1407,7 @@ button.budget-cat-toggle:focus-visible { outline: 2px solid var(--accent); outli
 .place-notes .edit-btn { margin: -8px -6px -8px 0; flex: none; align-self: flex-start; }
 
 /* Buchungs-Pille: Titel öffnet, „⋯“ klappt Neu lesen / Entfernen auf */
-.att-pill { position: relative; }
+.att-pill { position: relative; overflow: visible; }
 .att-more > summary { list-style: none; cursor: pointer; width: 44px; padding: 0; color: var(--muted); box-shadow: inset 1px 0 0 var(--border); }
 .att-more > summary::-webkit-details-marker { display: none; }
 .att-more[open] > summary { color: var(--label); }
