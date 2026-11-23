@@ -996,10 +996,13 @@ async function loadCategory(cityKey, cat, silent = false, limit = null) {
         let googleRatingCalls = 0;
         const GOOGLE_RATING_CAP = 3;
         let renderQueued = false;
+        // Gedrosselt: Antworten kommen in schneller Folge, jede Aktualisierung rendert alle
+        // Aktivitäten neu (auf dem Handy ~150 ms). Pro Fenster nur ein Durchlauf, sonst ruckelt
+        // die App in den ersten Sekunden nach dem Start.
         const scheduleRender = () => {
             if (renderQueued) return;
             renderQueued = true;
-            requestAnimationFrame(() => { renderQueued = false; persist(); renderActs(); });
+            setTimeout(() => { renderQueued = false; persist(); renderActs(); }, 700);
         };
         // Verarbeitet die Antwort EINER Quelle: dedupliziert, reichert neue Treffer an
         // (Beschreibung/Bild/Rating) und zeigt sie sofort an – unabhängig davon, ob andere
