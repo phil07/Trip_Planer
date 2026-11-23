@@ -435,6 +435,11 @@ function loadState() {
     acts.forEach(a => {
         if (a.type === '🏯 Erkunden') { a.type = categorize(a.title, a.desc); migrated = true; }
     });
+    // Alt-Cleanup: automatisch gefundene Aktivitäten weit weg von ihrer Station (z. B.
+    // Busan bei Fukuoka) entfernen. Eigene Einträge, Favoriten und eingeplante bleiben.
+    const beforeFar = acts.length;
+    acts = acts.filter(a => a.manual || a.favorite || a.day || !actTooFar(a));
+    if (acts.length !== beforeFar) migrated = true;
     // Alt-Cleanup: generische Restaurant-Tipps aus dem früheren Fallback entfernen –
     // Restaurant-Einträge sollen echte Orte mit Koordinaten sein, keine Text-Tipps.
     const restoTips = acts.length;
@@ -1023,6 +1028,7 @@ async function loadCategory(cityKey, cat, silent = false, limit = null) {
             const fresh = [];
             for (const p of list) {
                 if (!p.title || p.lat == null) continue;
+                if (root.lat != null && distanceKm(root.lat, root.lng, p.lat, p.lng) > ACT_MAX_KM) continue;
                 const k = normTitle(p.title);
                 const dupe = picks.find(q => titlesMatch(normTitle(q.title), k));
                 if (dupe) {
@@ -1222,6 +1228,25 @@ function distanceKm(fromLat, fromLng, toLat, toLng) {
     const dLat = rad(toLat - fromLat), dLng = rad(toLng - fromLng);
     const a = Math.sin(dLat/2)**2 + Math.cos(rad(fromLat))*Math.cos(rad(toLat))*Math.sin(dLng/2)**2;
     return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+// Aktivitäten gehören in den Umkreis ihrer Station. Alle Quellen fragen 10 km ab, aber
+// nicht jede hält sich daran (Mapbox sortiert nur nach Nähe) – so landeten z. B. Orte in
+// Busan (Südkorea, ~200 km) bei Fukuoka. Alles jenseits dieser Grenze wird verworfen.
+const ACT_MAX_KM = 15;
+const stationOf = city => places.find(p => clean(p.name) === city);
+function actTooFar(a) {
+    const st = stationOf(a.topPlace);
+    if (!st || st.lat == null || st.lng == null || a.lat == null || a.lng == null) return false;
+    return distanceKm(st.lat, st.lng, a.lat, a.lng) > ACT_MAX_KM;
+}
+// Bezugspunkt für die Sortierung: der eigene Standort, wenn man gerade an der Station ist,
+// sonst das Hotel der Station, sonst die Stationsmitte.
+function actOrigin(city) {
+    const st = stationOf(city);
+    if (!st || st.lat == null) return null;
+    if (userLocation && distanceKm(userLocation.lat, userLocation.lng, st.lat, st.lng) <= 30) return userLocation;
+    if (st.hotelLat != null && st.hotelLng != null) return { lat: st.hotelLat, lng: st.hotelLng };
+    return { lat: st.lat, lng: st.lng };
 }
 function formatDistance(km) {
     return km < 1 ? `${Math.round(km*1000)} m entfernt` : `${km.toFixed(km<10?1:0).replace('.',',')} km entfernt`;
@@ -4010,22 +4035,19 @@ function renderActs() {
     const sq = actSearch.trim().toLowerCase();
     if (sq) filtered = filtered.filter(a => (a.title + ' ' + a.desc + ' ' + (a.notes || '')).toLowerCase().includes(sq));
 
-    // Sortierung: nach Entfernung (vom Nutzerstandort, sonst vom Ort selbst);
-    // Restaurants zusätzlich nach Bewertung (höher zuerst) vor der Entfernung.
-    const sortOrigin = userLocation
-        ? userLocation
-        : (catBase ? places.find(p => clean(p.name) === catBase) : null);
-    filtered = filtered.slice().sort((a, b) => {
-        if (a.type === '🍣 Restaurant' && b.type === '🍣 Restaurant') {
-            const rDiff = (b.rating?.stars || 0) - (a.rating?.stars || 0);
-            if (rDiff) return rDiff;
-        }
-        const origA = sortOrigin || places.find(p => clean(p.name) === a.topPlace);
-        const origB = sortOrigin || places.find(p => clean(p.name) === b.topPlace);
-        const dA = (origA && a.lat && a.lng) ? distanceKm(origA.lat, origA.lng, a.lat, a.lng) : Infinity;
-        const dB = (origB && b.lat && b.lng) ? distanceKm(origB.lat, origB.lng, b.lat, b.lng) : Infinity;
-        return dA - dB;
-    });
+    // Sortierung: nächste zuerst. Bezugspunkt ist pro Station der eigene Standort (wenn man
+    // dort ist), sonst das Hotel, sonst die Stationsmitte. Bei mehreren Orten bleiben die
+    // Stationen in Reiseroute-Reihenfolge, innerhalb einer Station gilt die Entfernung.
+    const stIndex = {}, origins = {};
+    places.forEach((p, i) => { const c = clean(p.name); if (!(c in stIndex)) stIndex[c] = i; });
+    const distOf = a => {
+        if (!(a.topPlace in origins)) origins[a.topPlace] = actOrigin(a.topPlace);
+        const o = origins[a.topPlace];
+        return (o && a.lat != null && a.lng != null) ? distanceKm(o.lat, o.lng, a.lat, a.lng) : Infinity;
+    };
+    filtered = filtered.map(a => ({ a, d: distOf(a), i: stIndex[a.topPlace] ?? 1e9 }))
+        .sort((x, y) => (x.i - y.i) || (x.d - y.d))
+        .map(x => x.a);
 
     if (!filtered.length) {
         const catBusy = currentFilter !== 'Alle' && currentFilter !== '__favs__' && catsLoading.has(currentFilter + '|' + currentTypeFilter);
@@ -4039,9 +4061,10 @@ function renderActs() {
 
     const frag = document.createDocumentFragment();
     filtered.forEach(a => {
-        const liveDistance = (userLocation && a.lat && a.lng)
-            ? formatDistance(distanceKm(userLocation.lat, userLocation.lng, a.lat, a.lng))
-            : '';
+        // Entfernung zum selben Bezugspunkt wie die Sortierung: Standort vor Ort, sonst Hotel, sonst Stationsmitte.
+        const dKm = distOf(a), o = origins[a.topPlace];
+        const fromWhat = !o ? '' : o === userLocation ? '' : (stationOf(a.topPlace)?.hotelLat != null ? ' vom Hotel' : ' von der Stadtmitte');
+        const liveDistance = isFinite(dKm) ? formatDistance(dKm) + fromWhat : '';
         const div = document.createElement('div');
         div.className = 'act-card';
         div.innerHTML = `

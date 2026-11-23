@@ -815,3 +815,28 @@ t('Buchung als PDF: Tipp öffnet die Anzeige in der App (ohne Netz mit Ausweg)',
     await page.locator('#docPdfExternal').waitFor();
     assert.deepEqual(errors, []);
 });
+
+t('Aktivitäten: weit entfernte Treffer fallen weg, Liste nächste zuerst', async () => {
+    const seed = FIXTURE();
+    const acts = JSON.parse(seed.tp_acts);
+    // Kyoto-Hotel liegt bei 35.0094/135.76. Busan (~460 km) ist ein automatischer Treffer und muss raus;
+    // ein weit entfernter Favorit bleibt erhalten.
+    acts.push(
+        { id: 21, topPlace: 'Kyoto', type: '🏯 Sehenswürdigkeit', title: 'Gamcheon Kulturdorf Busan', desc: 'Busan', lat: 35.0975, lng: 129.0106, favorite: false, day: '', dayOrder: 0, time: '' },
+        { id: 22, topPlace: 'Kyoto', type: '🏯 Sehenswürdigkeit', title: 'Kinkaku-ji', desc: 'Tempel', lat: 35.0394, lng: 135.7292, favorite: false, day: '', dayOrder: 0, time: '' },
+        { id: 23, topPlace: 'Kyoto', type: '🏯 Sehenswürdigkeit', title: 'Nishiki Markt', desc: 'Markt', lat: 35.005, lng: 135.7649, favorite: false, day: '', dayOrder: 0, time: '' },
+        { id: 24, topPlace: 'Kyoto', type: '🏯 Sehenswürdigkeit', title: 'Lieblingsort weit weg', desc: 'Favorit', lat: 35.1, lng: 129.0, favorite: true, day: '', dayOrder: 0, time: '' }
+    );
+    seed.tp_acts = JSON.stringify(acts);
+    await open(seed);
+    assert.equal(await page.evaluate(() => acts.some(a => a.title.includes('Busan'))), false, 'Busan-Treffer wurde entfernt');
+    assert.equal(await page.evaluate(() => acts.some(a => a.title === 'Lieblingsort weit weg')), true, 'Favorit bleibt');
+    await go('view-activities', 'Aktivitäten');
+    await page.evaluate(() => setFilter('Kyoto'));
+    const titles = await page.locator('#activitiesList .act-title').allInnerTexts();
+    // Nishiki (~0,7 km vom Hotel) vor Kinkaku-ji (~4 km) vor Fushimi Inari (~5 km), Favorit weit weg zuletzt.
+    assert.deepEqual(titles.filter(x => ['Nishiki Markt', 'Kinkaku-ji', 'Fushimi Inari', 'Lieblingsort weit weg'].includes(x)),
+        ['Nishiki Markt', 'Kinkaku-ji', 'Fushimi Inari', 'Lieblingsort weit weg']);
+    assert.match(await page.locator('#activitiesList .act-card').first().locator('.act-type').innerText(), /vom Hotel/);
+    assert.deepEqual(errors, []);
+});
