@@ -1579,3 +1579,5 @@ body .settings-card .theme-btn i { display: block; line-height: 1; }
 .em-call.em-call { background: var(--bg-elevated); color: var(--label); box-shadow: none; border: 1px solid var(--border); }
 .em-call.em-call .em-call-num { color: var(--em-red); }
 .em-call.em-call .em-call-title { color: var(--muted); }
+/* Aktivität: Originalname klein unter dem deutschen Titel (für Schilder und Karten vor Ort). */
+.act-orig { margin: -2px 0 6px; font-size: var(--fs-footnote); color: var(--muted); overflow-wrap: anywhere; }

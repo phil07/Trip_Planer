@@ -840,3 +840,26 @@ t('Aktivitäten: weit entfernte Treffer fallen weg, Liste nächste zuerst', asyn
     assert.match(await page.locator('#activitiesList .act-card').first().locator('.act-type').innerText(), /vom Hotel/);
     assert.deepEqual(errors, []);
 });
+
+t('Aktivitäten: Titel auf Deutsch, Original klein darunter', async () => {
+    await open();
+    await page.route(/translate\.googleapis\.com/, r => {
+        const q = new URL(r.request().url()).searchParams.get('q') || '';
+        const out = q.split('\n').map(l => l === 'Ichiran Ramen' ? 'Ichiran Nudelsuppe' : l).join('\n');
+        r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify([[[out, q]]]) });
+    });
+    await page.evaluate(() => translateActTitles());
+    await page.waitForFunction(() => acts.find(a => a.title === 'Ichiran Ramen')?.titleDe === 'Ichiran Nudelsuppe', null, { timeout: 5000 });
+    assert.equal(await page.evaluate(() => acts.find(a => a.title === 'Senso-ji Tempel').titleDe), '', 'unverändert bleibt das Original');
+    await go('view-activities', 'Aktivitäten');
+    await page.evaluate(() => { setFilter('Tokio'); renderActs(); });
+    const card = page.locator('#activitiesList .act-card', { hasText: 'Ichiran Nudelsuppe' });
+    assert.equal(await card.locator('.act-title').innerText(), 'Ichiran Nudelsuppe');
+    assert.equal(await card.locator('.act-orig').innerText(), 'Ichiran Ramen');
+    // Suche findet auch das Original, Bearbeiten zeigt den deutschen Titel und behält das Original
+    await page.evaluate(() => openActivityDialog(acts.find(x => x.title === 'Ichiran Ramen')));
+    assert.equal(await page.inputValue('#a-title'), 'Ichiran Nudelsuppe');
+    await page.evaluate(() => saveActivityManual());
+    assert.equal(await page.evaluate(() => acts.filter(x => x.title === 'Ichiran Ramen' && x.titleDe === 'Ichiran Nudelsuppe').length), 1, 'Original bleibt beim Speichern ohne Änderung');
+    assert.deepEqual(errors, []);
+});

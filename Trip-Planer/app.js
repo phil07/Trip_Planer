@@ -320,7 +320,8 @@ function normTransit(t) {
 }
 function normAct(a, i) {
     return { ...a, id: finiteOr(a.id, Date.now() + i), topPlace: String(a.topPlace ?? ''), type: String(a.type ?? ''),
-        title: String(a.title ?? ''), desc: a.desc == null ? '' : String(a.desc),
+        title: String(a.title ?? ''), titleDe: typeof a.titleDe === 'string' ? a.titleDe.slice(0, 160) : undefined,
+        desc: a.desc == null ? '' : String(a.desc),
         lat: finiteOr(a.lat, null), lng: finiteOr(a.lng, null), notes: a.notes == null ? '' : String(a.notes),
         day: typeof a.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(a.day) ? a.day : '', dayOrder: finiteOr(a.dayOrder, 0),
         rating: normRating(a.rating), imgUrl: typeof a.imgUrl === 'string' && /^https?:\/\//i.test(a.imgUrl) ? a.imgUrl : null,
@@ -480,6 +481,19 @@ function migrateDescs() {
             });
         }
     }
+    // Gespeicherte Beschreibungen wie "Restaurant (ramen, japanese) in …": Küchenart/Kategorie
+    // aus den Quellen war englisch. Gedrosselt im Hintergrund übersetzen (Ergebnis wird gecacht).
+    const catRe = /^(Restaurant|Sehenswürdigkeit|Geschäft) \(([^)]+)\)/;
+    const needCat = acts.filter(a => catRe.test(a.desc || ''));
+    if (needCat.length && navigator.onLine !== false) setTimeout(() => {
+        let changed = 0;
+        mapPool(needCat, 3, async a => {
+            const m = (a.desc || '').match(catRe);
+            if (!m) return;
+            const de = await toGerman(m[2], m[2]);
+            if (de && de !== m[2] && a.desc.startsWith(m[0])) { a.desc = `${m[1]} (${de})` + a.desc.slice(m[0].length); changed++; }
+        }).then(() => { if (changed) { persist(); renderActs(); } });
+    }, 4000);
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────
@@ -710,6 +724,47 @@ async function toGerman(text, fallback) {
     } catch (e) { transCache.set(t, t); return t; }
 }
 
+// ─── Titel auf Deutsch ─────────────────────────────────────────────────────
+// Angezeigt wird a.titleDe (deutsch), das Original a.title bleibt für Links, Bildersuche,
+// Abgleich der Quellen und als kleine Zeile unter dem Titel (hilft bei Schildern/Maps).
+// titleDe: undefined = noch nicht übersetzt, '' = Original ist schon verständlich.
+const actTitle = a => (a && (a.titleDe || a.title)) || '';
+let titleJob = null, titleRenderT = null;
+function translateActTitles() {
+    if (titleJob || navigator.onLine === false) return titleJob;
+    const tried = new Set();
+    titleJob = (async () => {
+        let changed = 0;
+        for (;;) {
+            const todo = acts.filter(a => a.title && a.titleDe === undefined && !tried.has(a)).slice(0, 50);
+            if (!todo.length) break;
+            todo.forEach(a => tried.add(a));
+            const src = todo.map(a => a.title.replace(/\s+/g, ' ').trim());
+            let out = null;
+            try {
+                // Ein Request pro 50 Titel: zeilenweise getrennt, Antwort wieder zeilenweise.
+                const res = await fetchWithTimeout('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=de&dt=t&q='
+                    + encodeURIComponent(src.join('\n')), 8000);
+                const d = await res.json();
+                const lines = (d?.[0] || []).map(x => x[0]).join('').split('\n').map(x => x.trim());
+                if (lines.length === src.length) out = lines;
+            } catch (e) { break; } // offline/gesperrt: beim nächsten Start erneut
+            if (!out) continue; // Zeilen passten nicht zusammen: diese Titel bleiben im Original
+            todo.forEach((a, i) => {
+                const de = out[i];
+                a.titleDe = de && de.toLowerCase() !== src[i].toLowerCase() ? de.slice(0, 160) : '';
+                if (a.titleDe) changed++;
+            });
+        }
+        if (changed) {
+            persist();
+            clearTimeout(titleRenderT);
+            titleRenderT = setTimeout(() => { renderActs(); }, 300);
+        }
+    })().finally(() => { titleJob = null; });
+    return titleJob;
+}
+
 // Ergänzt Beschreibung, Bild und Kategorie zu einem POI aus fetchPOIs().
 // `cat` liefert kategorie-spezifische deutsche Fallback-Texte (z. B. Restaurants).
 async function fetchPOIDetails(poi, cityHint, cat) {
@@ -720,6 +775,10 @@ async function fetchPOIDetails(poi, cityHint, cat) {
     // Kategorien mitliefern, eine passende Beschreibung daraus bauen statt des generischen
     // Platzhalters – der bleibt nur übrig, wenn wirklich keine Metadaten vorhanden sind.
     const genericLabel = cat?.t === '🛍️ Shopping' ? 'Geschäft' : 'Sehenswürdigkeit';
+    if (poi.categories?.length) {
+        const de = await toGerman(poi.categories.slice(0, 3).join(', '), '');
+        if (de) poi = { ...poi, categories: de.split(/\s*,\s*/).filter(Boolean).slice(0, 3) };
+    }
     const fallbackDesc = isResto
         ? `Restaurant${poi.categories?.length ? ` (${poi.categories.slice(0, 3).join(', ')})` : ''} in ${poi.address ? `${poi.address}, ` : ''}${cityHint}.`
         : (poi.categories?.length || poi.address)
@@ -1007,7 +1066,7 @@ async function loadCategory(cityKey, cat, silent = false, limit = null) {
         const scheduleRender = () => {
             if (renderQueued) return;
             renderQueued = true;
-            setTimeout(() => { renderQueued = false; persist(); renderActs(); }, 700);
+            setTimeout(() => { renderQueued = false; persist(); renderActs(); translateActTitles(); }, 700);
         };
         // Verarbeitet die Antwort EINER Quelle: dedupliziert, reichert neue Treffer an
         // (Beschreibung/Bild/Rating) und zeigt sie sofort an – unabhängig davon, ob andere
@@ -3391,10 +3450,11 @@ let currentActLat = null, currentActLng = null, currentActTitle = '', currentAct
 
 async function showOnMap(lat, lng, title, desc, actId) {
     switchView('view-map','Reiseroute Karte');
+    const shown = actTitle(actId != null ? acts.find(a => a.id === actId) : null) || title;
     try {
         if (tempMarker) map.removeLayer(tempMarker);
         const icon = L.divIcon({className:'custom-marker', html:'⭐', iconSize:[22,22], iconAnchor:[11,11]});
-        tempMarker = L.marker([lat,lng],{icon}).addTo(map).bindPopup(`<b>${esc(title)}</b>`,{autoClose:false}).openPopup();
+        tempMarker = L.marker([lat,lng],{icon}).addTo(map).bindPopup(`<b>${esc(shown)}</b>`,{autoClose:false}).openPopup();
         map.flyTo([lat,lng],14,{duration:1.2});
     } catch (e) { console.warn('Karte nicht verfügbar:', e.message || e); }
 
@@ -3402,7 +3462,7 @@ async function showOnMap(lat, lng, title, desc, actId) {
 
     document.getElementById('bs-place').style.display = 'none';
     document.getElementById('bs-act').hidden = false;
-    document.getElementById('bs-act-title').innerText = title;
+    document.getElementById('bs-act-title').innerText = shown;
     document.getElementById('bs-act-desc').innerText = desc || '';
 
     const img = document.getElementById('bs-act-img');
@@ -4033,7 +4093,7 @@ function renderActs() {
     }
     if (currentTypeFilter !== 'Alle') filtered = filtered.filter(a => a.type === currentTypeFilter);
     const sq = actSearch.trim().toLowerCase();
-    if (sq) filtered = filtered.filter(a => (a.title + ' ' + a.desc + ' ' + (a.notes || '')).toLowerCase().includes(sq));
+    if (sq) filtered = filtered.filter(a => (a.title + ' ' + (a.titleDe || '') + ' ' + a.desc + ' ' + (a.notes || '')).toLowerCase().includes(sq));
 
     // Sortierung: nächste zuerst. Bezugspunkt ist pro Station der eigene Standort (wenn man
     // dort ist), sonst das Hotel, sonst die Stationsmitte. Bei mehreren Orten bleiben die
@@ -4071,7 +4131,8 @@ function renderActs() {
             <div class="act-img-slot"></div>
             <div class="act-body">
                 <div class="act-type">${escHtml(a.type)} • ${escHtml(a.topPlace)}${liveDistance ? ` • ${escHtml(liveDistance)}` : ''}</div>
-                <h3 class="act-title">${escHtml(a.title)}</h3>
+                <h3 class="act-title">${escHtml(actTitle(a))}</h3>
+                ${a.titleDe ? `<div class="act-orig" lang="und">${escHtml(a.title)}</div>` : ''}
                 <p class="act-desc clamped"${/^.+ – Tipp für .+\.$/.test(a.desc || '') ? ' hidden' : ''}>${escHtml(a.desc)}</p>
                 ${a.notes ? `<p class="act-notes">${escHtml(a.notes)}</p>` : ''}
                 <button class="act-desc-toggle" style="display:none">Mehr anzeigen</button>
@@ -4277,7 +4338,7 @@ function dayEntries(day) {
 }
 function dayEntryHtml(e, inDay, entries, i) {
     const a = e.kind === 'act' ? e.ref : null;
-    const title = a ? a.title : e.ref.text;
+    const title = a ? actTitle(a) : e.ref.text;
     const id = esc(String(e.id)), safeTitle = escHtml(title);
     const canUp = i > 0 && entries[i - 1].done === e.done;
     const canDown = i < entries.length - 1 && entries[i + 1].done === e.done;
@@ -4583,7 +4644,7 @@ function openActivityDialog(a) {
     const typeSel = document.getElementById('a-type');
     if (a && a.type && ![...typeSel.options].some(o => o.value === a.type)) typeSel.add(new Option(a.type, a.type));
     typeSel.value = a ? a.type : (currentTypeFilter !== 'Alle' ? currentTypeFilter : typeSel.options[0].value);
-    document.getElementById('a-title').value = a ? a.title : '';
+    document.getElementById('a-title').value = a ? actTitle(a) : '';
     document.getElementById('a-desc').value = a ? a.desc : '';
     document.getElementById('a-notes').value = a ? (a.notes || '') : '';
     document.getElementById('a-loc').value = '';
@@ -4629,9 +4690,11 @@ function saveActivityManual() {
     const existing = actEditId != null ? acts.find(a => a.id === actEditId) : null;
     if (existing) {
         if (existing.topPlace !== city) existing.day = '';
+        // Unveränderter (deutscher) Titel: Original für Links/Bilder behalten. Geänderter Titel ist der eigene.
+        if (title === actTitle(existing)) delete fields.title; else fields.titleDe = '';
         Object.assign(existing, fields);
     } else {
-        acts.push({ id: Date.now(), imgUrl: null, manual: true, ...fields });
+        acts.push({ id: Date.now(), imgUrl: null, manual: true, titleDe: '', ...fields });
     }
     persist(); renderActs(); drawMap();
     document.getElementById('modal-activity').close();
@@ -5220,6 +5283,7 @@ document.addEventListener('DOMContentLoaded', () => {
     restoreLastView();
     if (isFirstRun) setTimeout(() => { showToast('👋 Willkommen! Leg zuerst deine Reise an.'); openSettings(); }, 400);
     setTimeout(runCrawler, 300);
+    setTimeout(translateActTitles, 2500);
 });
 
 // ─── MEHRERE REISEN (lokal) ─────────────────────────────────────────────────
