@@ -841,7 +841,7 @@ t('Aktivitäten: weit entfernte Treffer fallen weg, Liste nächste zuerst', asyn
     assert.deepEqual(errors, []);
 });
 
-t('Aktivitäten: Titel auf Deutsch, Original klein darunter', async () => {
+t('Aktivitäten: Titel auf Deutsch, Original nur intern', async () => {
     await open();
     await page.route(/translate\.googleapis\.com/, r => {
         const q = new URL(r.request().url()).searchParams.get('q') || '';
@@ -855,11 +855,42 @@ t('Aktivitäten: Titel auf Deutsch, Original klein darunter', async () => {
     await page.evaluate(() => { setFilter('Tokio'); renderActs(); });
     const card = page.locator('#activitiesList .act-card', { hasText: 'Ichiran Nudelsuppe' });
     assert.equal(await card.locator('.act-title').innerText(), 'Ichiran Nudelsuppe');
-    assert.equal(await card.locator('.act-orig').innerText(), 'Ichiran Ramen');
+    assert.equal(await card.locator('.act-orig').count(), 0, 'Originalname wird nicht angezeigt');
     // Suche findet auch das Original, Bearbeiten zeigt den deutschen Titel und behält das Original
     await page.evaluate(() => openActivityDialog(acts.find(x => x.title === 'Ichiran Ramen')));
     assert.equal(await page.inputValue('#a-title'), 'Ichiran Nudelsuppe');
     await page.evaluate(() => saveActivityManual());
     assert.equal(await page.evaluate(() => acts.filter(x => x.title === 'Ichiran Ramen' && x.titleDe === 'Ichiran Nudelsuppe').length), 1, 'Original bleibt beim Speichern ohne Änderung');
+    assert.deepEqual(errors, []);
+});
+
+t('Aktivitäten: fehlende Beschreibungen schreibt die KI', async () => {
+    await open();
+    let asked = null;
+    await page.route(/text\.pollinations\.ai/, async r => {
+        const body = JSON.parse(r.request().postData() || '{}');
+        asked = JSON.parse(body.messages[1].content);
+        const d = asked.map(x => ({ i: x.i, t: `${x.name} ist ein bekannter Ort in ${x.ort}, gut für einen Besuch.` }));
+        r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ d }) });
+    });
+    await page.evaluate(() => fillMissingDescs());
+    await page.waitForFunction(() => acts.find(a => a.title === 'Fushimi Inari')?.desc.includes('bekannter Ort'), null, { timeout: 5000 });
+    assert.ok(asked.length >= 3, 'alle Einträge mit Platzhalter wurden angefragt');
+    assert.deepEqual(errors, []);
+});
+
+t('Aktivitäten: Aktualisieren lädt automatisch gefundene neu, Favoriten und Geplantes bleiben', async () => {
+    const seed = FIXTURE();
+    const acts = JSON.parse(seed.tp_acts);
+    acts.push({ id: 31, topPlace: 'Tokio', type: '🏯 Sehenswürdigkeit', title: 'Alter Treffer', desc: 'Alt', lat: 35.68, lng: 139.7, favorite: false, day: '', dayOrder: 0, time: '' });
+    seed.tp_acts = JSON.stringify(acts);
+    await open(seed);
+    await go('view-activities', 'Aktivitäten');
+    await page.evaluate(() => setFilter('Tokio'));
+    await page.evaluate(() => refreshActivities());
+    const left = await page.evaluate(() => acts.filter(a => a.topPlace === 'Tokio').map(a => a.title).sort());
+    assert.equal(left.includes('Alter Treffer'), false, 'alter automatischer Treffer ist weg');
+    assert.ok(left.includes('Ichiran Ramen') && left.includes('Senso-ji Tempel'), 'Favorit und Eingeplantes bleiben');
+    assert.equal(await page.evaluate(() => acts.some(a => a.title === 'Fushimi Inari')), true, 'andere Orte unberührt');
     assert.deepEqual(errors, []);
 });
