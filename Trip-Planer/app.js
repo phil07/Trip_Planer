@@ -2037,7 +2037,7 @@ function renderJournal() {
     const list = document.getElementById('journalList');
     if (!list) return;
     if (!journal.length) {
-        list.innerHTML = '<div class="empty-acts">Noch keine Einträge.<br>Tippe auf <b>+</b>, um deinen ersten Reise-Moment festzuhalten.<br><button type="button" class="btn empty-cta" onclick="openJournalModal()">Eintrag schreiben</button></div>';
+        list.innerHTML = '<div class="empty-acts">Noch keine Einträge.<br>Mit <b>+</b> einen Moment festhalten.<br><button type="button" class="btn empty-cta" onclick="openJournalModal()">Eintrag schreiben</button></div>';
         return;
     }
     const today = todayISO();

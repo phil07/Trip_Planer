@@ -1578,3 +1578,7 @@ body .settings-card .theme-btn i { display: block; line-height: 1; }
 /* Aktivitäten: Auswahl in Textfarbe statt Rot, Typ-Zeile neutral, damit die Rot-Akzente selten bleiben. */
 .chip.active, .chip-sm.active, .chip.active:hover, .chip-sm.active:hover { background: var(--label); color: var(--bg-elevated); box-shadow: none; }
 .act-body .act-type { color: var(--muted); }
+/* Notruf-Karten: ruhige Fläche, die Nummer trägt die Farbe. Keine farbigen Flächen und keine farbigen Schatten. */
+.em-call.em-call { background: var(--bg-elevated); color: var(--label); box-shadow: none; border: 1px solid var(--border); }
+.em-call.em-call .em-call-num { color: var(--em-red); }
+.em-call.em-call .em-call-title { color: var(--muted); }
