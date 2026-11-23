@@ -436,6 +436,11 @@ function loadState() {
     acts.forEach(a => {
         if (a.type === '🏯 Erkunden') { a.type = categorize(a.title, a.desc); migrated = true; }
     });
+    // Alt-Cleanup: erfundene Platzhalter ohne echten Ort (keine Koordinaten) entfernen.
+    // Eigene Einträge, Favoriten und eingeplante bleiben.
+    const beforeGeneric = acts.length;
+    acts = acts.filter(a => a.manual || a.favorite || a.day || (a.lat != null && a.lng != null));
+    if (acts.length !== beforeGeneric) migrated = true;
     // Alt-Cleanup: automatisch gefundene Aktivitäten weit weg von ihrer Station (z. B.
     // Busan bei Fukuoka) entfernen. Eigene Einträge, Favoriten und eingeplante bleiben.
     const beforeFar = acts.length;
@@ -1108,7 +1113,6 @@ async function loadCategory(cityKey, cat, silent = false, limit = null) {
         catsLoading.add(fid);
         const isResto = cat.t === '🍣 Restaurant';
         const cap = limit ?? (isResto ? 30 : 14);
-        const minGuarantee = limit ?? (isResto ? 12 : 5);
         // Bereits vorhandene Treffer für GENAU diesen Ort+diese Kategorie – zählt mit gegen
         // das Cap. Sonst könnten zwei getrennte Aufrufe (z. B. Hintergrund-Crawler beim
         // App-Start + erneutes Öffnen desselben Ortes) je bis zu `cap` NEUE Treffer
@@ -1241,18 +1245,7 @@ async function loadCategory(cityKey, cat, silent = false, limit = null) {
             // Hintergrund weiter (running-Promises sind nicht abgebrochen) und ergänzt die
             // Liste per scheduleRender(), sobald er doch noch fertig wird.
             await Promise.race([Promise.all(running), new Promise(r => setTimeout(r, LOAD_DEADLINE_MS))]);
-            // Falls selbst nach der Wartezeit nichts da ist (sehr abgelegener Ort), als
-            // letzten Ausweg generische Tipps ergänzen – außer bei Restaurants, da dort NIE
-            // Fake-Einträge ohne echten Ort/Koordinaten ausgegeben werden sollen.
-            if (picks.length < minGuarantee && !isResto && acts.filter(a => a.topPlace === cityKey && a.type === cat.t).length < minGuarantee) {
-                const need = minGuarantee - picks.length;
-                for (const p of catFallbacks(cityKey, cat, need)) {
-                    if (stale()) break;
-                    if (acts.some(a => a.topPlace === cityKey && a.title === p.title)) continue;
-                    acts.push({ id: Date.now() + Math.random(), topPlace: cityKey, type: cat.t, title: p.title, desc: `${cat.t} – Tipp für ${cityKey}.`, imgUrl: null, lat: null, lng: null, rating: null });
-                    added++;
-                }
-            }
+            // Keine erfundenen Platzhalter mehr: findet keine Quelle etwas, bleibt die Kategorie leer.
         } catch (e) {
             console.error('loadCategory fehlgeschlagen:', cityKey, cat.t, e);
             if (!silent) showToast('❌ Laden fehlgeschlagen – Verbindung prüfen.');
@@ -1292,15 +1285,6 @@ function ratingHtmlFor(a) {
 // Garantierte Mindestanzahl: wenn echte Quellen unter 5 Treffer liefern, ergänzen
 // wir generische Kategorie-Tipps (ohne Fake-Daten/Bewertungen). Nicht für Restaurants –
 // dort werden echte Lokale nachgeladen statt Tipps (siehe loadCategory).
-function catFallbacks(cityKey, cat, need) {
-    const tips = {
-        '🏯 Sehenswürdigkeit': ['Spaziergang durchs Zentrum', 'Bekannter Tempel/Shrine bei der Stadtmitte', 'Aussichtspunkt mit Stadtblick', 'Historisches Museum', 'Abendlicher Architektur-Rundgang'],
-        '🛍️ Shopping': ['Einkaufsstraße im Zentrum', 'Department Store mit Souvenir-Etage', 'Lokale Handwerksläden', 'Überdachte Einkaufspassage', 'Nachtmarkt & Street Food'],
-        '🏔️ Ausflug': ['Stadtpark-Spaziergang', 'Onsen / öffentliches Bad probieren', 'Tagesausflug mit der Bahn in die Natur', 'Fluss- oder See-Promenade', 'Wanderweg am Stadtrand']
-    };
-    return (tips[cat.t] || tips['🏯 Sehenswürdigkeit']).slice(0, need)
-        .map((title, i) => ({ title: `${title} in ${cityKey}`, lat: null, lng: null, fallback: true, fid: 'fb' + i + cat.t }));
-}
 
 const clean = n => n.replace(/ \(Ankunft\)| \(Abreise\)/g, '');
 // Escaped alle HTML-Sonderzeichen, bevor Nutzereingaben (Stationsname, Hotel, manuell

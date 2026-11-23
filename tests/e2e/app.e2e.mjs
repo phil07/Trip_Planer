@@ -892,5 +892,6 @@ t('Aktivitäten: Aktualisieren lädt automatisch gefundene neu, Favoriten und Ge
     assert.equal(left.includes('Alter Treffer'), false, 'alter automatischer Treffer ist weg');
     assert.ok(left.includes('Ichiran Ramen') && left.includes('Senso-ji Tempel'), 'Favorit und Eingeplantes bleiben');
     assert.equal(await page.evaluate(() => acts.some(a => a.title === 'Fushimi Inari')), true, 'andere Orte unberührt');
+    assert.equal(await page.evaluate(() => acts.some(a => a.lat == null && !a.manual)), false, 'keine erfundenen Platzhalter ohne Ort');
     assert.deepEqual(errors, []);
 });
