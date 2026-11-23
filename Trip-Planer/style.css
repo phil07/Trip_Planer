@@ -1561,9 +1561,6 @@ body .settings-card .theme-btn i { display: block; line-height: 1; }
 /* Der Hotel-Knopf auf Start ist keine rote Fläche mehr: ruhige Fläche, roter Akzent nur am Icon. */
 .home-next .btn-icon.taxi-home { background: var(--bg-elevated); color: var(--label); border: 1px solid var(--border); border-radius: var(--radius-md); }
 .home-next .btn-icon.taxi-home i { color: var(--primary-text); }
-/* Fortschritt auf Start in Textfarbe statt Rot. Der Akzent bleibt für Aktionen. */
-.hero-progress { background: var(--bg-secondary); }
-.hero-progress-fill { background: var(--label); }
 /* Marker im Tagebuch: einfacher Punkt statt Emoji. */
 .jp-marker-dot { display: block; width: 12px; height: 12px; margin: 9px; border-radius: 50%; background: var(--label); border: 2px solid var(--bg-elevated); box-shadow: 0 0 0 1px var(--border); }
 /* Route optimieren auf Stationen: ruhige Fläche mit Akzent nur am Icon, keine rote Fläche neben der Liste. */
