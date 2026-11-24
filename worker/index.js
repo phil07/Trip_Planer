@@ -1,5 +1,6 @@
 import { sendWebPush } from './webpush.js';
 import { handleShare } from './share.js';
+import { handleTranslate } from './translate.js';
 
 const VAPID_SUBJECT = 'mailto:iphilipp07@gmail.com';
 
@@ -104,6 +105,7 @@ export default {
         if (url.pathname === '/api/push-subscribe' && request.method === 'POST') return handleSubscribe(request, env);
         if (url.pathname === '/api/push-send' && request.method === 'POST') return handleSend(request, env);
         if (url.pathname === '/api/share' || url.pathname.startsWith('/api/share/')) return handleShare(request, env, url);
+        if (url.pathname === '/api/translate') return handleTranslate(request, env, url);
         return env.ASSETS.fetch(request);
     }
 };

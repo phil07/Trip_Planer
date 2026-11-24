@@ -898,3 +898,24 @@ t('Aktivitäten: Aktualisieren lädt automatisch gefundene neu, Favoriten und Ge
     assert.equal(await page.evaluate(() => acts.some(a => a.lat == null && !a.manual)), false, 'keine erfundenen Platzhalter ohne Ort');
     assert.deepEqual(errors, []);
 });
+
+t('Übersetzung: ohne Google übernimmt Cloudflare, danach MyMemory', async () => {
+    await open();
+    // Google bleibt gesperrt (Standard im Test). Cloudflare übersetzt nur "Ichiran Ramen".
+    let cfAsked = null;
+    await page.route(/\/api\/translate$/, async r => {
+        const body = JSON.parse(r.request().postData() || '{}');
+        cfAsked = body;
+        r.fulfill({ contentType: 'application/json', body: JSON.stringify({ texts: body.texts.map(t => t === 'Ichiran Ramen' ? 'Ichiran Nudeln' : null) }) });
+    });
+    await page.route(/api\.mymemory\.translated\.net/, r => {
+        const q = new URL(r.request().url()).searchParams.get('q');
+        r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' },
+            body: JSON.stringify({ responseStatus: 200, responseData: { translatedText: q === 'Senso-ji Tempel' ? 'Sensoji-Tempel' : q } }) });
+    });
+    await page.evaluate(() => translateActTitles());
+    await page.waitForFunction(() => acts.find(a => a.title === 'Ichiran Ramen')?.titleDe === 'Ichiran Nudeln', null, { timeout: 8000 });
+    await page.waitForFunction(() => acts.find(a => a.title === 'Senso-ji Tempel')?.titleDe === 'Sensoji-Tempel', null, { timeout: 8000 });
+    assert.ok(cfAsked.sources.every(s => /^[a-z]{2}$/.test(s)), 'Quellsprache wird mitgeschickt');
+    assert.deepEqual(errors, []);
+});

@@ -718,15 +718,75 @@ async function toGerman(text, fallback) {
     if (transCache.has(t)) return transCache.get(t);
     const skey = 'tp_de_' + hashText(t);
     try { const c = localStorage.getItem(skey); if (c) { transCache.set(t, c); return c; } } catch (e) {}
-    try {
-        const res = await fetchWithTimeout(
-            `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=de&dt=t&q=${encodeURIComponent(t.slice(0, 1500))}`, 6000);
-        const d = await res.json();
-        const out = (d?.[0] || []).map(x => x[0]).join('').trim() || t;
-        transCache.set(t, out);
-        aiCacheSet(skey, out);
-        return out;
-    } catch (e) { transCache.set(t, t); return t; }
+    const [out] = await translateManyToGerman([t.slice(0, 1500)]);
+    if (out) { transCache.set(t, out); aiCacheSet(skey, out); return out; }
+    transCache.set(t, t); // alle Anbieter gescheitert: nur in dieser Sitzung merken, beim nächsten Start erneut
+    return t;
+}
+
+// ─── Übersetzungs-Kette nach Deutsch ────────────────────────────────────────
+// 1. Google Translate (gtx, ohne Schlüssel), mehrere Texte zeilenweise in einer Anfrage
+// 2. Cloudflare Workers AI über den eigenen Worker (/api/translate, m2m100)
+// 3. MyMemory (ohne Schlüssel, ca. 5.000 Zeichen pro Tag, max. 500 Zeichen pro Text)
+// Liefert pro Text die Übersetzung oder null; die KI-Zusammenfassung bleibt die letzte Stufe.
+const TRANSLATE_API = (window.Capacitor?.isNativePlatform?.() ? 'https://japan.iphilipp07-869.workers.dev' : '') + '/api/translate';
+function guessLang(t) {
+    if (/[\u3040-\u30ff]/.test(t)) return 'ja';
+    if (/[\uac00-\ud7af]/.test(t)) return 'ko';
+    if (/[\u4e00-\u9fff]/.test(t)) return /japan/i.test(tripCountry) ? 'ja' : 'zh';
+    if (/[\u0400-\u04ff]/.test(t)) return 'ru';
+    if (/[\u0e00-\u0e7f]/.test(t)) return 'th';
+    return isProbablyGerman(t) ? 'de' : 'en';
+}
+let myMemoryBlockedUntil = 0;
+async function translateManyToGerman(texts) {
+    const out = texts.map(() => null);
+    const open = () => texts.map((_, i) => i).filter(i => out[i] == null && texts[i] && texts[i].trim());
+    // 1) Google: in Blöcken, zeilenweise getrennt
+    for (let k = 0; k < texts.length; k += 50) {
+        const idx = open().filter(i => i >= k && i < k + 50);
+        if (!idx.length) continue;
+        const src = idx.map(i => texts[i].replace(/\s*\n\s*/g, ' ').trim());
+        try {
+            const res = await fetchWithTimeout('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=de&dt=t&q='
+                + encodeURIComponent(src.join('\n')), 8000);
+            if (!res.ok) throw new Error('Google: HTTP ' + res.status);
+            const d = await res.json();
+            const lines = (d?.[0] || []).map(x => x[0]).join('').split('\n').map(x => x.trim());
+            if (lines.length === src.length) idx.forEach((i, j) => { if (lines[j]) out[i] = lines[j]; });
+            else if (idx.length === 1) out[idx[0]] = lines.join(' ').trim() || null;
+        } catch (e) { break; } // gesperrt/offline: restliche Blöcke gleich an die nächste Stufe
+    }
+    // 2) Cloudflare Workers AI über den eigenen Worker
+    let rest = open();
+    for (let k = 0; k < rest.length; k += 20) {
+        const idx = rest.slice(k, k + 20);
+        try {
+            const res = await fetchWithTimeout(TRANSLATE_API, 20000, {
+                method: 'POST', headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ texts: idx.map(i => texts[i]), sources: idx.map(i => guessLang(texts[i])) })
+            });
+            if (!res.ok) throw new Error('Cloudflare: HTTP ' + res.status);
+            const d = await res.json();
+            if (Array.isArray(d?.texts)) idx.forEach((i, j) => { const v = d.texts[j]; if (typeof v === 'string' && v.trim()) out[i] = v.trim(); });
+        } catch (e) { console.warn('Übersetzung (Cloudflare) fehlgeschlagen:', e.message || e); break; }
+    }
+    // 3) MyMemory: einzeln, nur kurze Texte, bei Kontingent-Ende für den Rest des Tages aussetzen
+    rest = open().filter(i => texts[i].length <= 500);
+    for (const i of rest.slice(0, 25)) {
+        if (Date.now() < myMemoryBlockedUntil) break;
+        const src = guessLang(texts[i]);
+        if (src === 'de') continue;
+        try {
+            const res = await fetchWithTimeout('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(texts[i])
+                + '&langpair=' + src + '|de', 8000);
+            const d = await res.json();
+            const v = d?.responseData?.translatedText;
+            if (Number(d?.responseStatus) === 429 || /MYMEMORY WARNING|QUOTA/i.test(String(v || ''))) { myMemoryBlockedUntil = Date.now() + 6 * 3600e3; break; }
+            if (Number(d?.responseStatus) === 200 && typeof v === 'string' && v.trim()) out[i] = v.trim();
+        } catch (e) { break; }
+    }
+    return out;
 }
 
 // ─── Titel auf Deutsch ─────────────────────────────────────────────────────
@@ -745,19 +805,12 @@ function translateActTitles() {
             if (!todo.length) break;
             todo.forEach(a => tried.add(a));
             const src = todo.map(a => a.title.replace(/\s+/g, ' ').trim());
-            let out = null;
-            try {
-                // Ein Request pro 50 Titel: zeilenweise getrennt, Antwort wieder zeilenweise.
-                const res = await fetchWithTimeout('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=de&dt=t&q='
-                    + encodeURIComponent(src.join('\n')), 8000);
-                const d = await res.json();
-                const lines = (d?.[0] || []).map(x => x[0]).join('').split('\n').map(x => x.trim());
-                if (lines.length === src.length) out = lines;
-            } catch (e) { break; } // offline/gesperrt: beim nächsten Start erneut
-            if (!out) continue; // Zeilen passten nicht zusammen: diese Titel bleiben im Original
+            const out = await translateManyToGerman(src);
+            if (out.every(x => x == null)) break; // alle Anbieter gescheitert: beim nächsten Start erneut
             todo.forEach((a, i) => {
                 const de = out[i];
-                a.titleDe = de && de.toLowerCase() !== src[i].toLowerCase() ? de.slice(0, 160) : '';
+                if (de == null) return; // dieser Titel bleibt offen und wird später erneut versucht
+                a.titleDe = de.toLowerCase() !== src[i].toLowerCase() ? de.slice(0, 160) : '';
                 if (a.titleDe) changed++;
             });
         }
