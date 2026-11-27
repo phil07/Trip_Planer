@@ -919,3 +919,18 @@ t('Übersetzung: ohne Google übernimmt Cloudflare, danach MyMemory', async () =
     assert.ok(cfAsked.sources.every(s => /^[a-z]{2}$/.test(s)), 'Quellsprache wird mitgeschickt');
     assert.deepEqual(errors, []);
 });
+
+t('Übersetzung: Endlosschleife ("Tokyo-Tokyo-…") wird verworfen, nächste Stufe springt ein', async () => {
+    await open();
+    await page.route(/\/api\/translate$/, r => r.fulfill({ contentType: 'application/json',
+        body: JSON.stringify({ texts: ['Der Garten von Tokyo-Tokyo-Tokyo-Tokyo-Tokyo-Tokyo-'] }) }));
+    await page.route(/api\.mymemory\.translated\.net/, r => r.fulfill({ contentType: 'application/json',
+        headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ responseStatus: 200, responseData: { translatedText: 'Der Ostgarten des Kaiserpalasts.' } }) }));
+    const out = await page.evaluate(() => translateManyToGerman(['皇居東御苑は皇居の東側にある庭園です。']));
+    assert.deepEqual(out, ['Der Ostgarten des Kaiserpalasts.']);
+    const cleaned = await page.evaluate(() => {
+        return typeof badTranslation === 'function' && badTranslation('Seite des Königshauses von Tokyo-Tokyo-Tokyo-Tokyo-Tokyo-') && !badTranslation('Bora Bora ist eine Insel.');
+    });
+    assert.ok(cleaned);
+    assert.deepEqual(errors, []);
+});

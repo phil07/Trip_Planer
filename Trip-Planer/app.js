@@ -446,6 +446,12 @@ function loadState() {
     const beforeFar = acts.length;
     acts = acts.filter(a => a.manual || a.favorite || a.day || !actTooFar(a));
     if (acts.length !== beforeFar) migrated = true;
+    // Alt-Cleanup: kaputte Maschinen-Übersetzungen ("Tokyo-Tokyo-Tokyo-…") verwerfen,
+    // damit Übersetzung bzw. KI-Beschreibung beim nächsten Durchlauf neu greifen.
+    acts.forEach(a => {
+        if (!a.manual && a.desc && badTranslation(a.desc)) { a.desc = ''; a.descDe = false; migrated = true; }
+        if (a.titleDe && badTranslation(a.titleDe, a.title)) { delete a.titleDe; migrated = true; }
+    });
     // Alt-Cleanup: generische Restaurant-Tipps aus dem früheren Fallback entfernen –
     // Restaurant-Einträge sollen echte Orte mit Koordinaten sein, keine Text-Tipps.
     const restoTips = acts.length;
@@ -717,7 +723,7 @@ async function toGerman(text, fallback) {
     if (!t) return fallback || '';
     if (transCache.has(t)) return transCache.get(t);
     const skey = 'tp_de_' + hashText(t);
-    try { const c = localStorage.getItem(skey); if (c) { transCache.set(t, c); return c; } } catch (e) {}
+    try { const c = localStorage.getItem(skey); if (c && !badTranslation(c, t)) { transCache.set(t, c); return c; } } catch (e) {}
     const [out] = await translateManyToGerman([t.slice(0, 1500)]);
     if (out) { transCache.set(t, out); aiCacheSet(skey, out); return out; }
     transCache.set(t, t); // alle Anbieter gescheitert: nur in dieser Sitzung merken, beim nächsten Start erneut
@@ -739,8 +745,21 @@ function guessLang(t) {
     return isProbablyGerman(t) ? 'de' : 'en';
 }
 let myMemoryBlockedUntil = 0;
+// Erkennt kaputte Maschinen-Übersetzungen: dasselbe Wort mehrfach hintereinander
+// ("Tokyo-Tokyo-Tokyo-…", ein bekannter Fehler von m2m100) oder ein Ergebnis, das ein
+// Vielfaches länger ist als das Original.
+function badTranslation(out, src) {
+    const t = String(out || '');
+    if (/(\p{L}{2,})(?:[\s\-–,.·]+\1){3,}/iu.test(t)) return true;
+    const s = String(src || ''); // CJK-Schrift ist dichter: dort darf die Übersetzung länger werden
+    if (s && t.length > 60 && t.length > s.length * (/[\u3040-\u9fff\uac00-\ud7af]/.test(s) ? 10 : 5)) return true;
+    return false;
+}
 async function translateManyToGerman(texts) {
     const out = texts.map(() => null);
+    // Ergebnisse nur übernehmen, wenn sie plausibel sind – sonst bleibt der Text offen
+    // und die nächste Stufe (bzw. die KI-Zusammenfassung) ist dran.
+    const put = (i, v) => { if (v && !badTranslation(v, texts[i])) out[i] = v; };
     const open = () => texts.map((_, i) => i).filter(i => out[i] == null && texts[i] && texts[i].trim());
     // 1) Google: in Blöcken, zeilenweise getrennt
     for (let k = 0; k < texts.length; k += 50) {
@@ -753,8 +772,8 @@ async function translateManyToGerman(texts) {
             if (!res.ok) throw new Error('Google: HTTP ' + res.status);
             const d = await res.json();
             const lines = (d?.[0] || []).map(x => x[0]).join('').split('\n').map(x => x.trim());
-            if (lines.length === src.length) idx.forEach((i, j) => { if (lines[j]) out[i] = lines[j]; });
-            else if (idx.length === 1) out[idx[0]] = lines.join(' ').trim() || null;
+            if (lines.length === src.length) idx.forEach((i, j) => put(i, lines[j]));
+            else if (idx.length === 1) put(idx[0], lines.join(' ').trim());
         } catch (e) { break; } // gesperrt/offline: restliche Blöcke gleich an die nächste Stufe
     }
     // 2) Cloudflare Workers AI über den eigenen Worker
@@ -768,7 +787,7 @@ async function translateManyToGerman(texts) {
             });
             if (!res.ok) throw new Error('Cloudflare: HTTP ' + res.status);
             const d = await res.json();
-            if (Array.isArray(d?.texts)) idx.forEach((i, j) => { const v = d.texts[j]; if (typeof v === 'string' && v.trim()) out[i] = v.trim(); });
+            if (Array.isArray(d?.texts)) idx.forEach((i, j) => { const v = d.texts[j]; if (typeof v === 'string') put(i, v.trim()); });
         } catch (e) { console.warn('Übersetzung (Cloudflare) fehlgeschlagen:', e.message || e); break; }
     }
     // 3) MyMemory: einzeln, nur kurze Texte, bei Kontingent-Ende für den Rest des Tages aussetzen
@@ -783,7 +802,7 @@ async function translateManyToGerman(texts) {
             const d = await res.json();
             const v = d?.responseData?.translatedText;
             if (Number(d?.responseStatus) === 429 || /MYMEMORY WARNING|QUOTA/i.test(String(v || ''))) { myMemoryBlockedUntil = Date.now() + 6 * 3600e3; break; }
-            if (Number(d?.responseStatus) === 200 && typeof v === 'string' && v.trim()) out[i] = v.trim();
+            if (Number(d?.responseStatus) === 200 && typeof v === 'string') put(i, v.trim());
         } catch (e) { break; }
     }
     return out;
@@ -866,7 +885,7 @@ function fillMissingDescs() {
             if (!todo.length) break;
             todo.forEach(a => descTried.add(a.id));
             const list = todo.map((a, i) => ({ i, name: actTitle(a), original: a.title, art: a.type.replace(/^\S+\s/, ''), ort: a.topPlace,
-                hinweis: a.desc && !/– Tipp für /.test(a.desc) ? a.desc.slice(0, 600) : '' }));
+                hinweis: a.desc && !/– Tipp für /.test(a.desc) && !badTranslation(a.desc) ? a.desc.slice(0, 600) : '' }));
             const system = 'Du schreibst kurze Reiseführer-Texte auf Deutsch. Antworte NUR mit JSON im Format '
                 + '{"d":[{"i":0,"t":"..."}]}. Für jeden Eintrag 1–2 Sätze auf Deutsch (höchstens 220 Zeichen): was der Ort ist und warum man hingeht. '
                 + 'Steht im Feld "hinweis" ein Text (auch in einer anderen Sprache), nutze ihn als Quelle und fasse ihn auf Deutsch zusammen. '
@@ -879,7 +898,7 @@ function fillMissingDescs() {
             for (const r of out) {
                 const a = todo[Number(r?.i)];
                 const t = typeof r?.t === 'string' ? r.t.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim() : '';
-                if (!a || t.length < 20 || t.length > 400 || AI_NOTICE_RE.test(t)) continue;
+                if (!a || t.length < 20 || t.length > 400 || AI_NOTICE_RE.test(t) || badTranslation(t)) continue;
                 a.desc = t; a.descDe = true; changed++;
             }
             if (changed) {

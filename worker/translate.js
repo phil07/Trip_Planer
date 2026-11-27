@@ -7,6 +7,9 @@ const MODEL = '@cf/meta/m2m100-1.2b';
 const MAX_TEXTS = 20, MAX_CHARS = 6000;
 const LANG_RE = /^[a-z]{2}$/;
 
+// m2m100 gerät gelegentlich in eine Endlosschleife ("Tokyo-Tokyo-Tokyo-…"): solche Ergebnisse verwerfen.
+export const degenerate = (out, src) => /(\p{L}{2,})(?:[\s\-–,.·]+\1){3,}/iu.test(out) || (out.length > 60 && out.length > src.length * (/[\u3040-\u9fff\uac00-\ud7af]/.test(src) ? 10 : 5));
+
 const corsFor = request => request.headers.get('Origin') === NATIVE_ORIGIN
     ? { 'access-control-allow-origin': NATIVE_ORIGIN, 'access-control-allow-methods': 'POST, OPTIONS', 'access-control-allow-headers': 'content-type', vary: 'Origin' }
     : {};
@@ -37,7 +40,8 @@ export async function handleTranslate(request, env, url) {
         if (!text.trim() || sources[i] === 'de') return text;
         try {
             const r = await env.AI.run(MODEL, { text, source_lang: sources[i], target_lang: 'de' });
-            return typeof r?.translated_text === 'string' ? r.translated_text : null;
+            const t = typeof r?.translated_text === 'string' ? r.translated_text.trim() : '';
+            return t && !degenerate(t, text) ? t : null;
         } catch (e) { return null; }
     }));
     if (out.every(t => t === null)) return json({ error: 'Übersetzung nicht verfügbar' }, 503, request);

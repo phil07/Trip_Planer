@@ -28,3 +28,9 @@ test('translate: ohne AI-Binding 501, alle Fehler 503, Unsinn 400', async () => 
     assert.equal((await handleTranslate(req({ texts: ['a'] }), broken, url)).status, 503);
     assert.equal((await handleTranslate(req({ nope: 1 }), broken, url)).status, 400);
 });
+
+test('translate: Endlosschleifen des Modells werden verworfen', async () => {
+    const env = { AI: { run: async (m, i) => ({ translated_text: i.text === 'x' ? 'Der Garten von Tokyo-Tokyo-Tokyo-Tokyo-Tokyo-' : 'Ostgarten' }) } };
+    const res = await handleTranslate(req({ texts: ['x', '東御苑'], sources: ['ja', 'ja'] }), env, url);
+    assert.deepEqual((await res.json()).texts, [null, 'Ostgarten']);
+});
