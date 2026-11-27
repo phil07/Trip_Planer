@@ -134,3 +134,25 @@ test('unbekannte Fluglinie wird am Namen erkannt', () => {
     assert.equal(t.train, 'Sunrise Airways 120');
     assert.equal(t.dep, '08:10');
 });
+
+test('Bordkarten-Barcode (BCBP): Flug, Strecke, Sitz und Datum', () => {
+    const b = ctx.window.bookingRead.parseBCBP('M1MUSTERMANN/MAX      EKU52VX NRTFUKGK 0513 332Y012A0045 100', new Date('2026-11-20T10:00:00Z'));
+    assert.deepEqual({ ...b }, { train: 'GK 513', seat: '12A', from: 'NRT', to: 'FUK', date: '2026-11-28' });
+    assert.equal(ctx.window.bookingRead.parseBCBP('https://example.com/qr'), null);
+    // Kein Sitz (Kleinkind) und Datum im nächsten Jahr
+    const c = ctx.window.bookingRead.parseBCBP('M1MUSTER/ERIKA        EABC123 FRAHNDLH 0716 005Y INF0001 100', new Date('2026-12-20T10:00:00Z'));
+    assert.equal(c.train, 'LH 716'); assert.equal(c.seat, ''); assert.equal(c.date, '2027-01-05');
+});
+test('Text für die KI: E-Mail, Telefon und Namen werden entfernt', () => {
+    const r = ctx.window.bookingRead.redact('Flug GK 513\nE-Mail-Adresse: max@example.com\nmax@example.com\nTelefonnummer +49 769 139 7119\nName: Max Muster\nAbflug 15:25');
+    assert.ok(!/example\.com|7119|Muster/.test(r), r);
+    assert.match(r, /GK 513[\s\S]*Abflug 15:25/);
+});
+test('Zusammenführen: Barcode vor Text vor KI, KI füllt nur Lücken', () => {
+    const m = ctx.window.bookingRead.mergeTransit({ train: 'GK 518', dep: '', terminal: '3' }, { train: 'GK 513', seat: '12A', from: 'NRT', to: 'FUK' },
+        { number: 'GK 999', dep: '15:25', gate: '5' });
+    assert.equal(m.value.train, 'GK 513'); assert.equal(m.value.dep, '15:25'); assert.equal(m.value.terminal, '3');
+    assert.equal(m.value.seat, '12A'); assert.equal(m.value.gate, '5');
+    assert.deepEqual([...m.sources], ['Barcode', 'Text', 'KI']);
+    assert.equal(ctx.window.bookingRead.mergeTransit(null, null, null), null);
+});

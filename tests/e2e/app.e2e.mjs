@@ -700,10 +700,14 @@ t('Buchungsbestätigung: Hotelname wird gelesen und in die Station übernommen',
     await page.setInputFiles('#docFileInput', { name: 'buchung.png', mimeType: 'image/png', buffer: PNG });
     await page.fill('#doc-title', 'Hotelbestätigung');
     await page.click('#docSaveBtn');
-    await page.waitForFunction(() => window.Tesseract && (places[0].hotel || '').includes('Gracery Shinjuku'), null, { timeout: 15000 });
+    // Prüfdialog statt stillem Eintragen: Name vorbefüllt, änderbar
+    const review = page.locator('#modal-booking-review');
+    await review.locator('[data-br="ok"]').waitFor({ timeout: 15000 });
+    assert.equal(await review.locator('#br-hotel').inputValue(), 'Hotel Gracery Shinjuku');
+    await review.locator('[data-br="ok"]').click();
+    await page.waitForFunction(() => (places[0].hotel || '').includes('Gracery Shinjuku'), null, { timeout: 15000 });
     assert.equal(await page.evaluate(() => places[0].hotel), 'Hotel Gracery Shinjuku');
-    assert.equal(dialogs.length, 1);
-    assert.match(dialogs[0], /Hotel Gracery Shinjuku/);
+    assert.equal(dialogs.length, 0);
     assert.deepEqual(errors, []);
 });
 
@@ -719,11 +723,13 @@ t('Buchungen an Stationen: erneut lesen und wieder entfernen', async () => {
     await page.setInputFiles('#docFileInput', { name: 'buchung.png', mimeType: 'image/png', buffer: PNG });
     await page.fill('#doc-title', 'Hotelbestätigung');
     await page.click('#docSaveBtn');
+    await page.locator('#modal-booking-review [data-br="ok"]').click({ timeout: 15000 });
     await page.waitForFunction(() => places[0].hotel === 'Hotel Gracery Shinjuku', null, { timeout: 15000 });
     // Erneut lesen: neue Schreibweise im Text, Name wird nach Rückfrage ersetzt
     await page.evaluate(() => { window.Tesseract = { recognize: async () => ({ data: { text: 'Hotel: Hotel Gracery Shinjuku Tokyo' } }) }; });
     await card().locator('.att-menu').click();
     await card().locator('[data-att-scan]').click();
+    await page.locator('#modal-booking-review [data-br="ok"]').click({ timeout: 15000 });
     await page.waitForFunction(() => places[0].hotel === 'Hotel Gracery Shinjuku Tokyo', null, { timeout: 15000 });
     // Entfernen: Bestätigung verschwindet aus der Station
     assert.equal(await card().locator('.att-pill').count(), 1);
@@ -747,6 +753,7 @@ t('Anreise: Flugdaten aus der Bestätigung werden eingetragen, Pille zum Entfern
     await page.setInputFiles('#docFileInput', { name: 'flug.png', mimeType: 'image/png', buffer: PNG });
     await page.fill('#doc-title', 'Flugbestätigung');
     await page.click('#docSaveBtn');
+    await page.locator('#modal-booking-review [data-br="ok"]').click({ timeout: 15000 });
     await page.waitForFunction(() => places[0].transit && places[0].transit.dep === '10:15', null, { timeout: 15000 });
     assert.equal(await page.evaluate(() => places[0].transit.train), 'LH 716');
     // Entfernen über die Pille
@@ -966,5 +973,49 @@ t('ToDos: hinzufügen, bearbeiten, abhaken, entfernen und im Backup', async () =
     assert.equal(stored.items.length, 2);
     assert.ok(stored.items.some(x => x.done && x.due === '2020-01-01' && x.note === 'Mit Reisepassnummer'));
     assert.ok(await page.evaluate(() => EXPORT_KEYS.includes('tp_todos')));
+    assert.deepEqual(errors, []);
+});
+
+t('Bestätigung: KI ergänzt fehlende Angaben, Prüfdialog erlaubt Korrektur', async () => {
+    await open();
+    let asked = null;
+    await page.route(/\/api\/extract$/, r => { asked = JSON.parse(r.request().postData()); r.fulfill({ contentType: 'application/json',
+        body: JSON.stringify({ data: { number: 'GK 513', dep: '15:25', terminal: '3', gate: '', seat: '', from: 'NRT', to: 'FUK', date: '2026-11-28' } }) }); });
+    const id = await page.evaluate(() => places[1].id);
+    // Text, in dem die Regeln nichts finden; E-Mail darf nicht an die KI gehen
+    const run = page.evaluate(([id]) => window.bookingRead.applyTransit('leg:' + id,
+        'Reiseplan\nAirline: Sonnenflieger\nmax@example.com\nLos geht es um viertel nach drei', null, false), [id]);
+    const review = page.locator('#modal-booking-review');
+    await review.locator('[data-br="ok"]').waitFor({ timeout: 10000 });
+    assert.match(await review.innerText(), /KI[\s\S]*NRT → FUK · 28\.11\.2026/);
+    assert.equal(await review.locator('#br-train').inputValue(), 'GK 513');
+    await review.locator('#br-seat').fill('14C');
+    await review.locator('[data-br="ok"]').click();
+    await run;
+    const tr = await page.evaluate(([id]) => places.find(p => p.id === id).transit, [id]);
+    assert.equal(tr.train, 'GK 513'); assert.equal(tr.dep, '15:25'); assert.equal(tr.terminal, '3'); assert.equal(tr.seat, '14C');
+    assert.equal(asked.kind, 'transit');
+    assert.ok(!/example\.com/.test(asked.text));
+    // Abbrechen trägt nichts ein; leiser Lauf beim Start überschreibt nichts
+    const run2 = page.evaluate(([id]) => window.bookingRead.applyTransit('leg:' + id, 'Flugnummer LH716\nAbflug 10:15', null, false), [id]);
+    await review.locator('[data-br="cancel"]').click({ timeout: 10000 });
+    await run2;
+    await page.evaluate(([id]) => window.bookingRead.applyTransit('leg:' + id, 'Flugnummer LH716\nAbflug 10:15', null, true), [id]);
+    assert.equal(await page.evaluate(([id]) => places.find(p => p.id === id).transit.train, [id]), 'GK 513');
+    assert.deepEqual(errors, []);
+});
+
+t('Texterkennung: Bild wird vorbereitet (Statusleiste weg, dunkel invertiert, vergrößert)', async () => {
+    await open();
+    const r = await page.evaluate(() => {
+        const c = document.createElement('canvas'); c.width = 400; c.height = 900;
+        const g = c.getContext('2d'); g.fillStyle = '#111'; g.fillRect(0, 0, 400, 900); g.fillStyle = '#eee'; g.fillRect(50, 400, 300, 40);
+        const out = window.bookingRead.prepareForOcr(c);
+        const px = out.getContext('2d').getImageData(5, 5, 1, 1).data[0];
+        return { w: out.width, h: out.height, bg: px };
+    });
+    assert.equal(r.w, 1600);
+    assert.ok(r.h < 900 * 4 && r.h > 3400, 'Statusleiste abgeschnitten: ' + r.h);
+    assert.ok(r.bg > 200, 'dunkler Hintergrund wird hell: ' + r.bg);
     assert.deepEqual(errors, []);
 });

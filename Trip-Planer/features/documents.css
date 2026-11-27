@@ -41,3 +41,5 @@ dialog.doc-viewer::backdrop { background: #000; }
 .doc-viewer-pdf canvas { display: block; width: 100%; height: auto; margin: 0 0 8px; background: #fff; }
 .doc-viewer-msg { margin: 40px 20px; text-align: center; color: #fff; font-size: var(--fs-body); line-height: 1.5; }
 .doc-viewer-msg .btn { margin-top: 14px; }
+#modal-booking-review .form-hint { margin: 0 0 6px; }
+#modal-booking-review .form-hint + .form-group, #modal-booking-review .form-hint + .input-row { margin-top: 14px; }
