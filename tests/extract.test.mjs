@@ -34,3 +34,10 @@ test('extract: Buchungsklasse ist kein Sitz, Ankunfts-Gate mit Text verworfen', 
     const { data } = await (await handleExtract(req({ kind: 'transit', text: 'Jetstar Japan 513 Abflug' }), env, url)).json();
     assert.equal(data.terminal, '3'); assert.equal(data.gate, ''); assert.equal(data.seat, '');
 });
+test('extract: Uhrzeit tolerant ("3:25 PM", "15.25 Uhr")', async () => {
+    for (const [dep, want] of [['3:25 PM', '15:25'], ['15.25 Uhr', '15:25'], ['12:05 am', '00:05']]) {
+        const env = { AI: { run: async () => ({ response: { number: 'GK 513', dep } }) } };
+        const { data } = await (await handleExtract(req({ kind: 'transit', text: 'Jetstar Japan 513 Abflug' }), env, url)).json();
+        assert.equal(data.dep, want);
+    }
+});

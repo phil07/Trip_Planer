@@ -56,7 +56,15 @@ function clean(kind, d) {
         const o = { hotel: str(d.hotel, 80), checkin: /^\d{4}-\d{2}-\d{2}$/.test(d.checkin) ? d.checkin : '' };
         return o.hotel ? o : null;
     }
-    const dep = /^\d{1,2}:\d{2}$/.test(str(d.dep, 5)) ? str(d.dep, 5).padStart(5, '0') : '';
+    // Zeit tolerant lesen: "15:25", "15.25 Uhr", "3:25 PM"
+    let dep = '';
+    const tm = /(\d{1,2})[:.](\d{2})\s*([ap]\.?m\.?)?/i.exec(str(d.dep, 20));
+    if (tm) {
+        let h = Number(tm[1]);
+        if (tm[3] && /p/i.test(tm[3]) && h < 12) h += 12;
+        if (tm[3] && /a/i.test(tm[3]) && h === 12) h = 0;
+        if (h < 24 && Number(tm[2]) < 60) dep = `${String(h).padStart(2, '0')}:${tm[2]}`;
+    }
     // Kurze Kennungen mit Ziffer ("3", "D4", "23", "12A") – keine Sätze, keine Buchungsklassen wie "Q"
     const code = (v, n) => { const t = str(v, 40).replace(/^(terminal|gate|gleis|platform|sitz|seat)\s*/i, ''); return /\d/.test(t) && t.length <= n && !/,/.test(t) ? t : ''; };
     const o = { number: str(d.number, 60), dep, date: /^\d{4}-\d{2}-\d{2}$/.test(d.date) ? d.date : '',
@@ -91,7 +99,7 @@ export async function handleExtract(request, env, url) {
             if (typeof d === 'string') { const m = d.match(/\{[\s\S]*\}/); d = m ? JSON.parse(m[0]) : null; }
             const out = clean(kind, d);
             // m: antwortendes Modell (Kurzname) – hilft bei der Fehlersuche, enthält keine Nutzerdaten
-            return json({ data: out || null, m: model.split('/').pop(), e: errs }, 200, request);
+            return json({ data: out || null, m: model.split('/').pop(), e: errs, raw: url.searchParams.has('debug') ? r?.response : undefined }, 200, request);
         } catch (e) { errs.push(String(e && e.message || e).slice(0, 120)); /* nächstes Modell */ }
     }
     return json({ error: 'KI nicht verfügbar', e: errs }, 503, request);
