@@ -78,6 +78,7 @@ export async function handleExtract(request, env, url) {
     const text = redact(typeof body?.text === 'string' ? body.text : '').slice(0, MAX_CHARS).trim();
     if (!kind || text.length < 10) return json({ error: 'Ungültige Daten' }, 400, request);
 
+    const errs = [];
     for (const model of MODELS) {
         try {
             const r = await env.AI.run(model, {
@@ -89,9 +90,9 @@ export async function handleExtract(request, env, url) {
             let d = r?.response;
             if (typeof d === 'string') { const m = d.match(/\{[\s\S]*\}/); d = m ? JSON.parse(m[0]) : null; }
             const out = clean(kind, d);
-            if (out) return json({ data: out }, 200, request);
-            return json({ data: null }, 200, request); // Modell hat geantwortet, aber nichts gefunden
-        } catch (e) { /* nächstes Modell */ }
+            // m: antwortendes Modell (Kurzname) – hilft bei der Fehlersuche, enthält keine Nutzerdaten
+            return json({ data: out || null, m: model.split('/').pop(), e: errs }, 200, request);
+        } catch (e) { errs.push(String(e && e.message || e).slice(0, 120)); /* nächstes Modell */ }
     }
-    return json({ error: 'KI nicht verfügbar' }, 503, request);
+    return json({ error: 'KI nicht verfügbar', e: errs }, 503, request);
 }
