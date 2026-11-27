@@ -2981,7 +2981,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // und sollen nicht in einer geteilten Datei landen).
 const EXPORT_KEYS = ['tp_places', 'tp_acts', 'tp_plan', 'tp_return_booking', 'tp_budget', 'tp_journal', 'tp_pack',
     'tp_start', 'tp_tripname', 'tp_tripcountry', 'tp_tripcountry_manual', 'tp_return', 'tp_arrival', 'tp_theme', 'tp_fx_ccy',
-    'tp_emergency'];
+    'tp_emergency', 'tp_todos'];
 // Browser-Tab und installierte App teilen sich den Speicher. Ändert das andere
 // Fenster Reisedaten, lädt dieses neu (sofort oder sobald es wieder sichtbar
 // wird), statt die Änderung später mit seinem alten Stand zu überschreiben.
@@ -3102,7 +3102,8 @@ function validateBackup(payload) {
     if (!keys.length || !keys.every(k => typeof data[k] === 'string')) return null;
     const json = { tp_places: Array.isArray, tp_acts: Array.isArray, tp_plan: Array.isArray, tp_journal: Array.isArray, tp_pack: isObj,
         tp_budget: v => isObj(v) && Array.isArray(v.entries) && (v.travelers === undefined || Array.isArray(v.travelers)),
-        tp_emergency: v => isObj(v) && Object.values(v).every(x => typeof x === 'string') };
+        tp_emergency: v => isObj(v) && Object.values(v).every(x => typeof x === 'string'),
+        tp_todos: v => isObj(v) && Array.isArray(v.items) };
     for (const k of keys) {
         if (json[k]) { try { if (!json[k](JSON.parse(data[k]))) return null; } catch (e) { return null; } }
     }
@@ -3332,7 +3333,7 @@ function revealView(view) {
         });
 }
 // Reihenfolge der Views im Menü – Grundlage für richtungsabhängige Slide-Übergänge
-const VIEW_ORDER = ['view-home', 'view-map', 'view-places', 'view-activities', 'view-dayplan', 'view-currency', 'view-budget', 'view-phrases', 'view-documents', 'view-journal', 'view-emergency', 'view-settings', 'view-logs'];
+const VIEW_ORDER = ['view-home', 'view-map', 'view-places', 'view-activities', 'view-dayplan', 'view-currency', 'view-budget', 'view-todos', 'view-phrases', 'view-documents', 'view-journal', 'view-emergency', 'view-settings', 'view-logs'];
 function switchView(id, title, fromPop) {
     const cur = document.querySelector('.view.active');
     const prevIdx = cur ? VIEW_ORDER.indexOf(cur.id) : -1;
@@ -3365,6 +3366,7 @@ function switchView(id, title, fromPop) {
     if (id === 'view-phrases') renderPhrases();
     if (id === 'view-journal') renderJournal();
     if (id === 'view-documents') window.documentsFeature?.render();
+    if (id === 'view-todos') window.todos?.render();
     if (id === 'view-logs') renderLogs();
     if (id === 'view-settings') { updateSyncUI(); updateUndoImportBtn(); }
     if (id === 'view-emergency') window.emergency?.render();

@@ -934,3 +934,37 @@ t('Übersetzung: Endlosschleife ("Tokyo-Tokyo-…") wird verworfen, nächste Stu
     assert.ok(cleaned);
     assert.deepEqual(errors, []);
 });
+
+t('ToDos: hinzufügen, bearbeiten, abhaken, entfernen und im Backup', async () => {
+    await open();
+    await page.evaluate(() => switchView('view-todos', 'ToDos'));
+    await page.fill('#todoAddInput', 'JR Pass bestellen');
+    await page.press('#todoAddInput', 'Enter');
+    await page.fill('#todoAddInput', 'Yen abheben');
+    await page.click('#todoAddForm button[type="submit"]');
+    assert.equal(await page.locator('#todoContent .todo-item').count(), 2);
+    assert.equal(await page.textContent('#menu-todos-count'), '2');
+    // Bearbeiten: Text, Fälligkeit und Notiz
+    await page.click('[data-todo-edit] >> text=JR Pass bestellen');
+    await page.fill('#todo-text', 'JR Pass online bestellen');
+    await page.fill('#todo-due', '2020-01-01');
+    await page.fill('#todo-note', 'Mit Reisepassnummer');
+    await page.click('#todoSaveBtn');
+    const first = page.locator('#todoContent .todo-item').first();
+    assert.match(await first.textContent(), /JR Pass online bestellen[\s\S]*Überfällig[\s\S]*Mit Reisepassnummer/);
+    // Abhaken: wandert nach „Erledigt“
+    await page.click('input[aria-label="JR Pass online bestellen abhaken"]');
+    assert.equal(await page.locator('#todoContent .todo-item').count(), 1);
+    assert.match(await page.textContent('#todoDoneToggle'), /Erledigt \(1\)/);
+    assert.equal(await page.textContent('#menu-todos-count'), '1');
+    // Entfernen mit Rückgängig
+    await page.click('[data-todo-del]');
+    assert.equal(await page.locator('#todoContent .todo-item').count(), 0);
+    await page.click('#toast .toast-action');
+    assert.equal(await page.locator('#todoContent .todo-item').count(), 1);
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('tp_todos')));
+    assert.equal(stored.items.length, 2);
+    assert.ok(stored.items.some(x => x.done && x.due === '2020-01-01' && x.note === 'Mit Reisepassnummer'));
+    assert.ok(await page.evaluate(() => EXPORT_KEYS.includes('tp_todos')));
+    assert.deepEqual(errors, []);
+});

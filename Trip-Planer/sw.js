@@ -14,7 +14,7 @@ const PRECACHE = ['./', './index.html', './style.css', './app.js', './sync.js', 
   './features/emergency.css', './features/splitcosts.js', './features/splitcosts.css', './features/openinghours.js',
   './features/openinghours.css', './features/documents.js', './features/vault.js', './features/bookingread.js', './features/documents.css', './features/journalplus.js',
   './features/journalplus.css', './features/reminders.js', './features/reminders.css', './features/reminders-sw.js',
-  './features/packcategories.css', './datenschutz', './nutzungsbedingungen', './impressum'];
+  './features/packcategories.css', './features/todos.js', './features/todos.css', './datenschutz', './nutzungsbedingungen', './impressum'];
 const TILE_CACHE = 'trip-planer-tiles';
 const TILE_CACHE_MAX = 300;
 // Fremd-Hosts, deren Dateien (versioniert, CSS/Fonts) offline aus dem Cache kommen dürfen.

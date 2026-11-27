@@ -59,6 +59,7 @@
     <link rel="stylesheet" href="features/journalplus.css">
     <link rel="stylesheet" href="features/reminders.css">
     <link rel="stylesheet" href="features/packcategories.css">
+    <link rel="stylesheet" href="features/todos.css">
     </head>
 <body>
 <div class="app-container" id="app">
@@ -226,6 +227,11 @@
         <div class="scroll-content" id="emergencyContent"></div>
     </div>
 
+    <!-- TODOS (features/todos.js) -->
+    <div class="view" id="view-todos">
+        <div class="scroll-content" id="todoContent"></div>
+    </div>
+
     <!-- DOKUMENTE (Fotos/PDFs offline, nur lokal in IndexedDB – features/documents.js) -->
     <div class="view" id="view-documents">
         <div class="scroll-content" id="documentsList"></div>
@@ -328,6 +334,7 @@
             <div class="menu-group-label">Extras</div>
             <button type="button" class="menu-item" id="menu-currency" onclick="switchView('view-currency','Währungsrechner')"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-currency-circle-dollar" data-fb="💱"></i></span> Währungsrechner</button>
             <button type="button" class="menu-item" id="menu-budget" onclick="switchView('view-budget','Reisekosten')"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-wallet" data-fb="💰"></i></span> Reisekosten</button>
+            <button type="button" class="menu-item" id="menu-todos" onclick="switchView('view-todos','ToDos')"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-check-square" data-fb="☑️"></i></span> ToDos <span class="menu-count" id="menu-todos-count" hidden></span></button>
             <button type="button" class="menu-item" id="menu-phrases" onclick="switchView('view-phrases', document.getElementById('menu-phrases-label').textContent)"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-translate" data-fb="🗣️"></i></span> <span id="menu-phrases-label">Sprachführer</span></button>
             <button type="button" class="menu-item" id="menu-documents" onclick="switchView('view-documents','Dokumente')"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-identification-card" data-fb="🛂"></i></span> Dokumente</button>
             <button type="button" class="menu-item" id="menu-journal" onclick="switchView('view-journal','Tagebuch')"><span aria-hidden="true" class="menu-icon"><i class="ph-light ph-notebook" data-fb="📝"></i></span> Tagebuch</button>
@@ -544,6 +551,7 @@
 <script src="features/documents.js" defer></script>
 <script src="features/journalplus.js" defer></script>
 <script src="features/reminders.js" defer></script>
+<script src="features/todos.js" defer></script>
 <script src="sync.js" defer></script><script>
   // Nach einem Reload prüfen, ob das angestoßene Update tatsächlich griff
   (function checkUpdateResult() {

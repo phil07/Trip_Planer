@@ -1,0 +1,39 @@
+/* ─── ToDos (features/todos.js) ─── */
+.todo-add { display: flex; gap: 8px; margin: 0 0 16px; }
+.todo-add input { flex: 1 1 auto; min-width: 0; min-height: 48px; padding: 0 16px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--bg-elevated); color: var(--label); font: inherit; font-size: var(--fs-body); }
+.todo-add input:focus { outline: 2px solid var(--primary-fill); outline-offset: -1px; }
+.todo-add-btn { flex: 0 0 48px; height: 48px; border: 0; border-radius: var(--radius-sm); background: var(--primary-fill); color: var(--on-primary);
+    font-size: 22px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.todo-add-btn:active { transform: scale(.96); }
+
+.todo-list { background: var(--bg-elevated); border-radius: var(--radius-md); box-shadow: 0 0 0 1px var(--border); margin: 0 0 16px; overflow: hidden; }
+.todo-item { display: flex; align-items: center; gap: 4px; min-height: 56px; padding: 0 4px 0 6px; border-top: 1px solid var(--border); }
+.todo-item:first-child { border-top: 0; }
+.todo-check { flex: 0 0 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: var(--radius-sm); }
+.todo-check input { width: 22px; height: 22px; accent-color: var(--primary); cursor: pointer; }
+.todo-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 10px 4px; border: 0; background: none;
+    font: inherit; color: var(--label); text-align: left; cursor: pointer; border-radius: 8px; }
+.todo-main:focus-visible { outline: 2px solid var(--primary-fill); outline-offset: -2px; }
+.todo-text { font-size: var(--fs-body); line-height: 1.35; overflow-wrap: anywhere; }
+.todo-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: var(--fs-footnote); color: var(--muted); }
+.todo-due { display: inline-flex; align-items: center; gap: 4px; }
+.todo-due.overdue { color: var(--primary-text); font-weight: 600; }
+.todo-note { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.todo-item.done .todo-text { text-decoration: line-through; color: var(--muted); }
+.todo-del { flex: 0 0 44px; height: 44px; border: 0; background: none; color: var(--label-tertiary); font-size: 18px; border-radius: var(--radius-sm);
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.todo-del:hover, .todo-del:focus-visible { color: var(--label); }
+
+.todo-alldone { margin: 4px 4px 16px; color: var(--muted); font-size: var(--fs-footnote); }
+.todo-done-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 0 8px; }
+.todo-done-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 4px; border: 0; background: none;
+    font: inherit; font-size: var(--fs-subhead); font-weight: 600; color: var(--muted); cursor: pointer; }
+.todo-clear { font-size: var(--fs-footnote); color: var(--muted); }
+
+.todo-done-field { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: var(--fs-body); color: var(--label); cursor: pointer; }
+.todo-done-field input { width: 22px; height: 22px; accent-color: var(--primary); }
+#modal-todo .todo-del-btn { color: var(--primary-text); }
+
+.menu-count { margin-left: auto; min-width: 22px; padding: 1px 7px; border-radius: 999px; background: var(--bg-secondary); color: var(--muted);
+    font-size: var(--fs-caption); font-weight: 600; text-align: center; }
