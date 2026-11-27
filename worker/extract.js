@@ -16,18 +16,19 @@ export function redact(text) {
 }
 
 const SCHEMAS = {
+    // Eindeutige Feldnamen: bei "dep" antwortete das Modell mit dem Flughafen statt der Uhrzeit.
     transit: {
         type: 'object',
         properties: {
-            number: { type: 'string', description: 'Flug- oder Zugnummer, z. B. "GK 513", "LH 716", "Nozomi 215"' },
-            dep: { type: 'string', description: 'Abfahrts-/Abflugzeit HH:MM (24 h)' },
-            date: { type: 'string', description: 'Datum der Abfahrt YYYY-MM-DD' },
-            from: { type: 'string' }, to: { type: 'string' },
-            terminal: { type: 'string', description: 'Terminal am Abflugort' },
-            gate: { type: 'string', description: 'Gate oder Gleis am Abfahrtsort' },
-            seat: { type: 'string', description: 'Sitzplatz, ggf. Wagen' }
+            flight_or_train_number: { type: 'string', description: 'z. B. "GK 513", "LH 716", "Nozomi 215"' },
+            departure_time: { type: 'string', description: 'Uhrzeit der Abfahrt/des Abflugs, HH:MM (24 h)' },
+            departure_date: { type: 'string', description: 'YYYY-MM-DD' },
+            departure_place: { type: 'string' }, arrival_place: { type: 'string' },
+            departure_terminal: { type: 'string' },
+            departure_gate_or_platform: { type: 'string' },
+            seat: { type: 'string', description: 'Sitzplatz mit Reihennummer, z. B. "12A"' }
         },
-        required: ['number', 'dep']
+        required: ['flight_or_train_number', 'departure_time']
     },
     hotel: {
         type: 'object',
@@ -52,6 +53,10 @@ const PROMPTS = {
 const str = (v, n) => typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, n) : '';
 function clean(kind, d) {
     if (!d || typeof d !== 'object') return null;
+    if (kind === 'transit' && ('flight_or_train_number' in d || 'departure_time' in d)) {
+        d = { number: d.flight_or_train_number, dep: d.departure_time, date: d.departure_date, from: d.departure_place,
+            to: d.arrival_place, terminal: d.departure_terminal, gate: d.departure_gate_or_platform, seat: d.seat };
+    }
     if (kind === 'hotel') {
         const o = { hotel: str(d.hotel, 80), checkin: /^\d{4}-\d{2}-\d{2}$/.test(d.checkin) ? d.checkin : '' };
         return o.hotel ? o : null;
