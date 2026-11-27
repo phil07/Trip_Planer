@@ -48,6 +48,24 @@
     const TRAIN_NAMES = 'Nozomi|Hikari|Kodama|Sakura|Mizuho|Tsubame|Hayabusa|Komachi|Yamabiko|Nasuno|Kagayaki|Shinkansen|Limited Express|JR|ICE|TGV|Zug|Train';
     const TRAIN_RE = new RegExp(`\\b(${TRAIN_NAMES})\\b[\\s#:.-]*([A-Z]{0,3}\\s?\\d{1,4})`, 'i');
     const FLIGHT_CODE_RE = /\b([A-Z]{2})\s?(\d{2,4})\b/;
+    // Buchungsportale (Expedia, Check24 …) schreiben oft den Namen der Fluglinie statt des Kürzels:
+    // "Jetstar Japan 513" -> "GK 513". Längere Namen zuerst, damit "Japan Airlines" vor "Japan" greift.
+    const AIRLINES = [
+        ['Jetstar Japan', 'GK'], ['Japan Airlines', 'JL'], ['JAL', 'JL'], ['All Nippon Airways', 'NH'], ['ANA', 'NH'],
+        ['Peach Aviation', 'MM'], ['Peach', 'MM'], ['Skymark', 'BC'], ['Spring Japan', 'IJ'], ['Zipair', 'ZG'],
+        ['StarFlyer', '7G'], ['Solaseed Air', '6J'], ['Air Do', 'HD'], ['Fuji Dream Airlines', 'JH'], ['Jetstar', 'JQ'],
+        ['Lufthansa', 'LH'], ['Eurowings', 'EW'], ['Condor', 'DE'], ['Austrian', 'OS'], ['Swiss', 'LX'], ['KLM', 'KL'],
+        ['Air France', 'AF'], ['British Airways', 'BA'], ['Finnair', 'AY'], ['Turkish Airlines', 'TK'], ['Emirates', 'EK'],
+        ['Qatar Airways', 'QR'], ['Etihad', 'EY'], ['Korean Air', 'KE'], ['Asiana', 'OZ'], ['Cathay Pacific', 'CX'],
+        ['Singapore Airlines', 'SQ'], ['Thai Airways', 'TG'], ['EVA Air', 'BR'], ['China Airlines', 'CI'],
+        ['Ryanair', 'FR'], ['easyJet', 'U2'], ['Wizz Air', 'W6'], ['United', 'UA'], ['Delta', 'DL'], ['American Airlines', 'AA']
+    ].sort((a, b) => b[0].length - a[0].length);
+    const AIRLINE_RE = new RegExp(`\\b(${AIRLINES.map(a => a[0].replace(/ /g, '\\s+')).join('|')})\\s*(?:flug|flight|nr\\.?|no\\.?|#)?\\s*(\\d{2,4})\\b`, 'i');
+    const airlineCode = name => (AIRLINES.find(a => a[0].toLowerCase() === name.replace(/\s+/g, ' ').toLowerCase()) || [])[1] || '';
+    // Unbekannte Fluglinie, aber erkennbar am Namen ("Sunrise Airways 120"): Name und Nummer übernehmen.
+    const AIRLINE_NAME_RE = /\b((?:[A-Z][\w&-]*\s+){0,3}[A-Z]?[\w&-]*(?:air|airlines?|airways|aviation|jet)\b)\s+(\d{2,4})\b/i;
+    const DEP_LABEL_RE = /\b(abflug|abfahrt|departure|depart)\b/i;
+    const ARR_LINE_RE = /^\s*(ankunft|arrival|arrive|landung)\b/i;
     // Uhrzeit mit OCR-Toleranz: "1O:40" (O statt 0), "10.40", "10;40"
     const TIME = '([0-9O]{1,2}[:.;,][0-9O]{2})';
     const AIRPORT_TIME_RE = new RegExp(`\\b([A-Z]{3})\\b[^\\d\\n]{0,25}${TIME}\\b`);
@@ -100,6 +118,13 @@
             const m = TRAIN_RE.exec(l);
             if (m) { train = (m[1] + ' ' + m[2]).replace(/\s+/g, ' ').trim(); break; }
         }
+        // Fluglinie ausgeschrieben ("Jetstar Japan 513")
+        if (!train) {
+            for (const l of lines) {
+                const m = AIRLINE_RE.exec(l);
+                if (m) { train = airlineCode(m[1]) + ' ' + m[2]; break; }
+            }
+        }
         // Flugnummer: zuerst in Zeilen mit Flug-Wort, sonst irgendwo (Screenshots haben oft nur "JL407" in einer Zeile)
         if (!train) {
             const ordered = [...lines.filter(l => FLIGHT_CTX.test(l)), ...lines];
@@ -115,6 +140,17 @@
             const m = DEP_RE.exec(l);
             if (m) { dep = hm(m[3].replace(/O/g, '0')); break; }
         }
+        // Uhrzeit über bzw. neben der Beschriftung ("15:25 Uhr" / "Abflug: Sa., 28. Nov."): Expedia u. a.
+        // Bei zwei Spalten in einer Zeile ("15:25 uhr 17:55 uhr") ist die erste Zeit der Abflug.
+        if (!dep) {
+            const i = lines.findIndex(l => DEP_LABEL_RE.test(l) && !/(check[- ]?in|check[- ]?out)/i.test(l));
+            if (i >= 0) {
+                for (const l of [lines[i], lines[i - 1], lines[i - 2]].filter(Boolean)) {
+                    const m = new RegExp(`(?:^|[^\\d])${TIME}(?!\\d)`).exec(l);
+                    if (m) { dep = hm(m[1]); break; }
+                }
+            }
+        }
         // Ohne Beschriftung: Flughafen-Kürzel mit Uhrzeit ("NRT 10:40") ist der Abflug, wenn es eine Flugnummer gibt
         if (!dep && train && /^[A-Z]{2} \d/.test(train)) {
             // Flughafen und Zeit können in getrennten Zeilen stehen: einzelne Zeile und Zeilenpaare prüfen
@@ -122,6 +158,13 @@
             for (const l of cand) {
                 const m = AIRPORT_TIME_RE.exec(l);
                 if (m) { dep = hm(m[2]); break; }
+            }
+        }
+        // Fluglinie nur am Namen erkennbar
+        if (!train) {
+            for (const l of lines) {
+                const m = AIRLINE_NAME_RE.exec(l);
+                if (m && !/(reiseplan|itinerary|bestätigung|confirmation)/i.test(l)) { train = (m[1] + ' ' + m[2]).replace(/\s+/g, ' ').trim(); break; }
             }
         }
         // Letzter Ausweg bei erkanntem Flug: erste Uhrzeit im Text, die nicht zu Hotel oder Check-in gehört
@@ -137,7 +180,16 @@
         // Beschriftung und Wert: "Terminal 2", "Gate 23", "Seat 18K" – oder der Wert steht in der nächsten Zeile
         const parts = { terminal: '', gate: '', seat: [] };
         const valueOk = v => /\d/.test(v) && v.length <= 8;
+        // Terminal/Gate der Ankunft gehören nicht zur Abfahrt: Zeilen ab "Ankunft …" bis zum nächsten
+        // "Abflug …" überspringen; stehen beide Spalten in einer Zeile ("Terminal 3 Terminal D, Gate 1"),
+        // nur bis zur zweiten Beschriftung lesen.
+        let arrival = false;
         lines.forEach((l, i) => {
+            if (ARR_LINE_RE.test(l)) arrival = true;
+            else if (/^\s*(abflug|abfahrt|departure|depart)\b/i.test(l)) arrival = false;
+            if (arrival) return;
+            const twice = l.search(/\bterminal\b.*?\bterminal\b/i) >= 0 ? l.slice(0, l.toLowerCase().indexOf('terminal', l.toLowerCase().indexOf('terminal') + 8)) : null;
+            if (twice !== null) l = twice;
             LABEL_RE.lastIndex = 0;
             let m;
             while ((m = LABEL_RE.exec(l))) {
@@ -275,7 +327,7 @@
     }
     // Einmalig nach dem Update: alle schon vorhandenen Bestätigungen auslesen.
     // Erledigte IDs stehen in tp_booking_scanned; gelesen wird nur, was dort noch fehlt.
-    const SCANNED_KEY = 'tp_booking_scanned';
+    const SCANNED_KEY = 'tp_booking_scanned', RESCAN_KEY = 'tp_booking_rescan_v2';
     function scannedIds() { try { return new Set(JSON.parse(localStorage.getItem(SCANNED_KEY) || '[]')); } catch (e) { return new Set(); } }
     async function scanExisting() {
         const api = window.documentsFeature?.sync;
@@ -285,6 +337,16 @@
         for (const d of all) {
             const ok = await suggest(d.id, d.ref, true);
             if (ok) { done.add(d.id); try { localStorage.setItem(SCANNED_KEY, JSON.stringify([...done])); } catch (e) {} }
+        }
+        // Erkennung verbessert (Fluglinie ausgeschrieben, Expedia-Layout): Bestätigungen von Verbindungen,
+        // die noch leer sind, einmalig erneut lesen. Belegte Verbindungen bleiben unberührt (keine Rückfrage).
+        let again; try { again = new Set(JSON.parse(localStorage.getItem(RESCAN_KEY) || '[]')); } catch (e) { again = new Set(); }
+        const empty = (await api.all()).filter(d => /^(leg:|arrival$|return$)/.test(d.ref || '') && !again.has(d.id)
+            && !(transitSlot(d.ref)?.get()?.train));
+        for (const d of empty) {
+            if (transitSlot(d.ref)?.get()?.train) continue; // inzwischen von einer anderen Bestätigung gefüllt
+            const ok = await suggest(d.id, d.ref, true);
+            if (ok) { again.add(d.id); try { localStorage.setItem(RESCAN_KEY, JSON.stringify([...again])); } catch (e) {} }
         }
     }
     // Nach dem Start, wenn Reisedaten und Dokumente geladen sind. Ohne Netz einfach später erneut.

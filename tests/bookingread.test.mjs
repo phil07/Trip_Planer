@@ -115,3 +115,22 @@ test('Uhr der Statusleiste wird nicht als Abflug genommen', () => {
     const t = ctx.window.bookingRead.extractTransit('16:26 Ld\nFlight details\nScheduled Jan 1 (Fri) JL407\nTokyo\n10:40 14h 20m 17:00');
     assert.equal(t.dep, '10:40');
 });
+
+test('Expedia-Flug: Fluglinie ausgeschrieben, Uhrzeit über "Abflug:", Ankunfts-Gate ignoriert', () => {
+    const twoCol = 'Flug nach Fukuoka\n28. Nov. 2026\nJetstar Japan\nBestätigung: KU52VX\nExpedia-Reiseplan: 73598920563000\nTokyo nach Fukuoka\n15:25 uhr 17:55 uhr\n'
+        + 'Abflug: Sa., 28. Nov. Ankunft: Sa., 28. Nov.\nTokyo, Japan (NRT-Narita Intl.) Fukuoka, Japan (FUK)\nTerminal 3 Terminal D, Gate 1\nDauer: 2 h 30 min\nJetstar Japan 513\nEconomy (Q)';
+    const oneCol = 'Flug nach Fukuoka\nJetstar Japan\nTokyo nach Fukuoka\n15:25 uhr\nAbflug: Sa., 28. Nov.\nTokyo, Japan (NRT-Narita Intl.)\nTerminal 3\nJetstar Japan 513\n'
+        + '17:55 uhr\nAnkunft: Sa., 28. Nov.\nFukuoka, Japan (FUK)\nTerminal D, Gate 1';
+    for (const text of [twoCol, oneCol]) {
+        const t = ctx.window.bookingRead.extractTransit(text);
+        assert.equal(t.train, 'GK 513');
+        assert.equal(t.dep, '15:25');
+        assert.equal(t.terminal, '3');
+        assert.equal(t.gate, '');
+    }
+});
+test('unbekannte Fluglinie wird am Namen erkannt', () => {
+    const t = ctx.window.bookingRead.extractTransit('Sunrise Airways 120\nAbflug 08:10');
+    assert.equal(t.train, 'Sunrise Airways 120');
+    assert.equal(t.dep, '08:10');
+});
