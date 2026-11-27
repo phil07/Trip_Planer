@@ -29,3 +29,8 @@ test('extract: zweites Modell springt ein, Unsinn verworfen, fremde Herkunft 403
 test('redact (Worker)', () => {
     assert.equal(redact('Name: Max Muster\nFlug LH 716').trim(), 'Flug LH 716');
 });
+test('extract: Buchungsklasse ist kein Sitz, Ankunfts-Gate mit Text verworfen', async () => {
+    const env = { AI: { run: async () => ({ response: { number: 'GK 513', dep: '15:25', terminal: 'Terminal 3', gate: 'D, Gate 1', seat: 'Q' } }) } };
+    const { data } = await (await handleExtract(req({ kind: 'transit', text: 'Jetstar Japan 513 Abflug' }), env, url)).json();
+    assert.equal(data.terminal, '3'); assert.equal(data.gate, ''); assert.equal(data.seat, '');
+});

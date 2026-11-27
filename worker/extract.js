@@ -41,7 +41,10 @@ const SCHEMAS = {
 const PROMPTS = {
     transit: 'Lies aus der Buchungsbestätigung die Daten der ERSTEN Fahrt bzw. des ersten Flugs. Nutze nur Angaben aus dem Text, erfinde nichts; '
         + 'unbekannte Felder bleiben leere Zeichenketten. Flugnummer mit IATA-Kürzel der Fluglinie (z. B. Jetstar Japan 513 → "GK 513"). '
-        + 'Terminal und Gate nur vom Abflugort, nicht vom Ankunftsort. Uhrzeit im 24-Stunden-Format HH:MM. Antworte nur mit JSON.',
+        + 'Terminal und Gate nur vom Abflugort, nicht vom Ankunftsort. Uhrzeit im 24-Stunden-Format HH:MM. '
+        + 'Uhrzeiten stehen oft in der Zeile ÜBER der Beschriftung "Abflug"/"Abfahrt"; stehen Abflug und Ankunft nebeneinander '
+        + '("15:25 uhr 17:55 uhr"), ist die erste Zeit der Abflug. Buchungsklassen wie "Economy (Q)" sind kein Sitzplatz – '
+        + 'ein Sitz hat eine Reihennummer (z. B. "12A"). Antworte nur mit JSON.',
     hotel: 'Lies aus der Buchungsbestätigung den Namen der Unterkunft (Hotel, Ryokan, Apartment …) und das Anreisedatum. '
         + 'Nutze nur Angaben aus dem Text, erfinde nichts; unbekannte Felder bleiben leer. Antworte nur mit JSON.'
 };
@@ -54,8 +57,10 @@ function clean(kind, d) {
         return o.hotel ? o : null;
     }
     const dep = /^\d{1,2}:\d{2}$/.test(str(d.dep, 5)) ? str(d.dep, 5).padStart(5, '0') : '';
+    // Kurze Kennungen mit Ziffer ("3", "D4", "23", "12A") – keine Sätze, keine Buchungsklassen wie "Q"
+    const code = (v, n) => { const t = str(v, 40).replace(/^(terminal|gate|gleis|platform|sitz|seat)\s*/i, ''); return /\d/.test(t) && t.length <= n && !/,/.test(t) ? t : ''; };
     const o = { number: str(d.number, 60), dep, date: /^\d{4}-\d{2}-\d{2}$/.test(d.date) ? d.date : '',
-        from: str(d.from, 60), to: str(d.to, 60), terminal: str(d.terminal, 20), gate: str(d.gate, 20), seat: str(d.seat, 40) };
+        from: str(d.from, 60), to: str(d.to, 60), terminal: code(d.terminal, 6), gate: code(d.gate, 6), seat: code(d.seat, 20) };
     return o.number || o.dep ? o : null;
 }
 
