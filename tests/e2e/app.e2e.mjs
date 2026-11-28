@@ -987,13 +987,15 @@ t('Bestätigung: KI ergänzt fehlende Angaben, Prüfdialog erlaubt Korrektur', a
         'Reiseplan\nAirline: Sonnenflieger\nmax@example.com\nLos geht es um viertel nach drei', null, false), [id]);
     const review = page.locator('#modal-booking-review');
     await review.locator('[data-br="ok"]').waitFor({ timeout: 10000 });
-    assert.match(await review.innerText(), /KI[\s\S]*NRT → FUK · 28\.11\.2026/);
+    assert.match(await review.innerText(), /KI[\s\S]*nach Fukuoka \(FUK\) · 28\.11\.2026/);
     assert.equal(await review.locator('#br-train').inputValue(), 'GK 513');
+    assert.equal(await review.locator('#br-from').inputValue(), 'Tokyo Narita (NRT)');
     await review.locator('#br-seat').fill('14C');
     await review.locator('[data-br="ok"]').click();
     await run;
     const tr = await page.evaluate(([id]) => places.find(p => p.id === id).transit, [id]);
     assert.equal(tr.train, 'GK 513'); assert.equal(tr.dep, '15:25'); assert.equal(tr.terminal, '3'); assert.equal(tr.seat, '14C');
+    assert.equal(tr.from, 'Tokyo Narita (NRT)');
     assert.equal(asked.kind, 'transit');
     assert.ok(!/example\.com/.test(asked.text));
     // Abbrechen trägt nichts ein; leiser Lauf beim Start überschreibt nichts
@@ -1123,5 +1125,28 @@ t('Einstellungen → Benachrichtigungen: Arten einzeln schaltbar, nirgends sonst
     assert.equal(await page.evaluate(() => places[0].checkout), '10:30');
     // ToDo-Dialog verweist nur per Text, ohne eigenen Einstellungs-Knopf; kein Erinnerungs-Dialog mehr
     assert.equal(await page.locator('#todoRemSettings, #modal-reminders').count(), 0);
+    assert.deepEqual(errors, []);
+});
+
+t('Flug: Abflughafen als eigenes Feld, in der Verbindung sichtbar', async () => {
+    await open();
+    await go('view-places', 'Stationen');
+    const arrival = page.locator('#placesList .transit-leg--end >> nth=0');
+    await arrival.locator('summary').click();
+    await arrival.locator('.transit-edit').click();
+    await page.waitForFunction(() => document.getElementById('modal-transit')?.open);
+    assert.equal(await page.locator('label[for="transit-from"]').innerText(), 'Abflughafen');
+    await page.fill('#transit-from', 'Frankfurt-Hahn (HHN)');
+    await page.click('#transit-save');
+    assert.equal(await page.evaluate(() => places[0].transit.from), 'Frankfurt-Hahn (HHN)');
+    assert.match(await page.locator('#placesList .transit-leg--end >> nth=0').innerText(), /Frankfurt-Hahn \(HHN\)/);
+    // Reines Kürzel wird lesbar angezeigt
+    await page.evaluate(() => { places[0].transit.from = 'HND'; saveData(); });
+    assert.match(await page.locator('#placesList .transit-leg--end >> nth=0').innerText(), /Tokyo Haneda \(HND\)/);
+    // Leiser Lauf beim Start ergänzt nur den fehlenden Flughafen derselben Verbindung
+    await page.evaluate(() => { places[0].transit = { train: 'LH 716', dep: '10:15', from: '', terminal: '', gate: '', seat: '', note: 'x' }; });
+    await page.evaluate(() => window.bookingRead.applyTransit('arrival', 'Flugnummer LH716\nAbflug 11:00\nFrankfurt (FRA) - Tokio (HND)', null, true));
+    const tr = await page.evaluate(() => places[0].transit);
+    assert.equal(tr.from, 'Frankfurt am Main (FRA)'); assert.equal(tr.dep, '10:15'); assert.equal(tr.note, 'x');
     assert.deepEqual(errors, []);
 });

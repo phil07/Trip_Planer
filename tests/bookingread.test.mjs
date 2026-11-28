@@ -156,3 +156,19 @@ test('Zusammenführen: Barcode vor Text vor KI, KI füllt nur Lücken', () => {
     assert.deepEqual([...m.sources], ['Barcode', 'Text', 'KI']);
     assert.equal(ctx.window.bookingRead.mergeTransit(null, null, null), null);
 });
+
+test('Abflughafen: aus Klammer-Kürzel bzw. eigener Zeile, Ankunftsort zählt nicht', () => {
+    const br = ctx.window.bookingRead;
+    const expedia = 'Jetstar Japan\n15:25 uhr 17:55 uhr\nAbflug: Sa., 28. Nov. Ankunft: Sa., 28. Nov.\nTokyo, Japan (NRT-Narita Intl.) Fukuoka, Japan (FUK)\nTerminal 3 Terminal D, Gate 1\nJetstar Japan 513';
+    assert.equal(br.extractTransit(expedia).from, 'NRT');
+    assert.equal(br.extractTransit('Flugnummer LH716\nAbflug 10:15\nFrankfurt (FRA) - Tokio (HND)').from, 'FRA');
+    assert.equal(br.extractTransit('Flight details\nJan 1 (Fri) JL407\nTokyo (Narita)\nNRT\n10:40\nFrankfurt\nFRA\n17:00').from, 'NRT');
+    assert.equal(br.extractTransit('Nozomi 215\nAbfahrt 09:33').from, '');
+    assert.equal(br.airportLabel('HHN'), 'Frankfurt-Hahn (HHN)');
+    assert.equal(br.airportLabel('HND'), 'Tokyo Haneda (HND)');
+    assert.equal(br.airportLabel('XYZ'), 'XYZ');
+    // Zusammenführen: Kürzel wird lesbar, KI-Text mit Kürzel ebenso
+    assert.equal(br.mergeTransit({ train: 'GK 513', dep: '15:25', from: 'NRT' }, null, null).value.from, 'Tokyo Narita (NRT)');
+    assert.equal(br.mergeTransit({ train: 'GK 513', dep: '15:25' }, null, { from: 'Tokyo, Japan (NRT-Narita Intl.)' }).value.from, 'Tokyo Narita (NRT)');
+    assert.equal(br.mergeTransit(null, { train: 'LH 716', from: 'FRA' }, null).value.from, 'Frankfurt am Main (FRA)');
+});

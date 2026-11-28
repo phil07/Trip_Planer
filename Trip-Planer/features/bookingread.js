@@ -64,6 +64,43 @@
     const airlineCode = name => (AIRLINES.find(a => a[0].toLowerCase() === name.replace(/\s+/g, ' ').toLowerCase()) || [])[1] || '';
     // Unbekannte Fluglinie, aber erkennbar am Namen ("Sunrise Airways 120"): Name und Nummer übernehmen.
     const AIRLINE_NAME_RE = /\b((?:[A-Z][\w&-]*\s+){0,3}[A-Z]?[\w&-]*(?:air|airlines?|airways|aviation|jet)\b)\s+(\d{2,4})\b/i;
+    // Flughäfen mit Kürzel → lesbarer Name. Wichtig bei Städten mit mehreren Flughäfen
+    // (Tokyo Narita/Haneda, Osaka Kansai/Itami, Frankfurt/Hahn, Berlin, London …).
+    const AIRPORTS = {
+        NRT: 'Tokyo Narita', HND: 'Tokyo Haneda', KIX: 'Osaka Kansai', ITM: 'Osaka Itami', UKB: 'Kobe', NGO: 'Nagoya Chubu',
+        NKM: 'Nagoya Komaki', FUK: 'Fukuoka', CTS: 'Sapporo New Chitose', OKD: 'Sapporo Okadama', OKA: 'Okinawa Naha',
+        HIJ: 'Hiroshima', KOJ: 'Kagoshima', KMJ: 'Kumamoto', SDJ: 'Sendai', KMQ: 'Komatsu', TAK: 'Takamatsu', MYJ: 'Matsuyama',
+        NGS: 'Nagasaki', OIT: 'Oita', KKJ: 'Kitakyushu', HKD: 'Hakodate', ISG: 'Ishigaki', AOJ: 'Aomori', AXT: 'Akita',
+        FRA: 'Frankfurt am Main', HHN: 'Frankfurt-Hahn', MUC: 'München', BER: 'Berlin Brandenburg', DUS: 'Düsseldorf',
+        HAM: 'Hamburg', STR: 'Stuttgart', CGN: 'Köln/Bonn', NUE: 'Nürnberg', HAJ: 'Hannover', LEJ: 'Leipzig/Halle',
+        DRS: 'Dresden', BRE: 'Bremen', FMM: 'Memmingen', NRN: 'Weeze', DTM: 'Dortmund', FKB: 'Karlsruhe/Baden-Baden',
+        VIE: 'Wien', ZRH: 'Zürich', GVA: 'Genf', BSL: 'Basel', AMS: 'Amsterdam', CDG: 'Paris Charles de Gaulle', ORY: 'Paris Orly',
+        BVA: 'Paris Beauvais', LHR: 'London Heathrow', LGW: 'London Gatwick', STN: 'London Stansted', LTN: 'London Luton',
+        IST: 'Istanbul', SAW: 'Istanbul Sabiha Gökçen', DXB: 'Dubai', DOH: 'Doha', AUH: 'Abu Dhabi', HEL: 'Helsinki',
+        CPH: 'Kopenhagen', WAW: 'Warschau', PRG: 'Prag', MAD: 'Madrid', BCN: 'Barcelona', FCO: 'Rom Fiumicino', CIA: 'Rom Ciampino',
+        MXP: 'Mailand Malpensa', LIN: 'Mailand Linate', BGY: 'Mailand Bergamo', ICN: 'Seoul Incheon', GMP: 'Seoul Gimpo',
+        PUS: 'Busan', TPE: 'Taipeh Taoyuan', TSA: 'Taipeh Songshan', HKG: 'Hongkong', SIN: 'Singapur', BKK: 'Bangkok Suvarnabhumi',
+        DMK: 'Bangkok Don Mueang', PVG: 'Shanghai Pudong', SHA: 'Shanghai Hongqiao', PEK: 'Peking Capital', PKX: 'Peking Daxing',
+        JFK: 'New York JFK', EWR: 'New York Newark', LGA: 'New York LaGuardia', LAX: 'Los Angeles', SFO: 'San Francisco', HNL: 'Honolulu'
+    };
+    // "NRT" → "Tokyo Narita (NRT)"; unbekannte Kürzel bleiben, wie sie sind.
+    const airportLabel = code => { const c = String(code || '').trim().toUpperCase(); return AIRPORTS[c] ? `${AIRPORTS[c]} (${c})` : c; };
+    // Abflughafen: erstes Kürzel in Klammern ("Tokyo, Japan (NRT-Narita Intl.)", "Frankfurt (FRA) - Tokio (HND)"),
+    // sonst das erste bekannte Kürzel ("NRT" in einer eigenen Zeile).
+    function departureAirport(lines) {
+        for (const l of lines) {
+            if (ARR_LINE_RE.test(l)) continue;
+            const m = /\(([A-Z]{3})(?=[\s)\-–,])/.exec(l);
+            if (m) return m[1];
+        }
+        for (const l of lines) {
+            if (ARR_LINE_RE.test(l)) continue;
+            const m = l.match(/\b[A-Z]{3}\b/g);
+            const hit = m && m.find(c => AIRPORTS[c]);
+            if (hit) return hit;
+        }
+        return '';
+    }
     const DEP_LABEL_RE = /\b(abflug|abfahrt|departure|depart)\b/i;
     const ARR_LINE_RE = /^\s*(ankunft|arrival|arrive|landung)\b/i;
     // Uhrzeit mit OCR-Toleranz: "1O:40" (O statt 0), "10.40", "10;40"
@@ -208,7 +245,8 @@
         const seat = [...new Set(parts.seat)].slice(0, 3).join(' · ').slice(0, 40);
         const terminal = parts.terminal.slice(0, 20), gate = parts.gate.slice(0, 20);
         if (!train && !dep) return null;
-        return { train: train.slice(0, 60), dep, terminal, gate, seat, note: '' };
+        const from = /^[A-Z0-9]{2} \d/.test(train) ? departureAirport(lines) : '';
+        return { train: train.slice(0, 60), dep, from, terminal, gate, seat, note: '' };
     }
     const sameTransit = (a, b) => !!a && !!b && a.train === b.train && a.dep === b.dep;
 
@@ -432,6 +470,10 @@
         take(rules, 'Text');
         take(ai, 'KI');
         if (!/^\d{2}:\d{2}$/.test(out.dep)) out.dep = '';
+        if (/^[A-Z]{3}$/.test(out.from)) out.from = airportLabel(out.from);
+        // KI liefert gern "Tokyo, Japan (NRT-Narita Intl.)": auf Kürzel zurückführen
+        else { const c = /\(([A-Z]{3})(?=[\s)\-–,])/.exec(out.from); if (c && AIRPORTS[c[1]]) out.from = airportLabel(c[1]); }
+        out.from = out.from.slice(0, 60);
         return out.train || out.dep ? { value: out, sources: [...sources] } : null;
     }
 
@@ -447,7 +489,7 @@
                 (document.getElementById('app') || document.body).appendChild(dlg);
             }
             const field = (id, label, v, attrs = '') => `<div class="form-group"><label for="${id}">${label}</label><input id="${id}" value="${esc(v || '')}" autocomplete="off" ${attrs}></div>`;
-            const route = [value.from, value.to].filter(Boolean).join(' → ');
+            const route = value.to ? `nach ${/^[A-Z]{3}$/.test(value.to) ? airportLabel(value.to) : value.to}` : '';
             const dateTxt = value.date ? value.date.split('-').reverse().join('.') : '';
             const meta = [route, dateTxt].filter(Boolean).join(' · ');
             const replaced = kind === 'hotel' ? current?.hotel : [current?.train, current?.dep].filter(Boolean).join(' · ');
@@ -457,6 +499,7 @@
                     ${replaced ? `<p class="form-hint">Ersetzt: ${esc(replaced)}</p>` : ''}
                     ${kind === 'hotel' ? field('br-hotel', 'Unterkunft', value.hotel, 'maxlength="80"') : `
                     ${field('br-train', 'Flug / Zug', value.train, 'maxlength="60"')}
+                    ${field('br-from', 'Abflughafen / Abfahrt von', value.from, 'maxlength="60" placeholder="z. B. Tokyo Narita (NRT)"')}
                     ${field('br-dep', 'Abfahrt / Abflug', value.dep, 'type="time"')}
                     <div class="input-row">
                         ${field('br-terminal', 'Terminal', value.terminal, 'maxlength="20"')}
@@ -472,7 +515,7 @@
             dlg.querySelector('[data-br="ok"]').onclick = () => {
                 const v = id => (dlg.querySelector('#' + id)?.value || '').trim();
                 result = kind === 'hotel' ? { hotel: v('br-hotel') }
-                    : { train: v('br-train'), dep: v('br-dep'), terminal: v('br-terminal'), gate: v('br-gate'), seat: v('br-seat') };
+                    : { train: v('br-train'), dep: v('br-dep'), from: v('br-from'), terminal: v('br-terminal'), gate: v('br-gate'), seat: v('br-seat') };
                 dlg.close();
             };
             dlg.querySelector('[data-br="cancel"]').onclick = () => dlg.close();
@@ -539,18 +582,27 @@
         const cur = slot.get();
         let pick = merged.value;
         if (quiet) {
-            if (cur && cur.train) return true; // belegte Verbindung beim Start nie überschreiben
+            if (cur && cur.train) {
+                // Belegte Verbindung beim Start nie überschreiben – nur den Abflughafen ergänzen,
+                // wenn er fehlt und die Bestätigung zur selben Verbindung gehört.
+                const norm = x => String(x || '').replace(/\s+/g, '').toUpperCase();
+                if (!cur.from && pick.from && norm(cur.train) === norm(pick.train)) {
+                    slot.set(normTransit({ ...cur, from: pick.from }));
+                    saveData();
+                }
+                return true;
+            }
         } else {
             const ok = await reviewDialog('transit', pick, merged.sources, cur && (cur.train || cur.dep) ? cur : null);
             if (!ok) return true;
             pick = ok;
         }
-        const value = normTransit({ note: cur?.note || '', train: pick.train, dep: /^\d{2}:\d{2}$/.test(pick.dep) ? pick.dep : '',
+        const value = normTransit({ note: cur?.note || '', train: pick.train, dep: /^\d{2}:\d{2}$/.test(pick.dep) ? pick.dep : '', from: pick.from || '',
             terminal: pick.terminal || '', gate: pick.gate || '', seat: pick.seat || '' });
         if (!value) return true;
         slot.set(value);
         saveData();
-        const found = [value.train, value.dep && `Abfahrt ${value.dep}`, value.terminal && `Terminal ${value.terminal}`,
+        const found = [value.train, value.from && `ab ${value.from}`, value.dep && `Abfahrt ${value.dep}`, value.terminal && `Terminal ${value.terminal}`,
             value.gate && `Gate ${value.gate}`, value.seat && `Sitz ${value.seat}`].filter(Boolean).join(' · ');
         toast(`Eingetragen: ${found}`);
         return true;
@@ -564,7 +616,7 @@
     }
     // Einmalig nach dem Update: alle schon vorhandenen Bestätigungen auslesen.
     // Erledigte IDs stehen in tp_booking_scanned; gelesen wird nur, was dort noch fehlt.
-    const SCANNED_KEY = 'tp_booking_scanned', RESCAN_KEY = 'tp_booking_rescan_v2';
+    const SCANNED_KEY = 'tp_booking_scanned', RESCAN_KEY = 'tp_booking_rescan_v3';
     function scannedIds() { try { return new Set(JSON.parse(localStorage.getItem(SCANNED_KEY) || '[]')); } catch (e) { return new Set(); } }
     async function scanExisting() {
         const api = window.documentsFeature?.sync;
@@ -579,9 +631,9 @@
         // die noch leer sind, einmalig erneut lesen. Belegte Verbindungen bleiben unberührt (keine Rückfrage).
         let again; try { again = new Set(JSON.parse(localStorage.getItem(RESCAN_KEY) || '[]')); } catch (e) { again = new Set(); }
         const empty = (await api.all()).filter(d => /^(leg:|arrival$|return$)/.test(d.ref || '') && !again.has(d.id)
-            && !(transitSlot(d.ref)?.get()?.train));
+            && !(transitSlot(d.ref)?.get()?.from));
         for (const d of empty) {
-            if (transitSlot(d.ref)?.get()?.train) continue; // inzwischen von einer anderen Bestätigung gefüllt
+            if (transitSlot(d.ref)?.get()?.from) continue; // inzwischen von einer anderen Bestätigung gefüllt
             const ok = await suggest(d.id, d.ref, true);
             if (ok) { again.add(d.id); try { localStorage.setItem(RESCAN_KEY, JSON.stringify([...again])); } catch (e) {} }
         }
@@ -590,6 +642,6 @@
     if (typeof window.document !== 'undefined' && typeof setTimeout === 'function')
         setTimeout(() => { scanExisting().catch(e => console.warn('Bestätigungen nachlesen:', e)); }, 4000);
 
-    window.bookingRead = { extractHotelName, extractTransit, labelLinesFromWords, suggest, scanRef, loadPdfJs, parseBCBP, redact, mergeTransit, prepareForOcr, decodeBarcodes,
+    window.bookingRead = { extractHotelName, extractTransit, labelLinesFromWords, suggest, scanRef, loadPdfJs, parseBCBP, redact, mergeTransit, airportLabel, prepareForOcr, decodeBarcodes,
         applyTransit: (ref, text, codeInfo, quiet) => applyTransit(ref, text, codeInfo, msg => (typeof showResultToast === 'function' ? showResultToast(msg, 'ok') : showToast(msg)), quiet) };
 })();
