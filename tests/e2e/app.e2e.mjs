@@ -1038,3 +1038,24 @@ t('Station: Navigation zur Unterkunft öffnet Google Maps ab aktuellem Standort'
     assert.equal(urls[1], 'https://www.google.com/maps/dir/?api=1&destination=Royal%20Park%2C%20Kyoto');
     assert.deepEqual(errors, []);
 });
+
+t('Aktivitäten und Tagesplan: Navigation ab aktuellem Standort, auch ohne Koordinaten', async () => {
+    await open();
+    await page.evaluate(() => { window.__opened = []; window.open = u => { window.__opened.push(u); return null; }; });
+    const r = await page.evaluate(() => {
+        const withGeo = { id: 1, title: 'Senso-ji', topPlace: 'Tokio', lat: 35.7148, lng: 139.7967 };
+        const noGeo = { id: 2, title: 'Ichiran Ramen', titleDe: 'Ichiran Nudeln', topPlace: 'Tokio', lat: null, lng: null };
+        return [actNavUrl(withGeo), actNavUrl(noGeo)];
+    });
+    assert.equal(r[0], 'https://www.google.com/maps/dir/?api=1&destination=35.7148,139.7967');
+    assert.equal(r[1], 'https://www.google.com/maps/dir/?api=1&destination=Ichiran%20Ramen%2C%20Tokio');
+    await go('view-activities', 'Aktivitäten');
+    const btn = page.locator('#activitiesList .btn-nav-act').first();
+    if (await btn.count()) {
+        await btn.click();
+        const u = await page.evaluate(() => window.__opened.pop());
+        assert.match(u, /^https:\/\/www\.google\.com\/maps\/dir\/\?api=1&destination=/);
+        assert.ok(!/origin=|travelmode=/.test(u));
+    }
+    assert.deepEqual(errors, []);
+});

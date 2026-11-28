@@ -1368,17 +1368,21 @@ function ratingHtmlFor(a) {
 const clean = n => n.replace(/ \(Ankunft\)| \(Abreise\)/g, '');
 // Navigation zur Unterkunft in Google Maps, Start = aktueller Standort (ohne origin nimmt Maps den
 // Standort des Geräts). Mit hinterlegten Koordinaten exakt, sonst Suche nach Name und Ort.
+// navUrl(lat, lng, suchtext): mit Koordinaten exakt, sonst über den Suchtext.
+function navUrl(lat, lng, query) {
+    const ok = Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)) && lat !== null && lng !== null && lat !== '' && lng !== '';
+    const dest = ok ? `${Number(lat)},${Number(lng)}` : query ? encodeURIComponent(query) : '';
+    return dest ? `https://www.google.com/maps/dir/?api=1&destination=${dest}` : '';
+}
+function openNav(url) { if (!url) return; haptic(10); window.open(url, '_blank', 'noopener'); }
 function hotelNavUrl(p) {
     if (!p || !p.hotel) return '';
-    const dest = Number.isFinite(p.hotelLat) && Number.isFinite(p.hotelLng)
-        ? `${p.hotelLat},${p.hotelLng}` : encodeURIComponent(`${p.hotel}, ${clean(p.name || '')}`);
-    return `https://www.google.com/maps/dir/?api=1&destination=${dest}`;
+    return navUrl(p.hotelLat, p.hotelLng, `${p.hotel}, ${clean(p.name || '')}`);
 }
+// Aktivität: Originalname (findet Maps im Reiseland am sichersten) plus Ort.
+const actNavUrl = a => a ? navUrl(a.lat, a.lng, `${a.title || actTitle(a)}, ${a.topPlace || ''}`) : '';
 function navigateToHotel(pid) {
-    const url = hotelNavUrl(places.find(x => Number(x.id) === Number(pid)));
-    if (!url) return;
-    haptic(10);
-    window.open(url, '_blank', 'noopener');
+    openNav(hotelNavUrl(places.find(x => Number(x.id) === Number(pid))));
 }
 // Escaped alle HTML-Sonderzeichen, bevor Nutzereingaben (Stationsname, Hotel, manuell
 // erfasste Aktivitätstitel/-beschreibungen …) per innerHTML gerendert werden (XSS-Schutz).
@@ -3637,7 +3641,7 @@ async function showOnMap(lat, lng, title, desc, actId) {
 
 function openGoogleMapsRoute() {
     if (currentActLat == null) return;
-    window.open(`https://www.google.com/maps/dir/?api=1&destination=${currentActLat},${currentActLng}&travelmode=transit`, '_blank');
+    openNav(navUrl(currentActLat, currentActLng));
 }
 // Google-Suche mit deutscher Oberfläche (hl=de); Treffer in allen Sprachen.
 const googleSearchDe = text => `https://www.google.de/search?hl=de&q=${encodeURIComponent(text)}`;
@@ -4282,7 +4286,7 @@ function renderActs() {
                 ${ratingHtmlFor(a)}
                 <div class="act-btns">
                     ${(a.lat && a.lng) ? `<button class="btn-icon btn-map-act">${ico('map-trifold')} Karte</button>` : ''}
-                    ${(a.lat && a.lng) ? `<button class="btn-icon btn-nav-act">${ico('navigation-arrow')} Route</button>` : ''}
+                    <button class="btn-icon btn-nav-act" title="Navigation ab aktuellem Standort (Google Maps)">${ico('navigation-arrow')} Navigation</button>
                     <button class="btn-icon btn-web-act act-btn-round" aria-label="Im Web suchen" title="Im Web suchen">${ico('globe-simple', '🌐')}</button>
                     <button class="btn-icon btn-taxi-act act-btn-round" onclick="taxiCard.openAct(${Number(a.id)})" aria-label="Taxi-Karte" title="Taxi-Karte">${ico('taxi', '🚕')}</button>
                     <button class="btn-icon btn-favorite-act act-btn-round" aria-pressed="${!!a.favorite}" aria-label="Favorit" title="Favorit">${ico('heart', a.favorite ? '♥' : '♡')}</button>
@@ -4310,9 +4314,8 @@ function renderActs() {
         div.querySelector('.btn-favorite-act').addEventListener('click', () => toggleFavorite(a.id));
         if (a.lat && a.lng) {
             div.querySelector('.btn-map-act').addEventListener('click', () => showOnMap(a.lat, a.lng, a.title, a.desc, a.id));
-            div.querySelector('.btn-nav-act').addEventListener('click', () =>
-                window.open(`https://www.google.com/maps/dir/?api=1&destination=${a.lat},${a.lng}&travelmode=transit`, '_blank'));
         }
+        div.querySelector('.btn-nav-act').addEventListener('click', () => openNav(actNavUrl(a)));
 
         frag.appendChild(div);
 
@@ -4500,6 +4503,7 @@ function dayEntryHtml(e, inDay, entries, i) {
                 <div class="dayplan-item-type">${sub}</div>
             </div>
             <div class="dayplan-controls">
+            <button type="button" class="dayplan-nav" data-kind="${e.kind}" data-id="${id}" onclick="navToDayEntry(this.dataset.kind, +this.dataset.id)" aria-label="Navigation zu ${safeTitle}" title="Navigation (Google Maps)">${ico('navigation-arrow', '🧭')}</button>
             ${a ? `<select class="dayplan-day-select" data-id="${id}" onchange="setActDay(+this.dataset.id, this.value)" aria-label="Tag für ${safeTitle} wählen">
                 <option value="">Kein Tag</option>
                 ${placeDays(a.topPlace).map(d => `<option value="${d}" ${a.day === d ? 'selected' : ''}>${escHtml(fmtDayShort(d))}</option>`).join('')}
@@ -4513,6 +4517,12 @@ function dayEntryHtml(e, inDay, entries, i) {
             </div>
             ${a ? (window.openingHours?.warnHtml(a) || '') : ''}
         </div>`;
+}
+// Navigation ab aktuellem Standort zu einem Tagesplan-Eintrag (Aktivität oder eigener Punkt)
+function navToDayEntry(kind, id) {
+    if (kind === 'act') return openNav(actNavUrl(acts.find(a => a.id === id)));
+    const pt = planPoints.find(p => p.id === id);
+    if (pt) openNav(navUrl(pt.lat, pt.lng, `${pt.text}, ${pt.city || ''}`));
 }
 function renderDayPlan() {
     const list = document.getElementById('dayPlanList');
