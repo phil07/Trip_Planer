@@ -4662,8 +4662,10 @@ function renderDayPlan() {
             <div class="dayplan-items">
                 ${entries.map((e, i) => dayEntryHtml(e, !!isDay, entries, i)).join('')}
             </div>
+            ${isDay ? `<button type="button" class="dayplan-add">${ico('plus')}<span>Punkt hinzufügen</span></button>` : ''}
             <button class="btn btn-accent" ${nStops < 1 ? 'disabled' : ''}>Route planen (${nStops} Stopp${nStops === 1 ? '' : 's'})</button>`;
         card.querySelector('button.btn-accent').addEventListener('click', onRoute);
+        card.querySelector('.dayplan-add')?.addEventListener('click', () => openPlanModal(null, { day: isDay, city }));
         list.appendChild(card);
     };
     if (planned.length) {
@@ -4723,7 +4725,8 @@ function moveDayEntry(kind, id, d) {
 // Eigene Punkte für den Tagesplan (+ im Tagesplan, ✏️ zum Umbenennen und Umlegen).
 // Station und Tag kommen aus den Reisedaten.
 let planEditId = null;
-function openPlanModal(editId = null) {
+// preset { day, city }: aus einer Tageskarte heraus – Tag und Station sind schon gewählt.
+function openPlanModal(editId = null, preset = null) {
     const seen = new Set();
     const cities = places.map((p, i) => ({ city: clean(p.name), label: displayName(p.name, i) }))
         .filter(c => !seen.has(c.city) && seen.add(c.city) && placeDays(c.city).length);
@@ -4732,8 +4735,9 @@ function openPlanModal(editId = null) {
     planEditId = edit ? edit.id : null;
     document.getElementById('modal-plan-title').textContent = edit ? 'Tagesplan-Punkt bearbeiten' : 'Tagesplan-Punkt';
     document.getElementById('pl-city').innerHTML = cities.map(c => `<option value="${esc(c.city)}">${esc(c.label)}</option>`).join('');
-    if (edit) document.getElementById('pl-city').value = edit.city;
-    fillPlanDays(edit?.day);
+    const city = edit ? edit.city : preset?.city;
+    if (city && cities.some(c => c.city === city)) document.getElementById('pl-city').value = city;
+    fillPlanDays(edit ? edit.day : preset?.day);
     document.getElementById('pl-text').value = edit ? edit.text : '';
     document.getElementById('modal-plan').showModal();
     document.getElementById('pl-text').focus();

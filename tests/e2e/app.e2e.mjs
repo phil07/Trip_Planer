@@ -1254,3 +1254,24 @@ t('Tagesplan: Route planen auch mit eigenen Einträgen ohne Koordinaten', async 
     assert.match(await page.locator('.dayplan-card', { hasText: 'Tokyo Tower' }).first().locator('button.btn-accent').innerText(), /2 Stopps/);
     assert.deepEqual(errors, []);
 });
+
+t('Tagesplan: Punkt direkt an einem Tag hinzufügen (Tag und Ort vorbelegt)', async () => {
+    const seed = FIXTURE();
+    seed.tp_plan = JSON.stringify([{ id: 501, day: day(3), city: 'Tokio', text: 'Tokyo Tower', dayOrder: 2, done: false }]);
+    await open(seed);
+    await go('view-dayplan', 'Tagesplan');
+    const card = page.locator('.dayplan-card', { hasText: 'Tokyo Tower' }).first();
+    await card.locator('.dayplan-add').click();
+    await page.waitForFunction(() => document.getElementById('modal-plan').open);
+    assert.equal(await page.locator('#pl-day').inputValue(), await page.evaluate(d => d, (() => { const x = new Date(); x.setDate(x.getDate() + 3); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; })()));
+    assert.equal(await page.locator('#pl-city').inputValue(), 'Tokio');
+    await page.fill('#pl-text', 'Shibuya Crossing');
+    await page.click('#modal-plan .btn:not(.btn-secondary)');
+    assert.match(await page.locator('.dayplan-card', { hasText: 'Tokyo Tower' }).first().innerText(), /Shibuya Crossing/);
+    // Wechseltag ohne Einträge: Knopf auf der Stationswechsel-Karte, Ziel vorbelegt
+    const sw = page.locator('.transit-day-card').first();
+    await sw.locator('.dayplan-add').click();
+    await page.waitForFunction(() => document.getElementById('modal-plan').open);
+    assert.equal(await page.locator('#pl-city').inputValue(), 'Kyoto');
+    assert.deepEqual(errors, []);
+});

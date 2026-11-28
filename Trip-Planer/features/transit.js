@@ -203,6 +203,12 @@
             card.dataset.day = info.day;
             card.innerHTML = `<div class="dayplan-header"><h3>${esc(fmtDayLong(info.day))}</h3><span class="dayplan-count">Stationswechsel</span></div>`;
             card.appendChild(block);
+            // Auch an Wechseltagen ohne Einträge direkt einen Punkt anlegen (Ort: Zielstation)
+            const add = document.createElement('button');
+            add.type = 'button'; add.className = 'dayplan-add';
+            add.innerHTML = `${ico('plus')}<span>Punkt hinzufügen</span>`;
+            add.addEventListener('click', () => window.openPlanModal?.(null, { day: info.day, city: info.toName }));
+            card.appendChild(add);
             const cards = dayCards(), later = cards.find(c => c.dataset.day > info.day);
             if (later) later.before(card);
             else if (cards.length) cards[cards.length - 1].after(card);

@@ -1594,3 +1594,8 @@ body .settings-card .theme-btn i { display: block; line-height: 1; }
 .dayplan-nav, .dayplan-order .reorder-btn { width: 36px; height: 36px; font-size: 16px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
 .dayplan-order .reorder-btn.dp-icon { color: var(--muted); }
 .dayplan-order .reorder-btn.dp-icon:hover, .dayplan-order .reorder-btn.dp-icon:focus-visible { color: var(--label); }
+.dayplan-add { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; margin: 4px 0 12px; padding: 0 12px; border: 1px dashed var(--border);
+    border-radius: var(--radius-sm); background: transparent; color: var(--muted); font: inherit; font-size: var(--fs-subhead); font-weight: 600; cursor: pointer; }
+.dayplan-add:hover, .dayplan-add:focus-visible { color: var(--label); border-color: var(--muted); }
+.dayplan-add:active { transform: scale(.99); }
+.transit-day-card .dayplan-add { margin: 10px 0 0; }
