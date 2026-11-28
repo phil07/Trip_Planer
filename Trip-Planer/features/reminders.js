@@ -304,7 +304,7 @@
             ${sw('rem-todo-on', s.todoOn, 'Fällige ToDos', 'Wenn die Fälligkeit weniger als 24 Stunden entfernt ist')}
             <p class="settings-hint" id="rem-bg-text"></p>
             <details class="rem-checkouts"${rows.length ? '' : ' hidden'}>
-                <summary>Check-out-Zeiten pro Station</summary>
+                <summary>${ico('caret-down', '▾')}<span>Check-out-Zeiten pro Station</span></summary>
                 ${rows.map(({ p, i, cd }) => `<div class="form-group rem-place">
                     <label for="rem-co-${i}">${esc(clean(String(p.name)))} <span class="rem-date">· ${esc(fmtDate(cd.isoEnd))}</span></label>
                     <input type="time" id="rem-co-${i}" data-id="${esc(String(p.id))}" step="60" value="${validHHMM(p.checkout) ? p.checkout : ''}">
