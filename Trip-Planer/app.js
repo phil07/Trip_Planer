@@ -332,7 +332,8 @@ function normAct(a, i) {
 // Eigener Punkt im Tagesplan (+ im Tagesplan): Station, Tag und Text, abhakbar.
 function normPlanPoint(p, i) {
     return { id: finiteOr(p.id, Date.now() + i), city: String(p.city ?? ''), day: typeof p.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.day) ? p.day : '',
-        text: String(p.text ?? '').trim().slice(0, 300), done: !!p.done, dayOrder: finiteOr(p.dayOrder, 0) };
+        text: String(p.text ?? '').trim().slice(0, 300), done: !!p.done, dayOrder: finiteOr(p.dayOrder, 0),
+        lat: finiteOr(p.lat, null), lng: finiteOr(p.lng, null) };
 }
 // Öffnungszeiten einer Aktivität (features/openinghours.js): Ruhetage als Wochentage
 // 0–6 (0 = Sonntag, wie Date.getDay()) und EIN Zeitfenster von–bis (HH:MM). Streng
@@ -4662,10 +4663,19 @@ function renderDayPlan() {
             <div class="dayplan-items">
                 ${entries.map((e, i) => dayEntryHtml(e, !!isDay, entries, i)).join('')}
             </div>
-            ${isDay ? `<button type="button" class="dayplan-add">${ico('plus')}<span>Punkt hinzufügen</span></button>` : ''}
+            ${isDay ? `<div class="dayplan-tools">
+                <button type="button" class="dayplan-add">${ico('plus')}<span>Punkt hinzufügen</span></button>
+                ${entries.filter(e => !e.done).length >= 2 ? `<button type="button" class="dayplan-optimize">${ico('shuffle')}<span>Reihenfolge optimieren</span></button>` : ''}
+            </div>` : ''}
             <button class="btn btn-accent" ${nStops < 1 ? 'disabled' : ''}>${escHtml(routeLabel)} (${nStops} Stopp${nStops === 1 ? '' : 's'})</button>`;
         card.querySelector('button.btn-accent').addEventListener('click', onRoute);
         card.querySelector('.dayplan-add')?.addEventListener('click', () => openPlanModal(null, { day: isDay, city }));
+        const opt = card.querySelector('.dayplan-optimize');
+        opt?.addEventListener('click', async () => {
+            if (opt.disabled) return;
+            opt.disabled = true;
+            try { await optimizeDay(isDay); } finally { opt.disabled = false; }
+        });
         list.appendChild(card);
     };
     if (planned.length) {
@@ -4764,12 +4774,14 @@ function savePlanPoint() {
     const edit = planEditId == null ? null : planPoints.find(p => p.id === planEditId);
     if (edit) {
         const moved = edit.day !== day;
+        // Anderer Name oder Ort: gefundener Standort passt nicht mehr
+        if (edit.text !== text.slice(0, 300) || edit.city !== city) { edit.lat = null; edit.lng = null; }
         Object.assign(edit, { city, day, text: text.slice(0, 300) });
         // Beim Umlegen auf einen anderen Tag ans Ende dieses Tages sortieren.
         if (moved) edit.dayOrder = Math.max(-1, ...dayEntries(day).filter(e => !(e.kind === 'pt' && e.id === edit.id)).map(e => e.order)) + 1;
     } else {
         const order = Math.max(-1, ...dayEntries(day).map(e => e.order)) + 1;
-        planPoints.push({ id: Date.now() + Math.floor(Math.random() * 1000), city, day, text: text.slice(0, 300), done: false, dayOrder: order });
+        planPoints.push({ id: Date.now() + Math.floor(Math.random() * 1000), city, day, text: text.slice(0, 300), done: false, dayOrder: order, lat: null, lng: null });
     }
     planEditId = null;
     persist(); renderDayPlan();
@@ -4800,6 +4812,109 @@ function nearestNeighborOrder(start, points) {
         ordered.push(cur);
     }
     return ordered;
+}
+
+// ─── Reihenfolge optimieren ────────────────────────────────────────────────
+// Kürzester Weg (Luftlinie) von start über alle Punkte zu end. Bis 8 Punkte werden alle
+// Reihenfolgen geprüft (exakt), darüber Nächster-Nachbar plus 2-opt (nahe am Optimum).
+// Liefert die neue Reihenfolge als Indizes in pts.
+function shortestOrder(start, end, pts) {
+    const n = pts.length;
+    if (n < 2) return pts.map((_, i) => i);
+    const d = (a, b) => distanceKm(a.lat, a.lng, b.lat, b.lng);
+    const cost = ord => { let c = d(start, pts[ord[0]]); for (let k = 1; k < n; k++) c += d(pts[ord[k - 1]], pts[ord[k]]); return c + d(pts[ord[n - 1]], end); };
+    if (n <= 8) {
+        let best = null, bestC = Infinity;
+        const perm = (arr, used) => {
+            if (arr.length === n) { const c = cost(arr); if (c < bestC) { bestC = c; best = arr.slice(); } return; }
+            for (let i = 0; i < n; i++) if (!used[i]) { used[i] = true; arr.push(i); perm(arr, used); arr.pop(); used[i] = false; }
+        };
+        perm([], []);
+        return best;
+    }
+    const rest = pts.map((_, i) => i), ord = [];
+    let cur = start;
+    while (rest.length) {
+        let bi = 0; rest.forEach((i, k) => { if (d(cur, pts[i]) < d(cur, pts[rest[bi]])) bi = k; });
+        cur = pts[rest[bi]]; ord.push(rest.splice(bi, 1)[0]);
+    }
+    for (let improved = true; improved;) {
+        improved = false;
+        for (let a = 0; a < n - 1; a++) for (let b = a + 1; b < n; b++) {
+            const next = ord.slice(0, a).concat(ord.slice(a, b + 1).reverse(), ord.slice(b + 1));
+            if (cost(next) + 1e-9 < cost(ord)) { ord.splice(0, n, ...next); improved = true; }
+        }
+    }
+    return ord;
+}
+// Eigenen Punkt über die Ortssuche verorten (einmal, Ergebnis wird gespeichert). Nur plausible
+// Treffer zählen – sonst landet „Castle“ in einem anderen Land: nahe der Station, am Wechseltag
+// irgendwo entlang der Strecke zwischen alter und neuer Station (Ellipse um beide).
+const geoTriedPts = new Set();
+function plausibleHit(h, anchors) {
+    const pts = anchors.filter(a => a && a.lat != null);
+    if (!pts.length) return true;
+    if (pts.some(a => distanceKm(a.lat, a.lng, h.lat, h.lng) <= 150)) return true;
+    if (pts.length === 2) {
+        const [a, b] = pts, ab = distanceKm(a.lat, a.lng, b.lat, b.lng);
+        return distanceKm(a.lat, a.lng, h.lat, h.lng) + distanceKm(h.lat, h.lng, b.lat, b.lng) <= ab * 1.5 + 100;
+    }
+    return false;
+}
+async function locatePlanPoint(pt, anchors) {
+    if (pt.lat != null || geoTriedPts.has(pt.id)) return pt.lat != null;
+    geoTriedPts.add(pt.id);
+    const st = places.find(p => clean(p.name) === pt.city);
+    anchors = anchors || [st];
+    try {
+        const q = [pt.text, pt.city, tripCountry].filter(Boolean).join(', ');
+        const r = await nominatimFetch(`https://nominatim.openstreetmap.org/search?format=json&limit=3&q=${encodeURIComponent(q)}`);
+        const hits = r && r.ok ? await r.json() : [];
+        const near = (Array.isArray(hits) ? hits : []).map(h => ({ lat: parseFloat(h.lat), lng: parseFloat(h.lon) }))
+            .find(h => Number.isFinite(h.lat) && plausibleHit(h, anchors));
+        if (near) { pt.lat = near.lat; pt.lng = near.lng; return true; }
+    } catch (e) { console.warn('Standort für Tagesplan-Punkt:', e.message || e); }
+    return false;
+}
+async function optimizeDay(day) {
+    const entries = dayEntries(day);
+    const open = entries.filter(e => !e.done);
+    if (open.length < 2) return;
+    // Start/Ziel: Wechseltag von alter zu neuer Unterkunft, sonst Rundweg ab der Unterkunft
+    const leg = computedData.findIndex((c, i) => c && c.isoEnd === day && places[i + 1]);
+    const cityOf = e => e.kind === 'act' ? e.ref.topPlace : e.ref.city;
+    const base = leg >= 0 ? places[leg] : places.find(p => clean(p.name) === cityOf(open[0]));
+    const stay = p => p && (p.hotelLat != null ? { lat: p.hotelLat, lng: p.hotelLng } : p.lat != null ? { lat: p.lat, lng: p.lng } : null);
+    const start = stay(base), end = leg >= 0 ? stay(places[leg + 1]) : start;
+    if (!start || !end) { showToast('Für diese Station fehlt der Standort – Optimieren nicht möglich'); return; }
+    const missing = open.filter(e => e.kind === 'pt' && e.ref.lat == null && !geoTriedPts.has(e.ref.id));
+    if (missing.length) {
+        showToast(`Suche ${missing.length === 1 ? 'Standort' : 'Standorte'} der Punkte …`, 2500 + missing.length * 1200);
+        const anchors = leg >= 0 ? [places[leg], places[leg + 1]] : null;
+        for (const e of missing) await locatePlanPoint(e.ref, anchors);
+        persist();
+    }
+    // Nur Punkte mit Standort werden umsortiert; die übrigen behalten ihren Platz.
+    const slots = open.map((e, i) => e.ref.lat != null && e.ref.lng != null ? i : -1).filter(i => i >= 0);
+    if (slots.length < 2) { showToast('Zu wenige Punkte mit Standort zum Optimieren'); renderDayPlan(); return; }
+    const pts = slots.map(i => ({ lat: Number(open[i].ref.lat), lng: Number(open[i].ref.lng) }));
+    const ord = shortestOrder(start, end, pts);
+    const pathKm = seq => { let c = distanceKm(start.lat, start.lng, seq[0].lat, seq[0].lng); for (let k = 1; k < seq.length; k++) c += distanceKm(seq[k - 1].lat, seq[k - 1].lng, seq[k].lat, seq[k].lng); return c + distanceKm(seq[seq.length - 1].lat, seq[seq.length - 1].lng, end.lat, end.lng); };
+    const before = pathKm(pts), after = pathKm(ord.map(i => pts[i]));
+    const unplaced = open.length - slots.length;
+    if (ord.every((v, k) => v === k)) {
+        showToast(`Reihenfolge ist schon die kürzeste${unplaced ? ` (${unplaced} ohne Standort nicht berücksichtigt)` : ''}`);
+        renderDayPlan(); return;
+    }
+    const prev = entries.map(e => [e.ref, e.ref.dayOrder]);
+    const next = open.slice();
+    slots.forEach((slot, k) => { next[slot] = open[slots[ord[k]]]; });
+    [...next, ...entries.filter(e => e.done)].forEach((e, k) => { e.ref.dayOrder = k; });
+    haptic(15); persist(); renderDayPlan();
+    const saved = before - after;
+    showUndoToast(`Reihenfolge optimiert – ca. ${saved >= 10 ? Math.round(saved) : saved.toFixed(1).replace('.', ',')} km kürzer${unplaced ? ` · ${unplaced} ohne Standort unverändert` : ''}`, () => {
+        prev.forEach(([ref, o]) => { ref.dayOrder = o; }); persist(); renderDayPlan();
+    }, 6000);
 }
 
 // Route in Google Maps ab der Unterkunft durch alle Einträge. Einträge mit Koordinaten exakt,

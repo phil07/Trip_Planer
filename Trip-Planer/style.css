@@ -1599,3 +1599,9 @@ body .settings-card .theme-btn i { display: block; line-height: 1; }
 .dayplan-add:hover, .dayplan-add:focus-visible { color: var(--label); border-color: var(--muted); }
 .dayplan-add:active { transform: scale(.99); }
 .transit-day-card .dayplan-add { margin: 10px 0 0; }
+.dayplan-tools { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 12px; }
+.dayplan-tools .dayplan-add { flex: 1 1 160px; width: auto; margin: 0; }
+.dayplan-optimize { flex: 1 1 160px; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); background: var(--bg-secondary); color: var(--label); font: inherit; font-size: var(--fs-subhead); font-weight: 600; cursor: pointer; }
+.dayplan-optimize:disabled { opacity: .6; cursor: progress; }
+.dayplan-optimize:active { transform: scale(.99); }

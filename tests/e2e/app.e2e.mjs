@@ -1297,3 +1297,47 @@ t('Tagesplan Wechseltag: Route von alter zu neuer Unterkunft, Punkte als Zwische
     assert.equal(await page.locator('.transit-day-card', { hasText: 'Weiter nach Kyoto' }).count(), 0, 'keine zweite Wechselkarte');
     assert.deepEqual(errors, []);
 });
+
+t('Tagesplan: Reihenfolge optimieren (Wechseltag, eigene Punkte werden verortet, Rückgängig)', async () => {
+    const seed = FIXTURE(); // Wechsel Tokio → Kyoto an day(6)
+    seed.tp_plan = JSON.stringify([
+        { id: 701, day: day(6), city: 'Kyoto', text: 'Kiyomizu-dera', dayOrder: 0, done: false },
+        { id: 702, day: day(6), city: 'Kyoto', text: 'Tokyo Skytree', dayOrder: 1, done: false },
+        { id: 703, day: day(6), city: 'Kyoto', text: 'Nagoya Castle', dayOrder: 2, done: false },
+        { id: 704, day: day(6), city: 'Kyoto', text: 'Unbekannter Ort', dayOrder: 3, done: false }]);
+    await open(seed);
+    const asked = [];
+    const geo = { 'Kiyomizu-dera': [34.9949, 135.785], 'Tokyo Skytree': [35.7101, 139.8107], 'Nagoya Castle': [35.1856, 136.8992] };
+    await page.route(/nominatim\.openstreetmap\.org\/search/, r => {
+        const q = new URL(r.request().url()).searchParams.get('q');
+        asked.push(q);
+        const hit = Object.entries(geo).find(([k]) => q.startsWith(k));
+        r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(hit ? [{ lat: String(hit[1][0]), lon: String(hit[1][1]) }] : []) });
+    });
+    await go('view-dayplan', 'Tagesplan');
+    const card = () => page.locator('.dayplan-card', { hasText: 'Kiyomizu-dera' }).first();
+    const titles = () => card().locator('.dayplan-item-title').allInnerTexts();
+    assert.deepEqual(await titles(), ['Kiyomizu-dera', 'Tokyo Skytree', 'Nagoya Castle', 'Unbekannter Ort']);
+    await card().locator('.dayplan-optimize').click();
+    await page.waitForFunction(() => /optimiert/.test(document.getElementById('toast')?.textContent || ''), null, { timeout: 20000 });
+    // Tokio → Skytree → Nagoya → Kiyomizu → Kyoto; der Punkt ohne Standort bleibt auf Platz 4
+    assert.deepEqual(await titles(), ['Tokyo Skytree', 'Nagoya Castle', 'Kiyomizu-dera', 'Unbekannter Ort']);
+    assert.match(await page.locator('#toast').innerText(), /km kürzer · 1 ohne Standort unverändert/);
+    assert.equal(asked.length, 4);
+    assert.ok(asked[0].includes('Kyoto') && asked[0].includes('Japan'));
+    // Standorte bleiben gespeichert
+    assert.equal(await page.evaluate(() => planPoints.find(p => p.id === 702).lat), 35.7101);
+    // Rückgängig
+    await page.click('#toast .toast-action');
+    assert.deepEqual(await titles(), ['Kiyomizu-dera', 'Tokyo Skytree', 'Nagoya Castle', 'Unbekannter Ort']);
+    // Exakt vs. Näherung: bei 10 Punkten liefert das Verfahren eine gültige Reihenfolge, nicht länger als die Eingabe
+    const ok = await page.evaluate(() => {
+        const pts = Array.from({ length: 10 }, (_, i) => ({ lat: 35 + Math.sin(i * 7) * 0.3, lng: 135.7 + Math.cos(i * 3) * 0.3 }));
+        const s = { lat: 35, lng: 135.7 };
+        const ord = shortestOrder(s, s, pts);
+        const len = o => { let c = distanceKm(s.lat, s.lng, pts[o[0]].lat, pts[o[0]].lng); for (let k = 1; k < o.length; k++) c += distanceKm(pts[o[k - 1]].lat, pts[o[k - 1]].lng, pts[o[k]].lat, pts[o[k]].lng); return c + distanceKm(pts[o[o.length - 1]].lat, pts[o[o.length - 1]].lng, s.lat, s.lng); };
+        return [...ord].sort((a, b) => a - b).join() === pts.map((_, i) => i).join() && len(ord) <= len(pts.map((_, i) => i)) + 1e-9;
+    });
+    assert.ok(ok);
+    assert.deepEqual(errors, []);
+});
