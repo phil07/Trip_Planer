@@ -4608,7 +4608,7 @@ function dayEntryHtml(e, inDay, entries, i) {
                 <div class="dayplan-item-type">${sub}</div>
             </div>
             <div class="dayplan-controls">
-            <button type="button" class="dayplan-nav" data-kind="${e.kind}" data-id="${id}" onclick="navToDayEntry(this.dataset.kind, +this.dataset.id)" aria-label="Navigation zu ${safeTitle}" title="Navigation (Google Maps)">${ico('navigation-arrow', '🧭')}</button>
+            <button type="button" class="dayplan-nav" data-kind="${e.kind}" data-id="${id}" onclick="navToDayEntry(this.dataset.kind, +this.dataset.id)" aria-label="Navigation zu ${safeTitle}" title="Navigation (Google Maps)">${ico('navigation-arrow')}</button>
             ${a ? `<select class="dayplan-day-select" data-id="${id}" onchange="setActDay(+this.dataset.id, this.value)" aria-label="Tag für ${safeTitle} wählen">
                 <option value="">Kein Tag</option>
                 ${placeDays(a.topPlace).map(d => `<option value="${d}" ${a.day === d ? 'selected' : ''}>${escHtml(fmtDayShort(d))}</option>`).join('')}
@@ -4616,8 +4616,8 @@ function dayEntryHtml(e, inDay, entries, i) {
             ${inDay ? `<div class="dayplan-order">
                 <button class="reorder-btn" data-kind="${e.kind}" data-id="${id}" data-d="-1" onclick="moveDayEntry(this.dataset.kind, +this.dataset.id, +this.dataset.d)" aria-label="${safeTitle} nach oben" ${canUp ? '' : 'disabled'}>↑</button>
                 <button class="reorder-btn" data-kind="${e.kind}" data-id="${id}" data-d="1" onclick="moveDayEntry(this.dataset.kind, +this.dataset.id, +this.dataset.d)" aria-label="${safeTitle} nach unten" ${canDown ? '' : 'disabled'}>↓</button>
-                ${a ? '' : `<button class="edit-btn" data-id="${id}" onclick="openPlanModal(+this.dataset.id)" aria-label="${safeTitle} bearbeiten">✏️</button>
-                <button class="del-btn" data-id="${id}" onclick="delPlanPoint(+this.dataset.id)" aria-label="${safeTitle} entfernen">✕</button>`}
+                ${a ? '' : `<button class="reorder-btn dp-icon dp-edit" data-id="${id}" onclick="openPlanModal(+this.dataset.id)" aria-label="${safeTitle} bearbeiten">${ico('pencil-simple')}</button>
+                <button class="reorder-btn dp-icon dp-del" data-id="${id}" onclick="delPlanPoint(+this.dataset.id)" aria-label="${safeTitle} entfernen">${ico('x')}</button>`}
             </div>` : ''}
             </div>
             ${a ? (window.openingHours?.warnHtml(a) || '') : ''}
@@ -4649,7 +4649,7 @@ function renderDayPlan() {
 
     list.innerHTML = '';
     const addCard = (title, entries, sub, onRoute, isDay, city) => {
-        const withGeo = entries.filter(e => e.kind === 'act' && e.ref.lat != null && e.ref.lng != null).length;
+        const nStops = entries.length;
         const card = document.createElement('div');
         card.className = 'dayplan-card';
         if (isDay) { card.dataset.wxDay = isDay; card.dataset.wxCity = city; } // Wetter-Hook (features/weather.js)
@@ -4662,7 +4662,7 @@ function renderDayPlan() {
             <div class="dayplan-items">
                 ${entries.map((e, i) => dayEntryHtml(e, !!isDay, entries, i)).join('')}
             </div>
-            <button class="btn btn-accent" ${withGeo < 1 ? 'disabled' : ''}>Route planen (${withGeo} Stopp${withGeo === 1 ? '' : 's'})</button>`;
+            <button class="btn btn-accent" ${nStops < 1 ? 'disabled' : ''}>Route planen (${nStops} Stopp${nStops === 1 ? '' : 's'})</button>`;
         card.querySelector('button.btn-accent').addEventListener('click', onRoute);
         list.appendChild(card);
     };
@@ -4672,9 +4672,9 @@ function renderDayPlan() {
     }
     planned.forEach(day => {
         const entries = dayEntries(day);
-        const routeActs = entries.filter(e => e.kind === 'act').map(e => e.ref);
         const cs = [...new Set(entries.map(e => e.city))].join(', ');
-        addCard(fmtDayLong(day), entries, cs, () => planDayRoute(routeActs[0]?.topPlace, routeActs, true), day, routeActs[0]?.topPlace || entries[0]?.city || '');
+        const city = entries.find(e => e.kind === 'act')?.ref.topPlace || entries[0]?.city || '';
+        addCard(fmtDayLong(day), entries, cs, () => planDayRoute(city, entries.map(e => e.ref), true), day, city);
     });
     if (loose.length) {
         const h = document.createElement('div'); h.className = 'dayplan-section';
@@ -4791,25 +4791,38 @@ function nearestNeighborOrder(start, points) {
     return ordered;
 }
 
+// Route in Google Maps ab der Unterkunft durch alle Einträge. Einträge mit Koordinaten exakt,
+// alle anderen (eigene Einträge, Aktivitäten ohne Standort) über "Name, Ort" – Google Maps sucht sie.
+// Maps-Links nehmen auf dem Handy höchstens 3 Zwischenstopps; mehr werden abgeschnitten.
+const MAPS_MAX_WAYPOINTS = 3;
+function routeStop(x, city) {
+    if (x && Number.isFinite(Number(x.lat)) && Number.isFinite(Number(x.lng)) && x.lat !== null && x.lng !== null)
+        return { lat: Number(x.lat), lng: Number(x.lng), key: `${Number(x.lat)},${Number(x.lng)}` };
+    const name = x?.text || x?.title || '';
+    const q = [name, x?.topPlace || x?.city || city].filter(Boolean).join(', ');
+    return q ? { key: q } : null;
+}
 function planDayRoute(city, items, keepOrder) {
     const root = places.find(p => clean(p.name) === city);
-    let favs = (items || acts.filter(a => a.topPlace === city && a.favorite)).filter(a => a.lat != null && a.lng != null);
-    if (!favs.length) { showToast(`Keine Favoriten mit Standort für ${city || 'diesen Tag'}`); return; }
+    let stops = (items || acts.filter(a => a.topPlace === city && a.favorite)).map(x => routeStop(x, city)).filter(Boolean);
+    if (!stops.length) { showToast(`Keine Einträge für ${city || 'diesen Tag'}`); return; }
 
-    let origin;
-    if (root && root.hotelLat && root.hotelLng) origin = { lat: root.hotelLat, lng: root.hotelLng };
-    else if (root) origin = { lat: root.lat, lng: root.lng };
-    else { origin = { lat: favs[0].lat, lng: favs[0].lng }; favs = favs.slice(1); }
-
-    if (!favs.length) { showToast('Nur ein Favorit vorhanden.'); return; }
+    let origin = root ? routeStop(root.hotelLat ? { lat: root.hotelLat, lng: root.hotelLng } : root.hotel ? { title: root.hotel, city } : root, city) : null;
+    if (!origin) { origin = stops[0]; stops = stops.slice(1); }
+    if (!stops.length) { showToast('Nur ein Eintrag – nutze dafür die Navigation.'); return; }
 
     haptic();
-    const ordered = keepOrder ? favs : nearestNeighborOrder(origin, favs);
-    const destination = ordered[ordered.length - 1];
-    const waypoints = ordered.slice(0, -1);
-
-    let url = `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&travelmode=transit`;
-    if (waypoints.length) url += `&waypoints=${waypoints.map(p => `${p.lat},${p.lng}`).join('|')}`;
+    // Ohne feste Reihenfolge: Stopps mit Koordinaten nach Nähe, die übrigen danach
+    if (!keepOrder && origin.lat != null) {
+        const geo = stops.filter(x => x.lat != null), rest = stops.filter(x => x.lat == null);
+        stops = [...nearestNeighborOrder(origin, geo), ...rest];
+    }
+    const destination = stops[stops.length - 1];
+    const waypoints = stops.slice(0, -1);
+    if (waypoints.length > MAPS_MAX_WAYPOINTS) showToast(`Google Maps zeigt höchstens ${MAPS_MAX_WAYPOINTS} Zwischenstopps – die ersten ${MAPS_MAX_WAYPOINTS} sind dabei.`, 4500);
+    const enc = x => encodeURIComponent(x.key);
+    let url = `https://www.google.com/maps/dir/?api=1&origin=${enc(origin)}&destination=${enc(destination)}&travelmode=transit`;
+    if (waypoints.length) url += `&waypoints=${waypoints.slice(0, MAPS_MAX_WAYPOINTS).map(enc).join('%7C')}`;
     window.open(url, '_blank');
 }
 

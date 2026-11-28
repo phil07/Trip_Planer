@@ -194,7 +194,7 @@ t('Tagesplan: eigener Punkt umbenennen', async () => {
     await page.click('#view-dayplan .fab-add-act');
     await page.fill('#pl-text', 'Alt');
     await page.click('#modal-plan .btn:not(.btn-secondary)');
-    await page.click('#dayPlanList .edit-btn >> nth=0');
+    await page.click('#dayPlanList .dp-edit >> nth=0');
     await page.waitForFunction(() => document.getElementById('modal-plan').open);
     await page.fill('#pl-text', 'Neu');
     await page.click('#modal-plan .btn:not(.btn-secondary)');
@@ -1228,5 +1228,29 @@ t('Anreise und Rückreise: unterwegs zwischen Abflug und Landung, Heimreise ab C
     assert.equal(JSON.parse(r.retAfter).inRet, false);
     assert.equal(r.arrEl, true);
     assert.match(r.arrText, /Unterwegs/);
+    assert.deepEqual(errors, []);
+});
+
+t('Tagesplan: Route planen auch mit eigenen Einträgen ohne Koordinaten', async () => {
+    const seed = FIXTURE();
+    seed.tp_plan = JSON.stringify([
+        { id: 501, day: day(3), city: 'Tokio', text: 'Tokyo Tower', dayOrder: 2, done: false },
+        { id: 502, day: day(3), city: 'Tokio', text: 'teamLab Planets', dayOrder: 3, done: false }]);
+    await open(seed);
+    await page.evaluate(() => { window.__opened = []; window.open = u => { window.__opened.push(u); return null; }; });
+    await go('view-dayplan', 'Tagesplan');
+    const card = page.locator('.dayplan-card', { hasText: 'Tokyo Tower' }).first();
+    const btn = card.locator('button.btn-accent');
+    assert.match(await btn.innerText(), /Route planen \(3 Stopps\)/); // Senso-ji (Favorit) + 2 eigene
+    assert.equal(await btn.isDisabled(), false);
+    await btn.click();
+    const url = decodeURIComponent(await page.evaluate(() => window.__opened.pop()));
+    // Start an der Unterkunft, Reihenfolge des Tagesplans, eigene Einträge über Name und Ort
+    assert.match(url, /origin=35\.6955,139\.7006/);
+    assert.match(url, /waypoints=35\.7148,139\.7967\|Tokyo Tower, Tokio/);
+    assert.match(url, /destination=teamLab Planets, Tokio/);
+    // Nur eigene Einträge, keine Koordinaten: Knopf trotzdem aktiv
+    await page.evaluate(() => { acts.forEach(a => { a.favorite = false; }); saveData(); renderDayPlan(); });
+    assert.match(await page.locator('.dayplan-card', { hasText: 'Tokyo Tower' }).first().locator('button.btn-accent').innerText(), /2 Stopps/);
     assert.deepEqual(errors, []);
 });

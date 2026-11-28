@@ -1587,3 +1587,10 @@ body .settings-card .theme-btn i { display: block; line-height: 1; }
 #placesList.timeline .transit-leg.is-current > summary::before { width: 12px; height: 12px; left: -20px; margin-top: -6px; background: var(--primary); box-shadow: 0 0 0 2px var(--primary), 0 0 0 6px var(--primary-soft); }
 .transit-leg.is-current > summary .transit-sum-text b { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .transit-leg .station-status.leg-now { margin-left: 0; }
+/* Tagesplan: eine ruhige Knopfzeile – Navigation links unter dem Text, Sortieren/Bearbeiten rechts, alle gleich groß */
+.dayplan-controls { justify-content: flex-start; gap: 6px; padding-left: 54px; }
+.dayplan-controls .dayplan-day-select { margin: 0; }
+.dayplan-controls .dayplan-order { margin-left: auto; gap: 6px; }
+.dayplan-nav, .dayplan-order .reorder-btn { width: 36px; height: 36px; font-size: 16px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.dayplan-order .reorder-btn.dp-icon { color: var(--muted); }
+.dayplan-order .reorder-btn.dp-icon:hover, .dayplan-order .reorder-btn.dp-icon:focus-visible { color: var(--label); }
