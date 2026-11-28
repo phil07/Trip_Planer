@@ -127,6 +127,7 @@ test('Expedia-Flug: Fluglinie ausgeschrieben, Uhrzeit über "Abflug:", Ankunfts-
         assert.equal(t.dep, '15:25');
         assert.equal(t.terminal, '3');
         assert.equal(t.gate, '');
+        assert.equal(t.arr, '17:55');
     }
 });
 test('unbekannte Fluglinie wird am Namen erkannt', () => {

@@ -126,7 +126,7 @@
         const gateLbl = /^[A-Z]{2} \d/.test(t.train || '') ? 'Gate' : 'Gleis';
         // Abflughafen/Abfahrtsort: reines Kürzel ("NRT") lesbar machen ("Tokyo Narita (NRT)")
         const from = t.from ? (window.bookingRead?.airportLabel && /^[A-Z]{3}$/.test(t.from) ? window.bookingRead.airportLabel(t.from) : t.from) : '';
-        return [t.train, from, t.dep ? `ab ${t.dep} Uhr` : '', t.terminal ? `Terminal ${t.terminal}` : '',
+        return [t.train, from, t.dep ? `ab ${t.dep} Uhr` : '', t.arr ? `an ${t.arr} Uhr` : '', t.terminal ? `Terminal ${t.terminal}` : '',
             t.gate ? `${gateLbl} ${t.gate}` : '', t.seat ? `Sitz ${t.seat}` : ''].filter(Boolean);
     }
     function connectionHtml(t) {
@@ -247,7 +247,11 @@
                 <div class="form-group"><label for="transit-tdetail">Zusatz zum Transportmittel (optional)</label><input type="text" id="transit-tdetail" maxlength="80" placeholder="z. B. JR Pass, Nachtzug"></div>
                 <div class="form-group"><label for="transit-train">Zug</label><input type="text" id="transit-train" maxlength="60" placeholder="z. B. Nozomi 215"></div>
                 <div class="form-group"><label for="transit-from">Abfahrt von</label><input type="text" id="transit-from" maxlength="60" placeholder="z. B. Tokyo Station" autocomplete="off"></div>
-                <div class="form-group"><label for="transit-dep">Abfahrt</label><input type="time" id="transit-dep"></div>
+                <div class="input-row tr-times">
+                    <div class="form-group"><label for="transit-dep">Abfahrt</label><input type="time" id="transit-dep"></div>
+                    <div class="form-group"><label for="transit-arr">Ankunft</label><input type="time" id="transit-arr"></div>
+                </div>
+                <p class="form-hint">Mit Ankunftszeit weiß die App, wann du unterwegs bist und wann du angekommen bist.</p>
                 <div class="form-group" id="transit-terminal-wrap"><label for="transit-terminal">Terminal</label><input type="text" id="transit-terminal" maxlength="20" placeholder="z. B. 2" autocomplete="off"></div>
                 <div class="form-group" id="transit-gate-wrap"><label for="transit-gate">Gate</label><input type="text" id="transit-gate" maxlength="20" placeholder="z. B. 23" autocomplete="off"></div>
                 <div class="form-group" id="transit-seat-wrap"><label for="transit-seat">Sitz</label><input type="text" id="transit-seat" maxlength="40" placeholder="z. B. 18K" autocomplete="off"></div>
@@ -279,6 +283,7 @@
         d.querySelector('#transit-tdetail').value = transportDetail(transportOf(kind, idx));
         d.querySelector('#transit-train').value = t.train || '';
         d.querySelector('#transit-dep').value = t.dep || '';
+        d.querySelector('#transit-arr').value = t.arr || '';
         d.querySelector('#transit-from').value = t.from || '';
         d.querySelector('#transit-seat').value = t.seat || '';
         d.querySelector('#transit-terminal').value = t.terminal || '';
@@ -322,10 +327,10 @@
     function applyLabels(d, mode) {
         // Flug: Terminal, Gate, Sitz. Bahn: Gleis (Gate-Feld) und Wagen/Sitz. Andere: nur ein Angabenfeld.
         const L = {
-            Flug:      { from: 'Abflughafen', from_ph: 'z. B. Tokyo Narita (NRT)', train: 'Flugnummer', train_ph: 'z. B. LH 716', dep: 'Abflug', gate: 'Gate', gate_ph: 'z. B. 23', terminal: true, seat: 'Sitz', seat_ph: 'z. B. 18K' },
+            Flug:      { from: 'Abflughafen', from_ph: 'z. B. Tokyo Narita (NRT)', train: 'Flugnummer', train_ph: 'z. B. LH 716', dep: 'Abflug', arr: 'Landung', gate: 'Gate', gate_ph: 'z. B. 23', terminal: true, seat: 'Sitz', seat_ph: 'z. B. 18K' },
             Bus:       { from: 'Abfahrt von', from_ph: 'z. B. Busterminal Shinjuku', train: 'Linie / Verbindung', train_ph: 'z. B. Bus Nr. 12', dep: 'Abfahrt', seat: 'Haltestelle · Sitz', seat_ph: 'z. B. Shinjuku Bahnhof · Sitz 4' },
             Fähre:     { from: 'Hafen', from_ph: 'z. B. Hafen Kagoshima', train: 'Schiff / Verbindung', train_ph: 'z. B. Ferry Sea Star', dep: 'Abfahrt', seat: 'Terminal · Kabine', seat_ph: 'z. B. Terminal 1 · Kabine 210' },
-            Mietwagen: { from: 'Abholort', from_ph: 'z. B. Shin-Osaka', train: 'Abholung / Fahrzeug', train_ph: 'z. B. Toyota Aqua', dep: 'Abholzeit', seat: 'Station · Buchungsnr.', seat_ph: 'z. B. Shin-Osaka · 12345' },
+            Mietwagen: { from: 'Abholort', from_ph: 'z. B. Shin-Osaka', train: 'Abholung / Fahrzeug', train_ph: 'z. B. Toyota Aqua', dep: 'Abholzeit', arr: 'Ankunft am Ziel', seat: 'Station · Buchungsnr.', seat_ph: 'z. B. Shin-Osaka · 12345' },
             default:   { from: 'Abfahrtsbahnhof', from_ph: 'z. B. Tokyo Station', train: 'Zug', train_ph: 'z. B. Nozomi 215', dep: 'Abfahrt', gate: 'Gleis', gate_ph: 'z. B. 14', seat: 'Wagen / Sitz', seat_ph: 'z. B. 7 · 12A' }
         };
         const x = L[mode] || L.default;
@@ -339,6 +344,7 @@
         set('transit-from', x.from, x.from_ph);
         set('transit-train', x.train, x.train_ph);
         set('transit-dep', x.dep);
+        set('transit-arr', x.arr || 'Ankunft');
         set('transit-seat', x.seat, x.seat_ph);
         set('transit-gate', x.gate, x.gate_ph);
     }
@@ -354,7 +360,7 @@
         const mode = d.querySelector('#transit-modes .chip.active')?.dataset.mode || '';
         const tdetail = v('#transit-tdetail').trim().slice(0, 80);
         setTransport(kind, editIdx, [mode, tdetail].filter(Boolean).join(' · '));
-        setBooking(kind, editIdx, normTransit({ train: v('#transit-train'), dep: v('#transit-dep'), from: v('#transit-from'), terminal: v('#transit-terminal'),
+        setBooking(kind, editIdx, normTransit({ train: v('#transit-train'), dep: v('#transit-dep'), arr: v('#transit-arr'), from: v('#transit-from'), terminal: v('#transit-terminal'),
             gate: v('#transit-gate'), seat: v('#transit-seat'), note: v('#transit-note') }));
         if (leg) openLegs.add(String(leg.id));
         const current = bookingOf(kind, editIdx);

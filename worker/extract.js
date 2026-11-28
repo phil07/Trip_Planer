@@ -23,6 +23,7 @@ const SCHEMAS = {
             flight_or_train_number: { type: 'string', description: 'z. B. "GK 513", "LH 716", "Nozomi 215"' },
             departure_time: { type: 'string', description: 'Uhrzeit der Abfahrt/des Abflugs, HH:MM (24 h)' },
             departure_date: { type: 'string', description: 'YYYY-MM-DD' },
+            arrival_time: { type: 'string', description: 'Uhrzeit der Ankunft/Landung am Ziel, HH:MM (24 h)' },
             departure_place: { type: 'string' }, arrival_place: { type: 'string' },
             departure_terminal: { type: 'string' },
             departure_gate_or_platform: { type: 'string' },
@@ -54,7 +55,7 @@ const str = (v, n) => typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]/g
 function clean(kind, d) {
     if (!d || typeof d !== 'object') return null;
     if (kind === 'transit' && ('flight_or_train_number' in d || 'departure_time' in d)) {
-        d = { number: d.flight_or_train_number, dep: d.departure_time, date: d.departure_date, from: d.departure_place,
+        d = { number: d.flight_or_train_number, dep: d.departure_time, arr: d.arrival_time, date: d.departure_date, from: d.departure_place,
             to: d.arrival_place, terminal: d.departure_terminal, gate: d.departure_gate_or_platform, seat: d.seat };
     }
     if (kind === 'hotel') {
@@ -62,17 +63,18 @@ function clean(kind, d) {
         return o.hotel ? o : null;
     }
     // Zeit tolerant lesen: "15:25", "15.25 Uhr", "3:25 PM"
-    let dep = '';
-    const tm = /(\d{1,2})[:.](\d{2})\s*([ap]\.?m\.?)?/i.exec(str(d.dep, 20));
-    if (tm) {
+    const time = v => {
+        const tm = /(\d{1,2})[:.](\d{2})\s*([ap]\.?m\.?)?/i.exec(str(v, 20));
+        if (!tm) return '';
         let h = Number(tm[1]);
         if (tm[3] && /p/i.test(tm[3]) && h < 12) h += 12;
         if (tm[3] && /a/i.test(tm[3]) && h === 12) h = 0;
-        if (h < 24 && Number(tm[2]) < 60) dep = `${String(h).padStart(2, '0')}:${tm[2]}`;
-    }
+        return h < 24 && Number(tm[2]) < 60 ? `${String(h).padStart(2, '0')}:${tm[2]}` : '';
+    };
+    const dep = time(d.dep), arr = time(d.arr);
     // Kurze Kennungen mit Ziffer ("3", "D4", "23", "12A") – keine Sätze, keine Buchungsklassen wie "Q"
     const code = (v, n) => { const t = str(v, 40).replace(/^(terminal|gate|gleis|platform|sitz|seat)\s*/i, ''); return /\d/.test(t) && t.length <= n && !/,/.test(t) ? t : ''; };
-    const o = { number: str(d.number, 60), dep, date: /^\d{4}-\d{2}-\d{2}$/.test(d.date) ? d.date : '',
+    const o = { number: str(d.number, 60), dep, arr, date: /^\d{4}-\d{2}-\d{2}$/.test(d.date) ? d.date : '',
         from: str(d.from, 60), to: str(d.to, 60), terminal: code(d.terminal, 6), gate: code(d.gate, 6), seat: code(d.seat, 20) };
     return o.number || o.dep ? o : null;
 }

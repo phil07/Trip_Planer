@@ -1150,3 +1150,45 @@ t('Flug: Abflughafen als eigenes Feld, in der Verbindung sichtbar', async () => 
     assert.equal(tr.from, 'Frankfurt am Main (FRA)'); assert.equal(tr.dep, '10:15'); assert.equal(tr.note, 'x');
     assert.deepEqual(errors, []);
 });
+
+t('Stationswechsel-Tag: bis Check-out an der Station, dann unterwegs (roter Punkt an der Etappe), nach Ankunft am Ziel', async () => {
+    const seed = FIXTURE();
+    seed.tp_start = day(-4); // Tokio 4 Nächte → heute Wechsel nach Kyoto
+    await open(seed);
+    await go('view-places', 'Stationen');
+    const r = await page.evaluate(() => {
+        const d = computedData[0].isoEnd;
+        places[1].transit = { train: 'Nozomi 215', dep: '15:25', arr: '17:55', from: '', terminal: '', gate: '', seat: '', note: '' };
+        const at = hhmm => atTime(d, hhmm);
+        const P = t => JSON.stringify(tripPosition(at(t)));
+        const out = { before: P('10:30'), during: P('12:00'), late: P('17:30'), after: P('18:10') };
+        // Eigener Check-out 09:00
+        places[0].checkout = '09:00';
+        out.earlyCo = P('09:30');
+        // Ohne Ankunftszeit: geschätzt aus Abfahrt und Reisedauer (Zug Tokio–Kyoto gut 2 Std.)
+        places[1].transit.arr = '';
+        out.estDuring = P('17:00'); out.estAfter = P('19:30');
+        // Anzeige während der Fahrt
+        places[1].transit.arr = '17:55'; places[0].checkout = '';
+        const realNow = Date.now; Date.now = () => at('13:00');
+        renderPlaces();
+        const leg = document.querySelector('#placesList .transit-leg.is-current');
+        out.legText = leg ? leg.textContent : '';
+        out.currentStations = document.querySelectorAll('#placesList .place-card.station.is-current').length;
+        out.kyotoStatus = document.querySelectorAll('#placesList .place-card.station')[1].querySelector('.station-status')?.textContent || '';
+        Date.now = realNow;
+        return out;
+    });
+    assert.deepEqual(JSON.parse(r.before), { cur: 0, leg: -1, next: -1 });
+    assert.deepEqual(JSON.parse(r.during), { cur: -1, leg: 0, next: 1 });
+    assert.deepEqual(JSON.parse(r.late), { cur: -1, leg: 0, next: 1 });
+    assert.deepEqual(JSON.parse(r.after), { cur: 1, leg: -1, next: -1 });
+    assert.deepEqual(JSON.parse(r.earlyCo), { cur: -1, leg: 0, next: 1 });
+    assert.deepEqual(JSON.parse(r.estDuring), { cur: -1, leg: 0, next: 1 });
+    assert.deepEqual(JSON.parse(r.estAfter), { cur: 1, leg: -1, next: -1 });
+    assert.match(r.legText, /Unterwegs/);
+    assert.match(r.legText, /ab 15:25 Uhr · an 17:55 Uhr/);
+    assert.equal(r.currentStations, 0);
+    assert.match(r.kyotoStatus, /Als Nächstes/i);
+    assert.deepEqual(errors, []);
+});

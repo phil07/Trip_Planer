@@ -188,6 +188,27 @@
                 }
             }
         }
+        // Ankunft: zweite Zeit in der Zeile über "Abflug … Ankunft …" bzw. Zeit über/neben "Ankunft"
+        let arr = '';
+        {
+            const T = new RegExp(`(?:^|[^\\d])${TIME}(?!\\d)`, 'g');
+            const times = l => [...l.matchAll(T)].map(m => m[1]);
+            const ai = lines.findIndex(l => /\b(ankunft|arrival|arrives?|landung)\b/i.test(l));
+            if (ai >= 0) {
+                const sameLineDep = DEP_LABEL_RE.test(lines[ai]);
+                const own = times(lines[ai]).filter(x => !/[.,]/.test(x) || /[:]/.test(x));
+                if (own.length && !sameLineDep) arr = hm(own[0]);
+                else if (own.length >= 2) arr = hm(own[1]);
+                else {
+                    for (const l of [lines[ai - 1], lines[ai - 2]].filter(Boolean)) {
+                        const ts = times(l);
+                        if (sameLineDep && ts.length >= 2) { arr = hm(ts[1]); break; }
+                        if (!sameLineDep && ts.length) { arr = hm(ts[ts.length - 1]); break; }
+                    }
+                }
+            }
+            if (arr && arr === dep) arr = '';
+        }
         // Ohne Beschriftung: Flughafen-Kürzel mit Uhrzeit ("NRT 10:40") ist der Abflug, wenn es eine Flugnummer gibt
         if (!dep && train && /^[A-Z]{2} \d/.test(train)) {
             // Flughafen und Zeit können in getrennten Zeilen stehen: einzelne Zeile und Zeilenpaare prüfen
@@ -246,7 +267,7 @@
         const terminal = parts.terminal.slice(0, 20), gate = parts.gate.slice(0, 20);
         if (!train && !dep) return null;
         const from = /^[A-Z0-9]{2} \d/.test(train) ? departureAirport(lines) : '';
-        return { train: train.slice(0, 60), dep, from, terminal, gate, seat, note: '' };
+        return { train: train.slice(0, 60), dep, arr, from, terminal, gate, seat, note: '' };
     }
     const sameTransit = (a, b) => !!a && !!b && a.train === b.train && a.dep === b.dep;
 
@@ -455,7 +476,7 @@
     // Ergebnisse zusammenführen: Barcode ist verlässlich (Flugnummer, Sitz), die Regeln danach,
     // die KI füllt nur, was noch fehlt. sources merkt sich, woher etwas kam (für den Prüfdialog).
     function mergeTransit(rules, codeInfo, ai) {
-        const out = { train: '', dep: '', terminal: '', gate: '', seat: '', from: '', to: '', date: '' };
+        const out = { train: '', dep: '', arr: '', terminal: '', gate: '', seat: '', from: '', to: '', date: '' };
         const sources = new Set();
         const take = (src, label) => {
             if (!src) return;
@@ -470,6 +491,7 @@
         take(rules, 'Text');
         take(ai, 'KI');
         if (!/^\d{2}:\d{2}$/.test(out.dep)) out.dep = '';
+        if (!/^\d{2}:\d{2}$/.test(out.arr)) out.arr = '';
         if (/^[A-Z]{3}$/.test(out.from)) out.from = airportLabel(out.from);
         // KI liefert gern "Tokyo, Japan (NRT-Narita Intl.)": auf Kürzel zurückführen
         else { const c = /\(([A-Z]{3})(?=[\s)\-–,])/.exec(out.from); if (c && AIRPORTS[c[1]]) out.from = airportLabel(c[1]); }
@@ -500,7 +522,10 @@
                     ${kind === 'hotel' ? field('br-hotel', 'Unterkunft', value.hotel, 'maxlength="80"') : `
                     ${field('br-train', 'Flug / Zug', value.train, 'maxlength="60"')}
                     ${field('br-from', 'Abflughafen / Abfahrt von', value.from, 'maxlength="60" placeholder="z. B. Tokyo Narita (NRT)"')}
-                    ${field('br-dep', 'Abfahrt / Abflug', value.dep, 'type="time"')}
+                    <div class="input-row">
+                        ${field('br-dep', 'Abfahrt / Abflug', value.dep, 'type="time"')}
+                        ${field('br-arr', 'Ankunft', value.arr, 'type="time"')}
+                    </div>
                     <div class="input-row">
                         ${field('br-terminal', 'Terminal', value.terminal, 'maxlength="20"')}
                         ${field('br-gate', 'Gate / Gleis', value.gate, 'maxlength="20"')}
@@ -515,7 +540,7 @@
             dlg.querySelector('[data-br="ok"]').onclick = () => {
                 const v = id => (dlg.querySelector('#' + id)?.value || '').trim();
                 result = kind === 'hotel' ? { hotel: v('br-hotel') }
-                    : { train: v('br-train'), dep: v('br-dep'), from: v('br-from'), terminal: v('br-terminal'), gate: v('br-gate'), seat: v('br-seat') };
+                    : { train: v('br-train'), dep: v('br-dep'), arr: v('br-arr'), from: v('br-from'), terminal: v('br-terminal'), gate: v('br-gate'), seat: v('br-seat') };
                 dlg.close();
             };
             dlg.querySelector('[data-br="cancel"]').onclick = () => dlg.close();
@@ -586,10 +611,12 @@
                 // Belegte Verbindung beim Start nie überschreiben – nur den Abflughafen ergänzen,
                 // wenn er fehlt und die Bestätigung zur selben Verbindung gehört.
                 const norm = x => String(x || '').replace(/\s+/g, '').toUpperCase();
-                if (!cur.from && pick.from && norm(cur.train) === norm(pick.train)) {
-                    slot.set(normTransit({ ...cur, from: pick.from }));
-                    saveData();
+                const add = {};
+                if (norm(cur.train) === norm(pick.train)) {
+                    if (!cur.from && pick.from) add.from = pick.from;
+                    if (!cur.arr && /^\d{2}:\d{2}$/.test(pick.arr || '')) add.arr = pick.arr;
                 }
+                if (Object.keys(add).length) { slot.set(normTransit({ ...cur, ...add })); saveData(); }
                 return true;
             }
         } else {
@@ -597,12 +624,13 @@
             if (!ok) return true;
             pick = ok;
         }
-        const value = normTransit({ note: cur?.note || '', train: pick.train, dep: /^\d{2}:\d{2}$/.test(pick.dep) ? pick.dep : '', from: pick.from || '',
+        const value = normTransit({ note: cur?.note || '', train: pick.train, dep: /^\d{2}:\d{2}$/.test(pick.dep) ? pick.dep : '',
+            arr: /^\d{2}:\d{2}$/.test(pick.arr || '') ? pick.arr : '', from: pick.from || '',
             terminal: pick.terminal || '', gate: pick.gate || '', seat: pick.seat || '' });
         if (!value) return true;
         slot.set(value);
         saveData();
-        const found = [value.train, value.from && `ab ${value.from}`, value.dep && `Abfahrt ${value.dep}`, value.terminal && `Terminal ${value.terminal}`,
+        const found = [value.train, value.from && `ab ${value.from}`, value.dep && `Abfahrt ${value.dep}`, value.arr && `Ankunft ${value.arr}`, value.terminal && `Terminal ${value.terminal}`,
             value.gate && `Gate ${value.gate}`, value.seat && `Sitz ${value.seat}`].filter(Boolean).join(' · ');
         toast(`Eingetragen: ${found}`);
         return true;
@@ -616,7 +644,7 @@
     }
     // Einmalig nach dem Update: alle schon vorhandenen Bestätigungen auslesen.
     // Erledigte IDs stehen in tp_booking_scanned; gelesen wird nur, was dort noch fehlt.
-    const SCANNED_KEY = 'tp_booking_scanned', RESCAN_KEY = 'tp_booking_rescan_v3';
+    const SCANNED_KEY = 'tp_booking_scanned', RESCAN_KEY = 'tp_booking_rescan_v4';
     function scannedIds() { try { return new Set(JSON.parse(localStorage.getItem(SCANNED_KEY) || '[]')); } catch (e) { return new Set(); } }
     async function scanExisting() {
         const api = window.documentsFeature?.sync;
@@ -631,9 +659,9 @@
         // die noch leer sind, einmalig erneut lesen. Belegte Verbindungen bleiben unberührt (keine Rückfrage).
         let again; try { again = new Set(JSON.parse(localStorage.getItem(RESCAN_KEY) || '[]')); } catch (e) { again = new Set(); }
         const empty = (await api.all()).filter(d => /^(leg:|arrival$|return$)/.test(d.ref || '') && !again.has(d.id)
-            && !(transitSlot(d.ref)?.get()?.from));
+            && !((s => s?.from && s?.arr)(transitSlot(d.ref)?.get())));
         for (const d of empty) {
-            if (transitSlot(d.ref)?.get()?.from) continue; // inzwischen von einer anderen Bestätigung gefüllt
+            if ((s => s?.from && s?.arr)(transitSlot(d.ref)?.get())) continue; // inzwischen von einer anderen Bestätigung gefüllt
             const ok = await suggest(d.id, d.ref, true);
             if (ok) { again.add(d.id); try { localStorage.setItem(RESCAN_KEY, JSON.stringify([...again])); } catch (e) {} }
         }

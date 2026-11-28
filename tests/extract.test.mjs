@@ -41,3 +41,8 @@ test('extract: Uhrzeit tolerant ("3:25 PM", "15.25 Uhr")', async () => {
         assert.equal(data.dep, want);
     }
 });
+test('extract: Ankunftszeit wird übernommen', async () => {
+    const env = { AI: { run: async () => ({ response: { flight_or_train_number: 'GK 513', departure_time: '15:25', arrival_time: '5:55 PM' } }) } };
+    const { data } = await (await handleExtract(req({ kind: 'transit', text: 'Jetstar Japan 513 Abflug' }), env, url)).json();
+    assert.equal(data.dep, '15:25'); assert.equal(data.arr, '17:55');
+});

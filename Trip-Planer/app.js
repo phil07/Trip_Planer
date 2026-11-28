@@ -315,8 +315,8 @@ function normPlace(p, i) {
 function normTransit(t) {
     if (!isObj(t)) return null;
     const s = (v, n) => typeof v === 'string' ? v.trim().slice(0, n) : '';
-    const o = { train: s(t.train, 60), dep: /^\d{2}:\d{2}$/.test(t.dep) ? t.dep : '', from: s(t.from, 60), terminal: s(t.terminal, 20), gate: s(t.gate, 20), seat: s(t.seat, 40), note: s(t.note, 200) };
-    return o.train || o.dep || o.from || o.terminal || o.gate || o.seat || o.note ? o : null;
+    const o = { train: s(t.train, 60), dep: /^\d{2}:\d{2}$/.test(t.dep) ? t.dep : '', arr: /^\d{2}:\d{2}$/.test(t.arr) ? t.arr : '', from: s(t.from, 60), terminal: s(t.terminal, 20), gate: s(t.gate, 20), seat: s(t.seat, 40), note: s(t.note, 200) };
+    return o.train || o.dep || o.arr || o.from || o.terminal || o.gate || o.seat || o.note ? o : null;
 }
 function normAct(a, i) {
     return { ...a, id: finiteOr(a.id, Date.now() + i), topPlace: String(a.topPlace ?? ''), type: String(a.type ?? ''),
@@ -338,6 +338,58 @@ function normPlanPoint(p, i) {
 // 0–6 (0 = Sonntag, wie Date.getDay()) und EIN Zeitfenster von–bis (HH:MM). Streng
 // normalisiert, weil die Werte aus Backups/Storage stammen und im HTML landen.
 const isHHMM = v => typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
+
+// ─── Wo stehe ich gerade? Station oder unterwegs ───────────────────────────
+// Am Tag eines Stationswechsels ist man bis zum Check-out (Standard 11:00, änderbar unter
+// Einstellungen → Benachrichtigungen → Check-out-Zeiten) noch an der alten Station, danach
+// unterwegs – bis zur Ankunft (Ankunftszeit der Verbindung, sonst geschätzt aus Abfahrt und
+// Reisedauer) – und erst dann an der neuen Station.
+const DEFAULT_CHECKOUT = '11:00';
+const checkoutOf = p => isHHMM(p?.checkout) ? p.checkout : DEFAULT_CHECKOUT;
+function atTime(iso, hhmm) { const d = parseISODate(iso), [h, m] = hhmm.split(':').map(Number); d.setHours(h, m, 0, 0); return d.getTime(); }
+// Zeitfenster der Etappe Station i → i+1 als { start, end } in ms (oder null ohne Datum).
+function legWindow(i) {
+    const day = computedData[i]?.isoEnd, to = places[i + 1];
+    if (!day || !to) return null;
+    const t = to.transit || {};
+    const mode = transportMode(to.transport || '').label;
+    const isFlight = mode === 'Flug' || /^[A-Z0-9]{2} \d/.test(t.train || '');
+    const dep = isHHMM(t.dep) ? atTime(day, t.dep) : null;
+    let start = atTime(day, checkoutOf(places[i]));
+    // Frühe Abfahrt vor dem Check-out: man ist schon vorher los (Flug: ca. 2 Std. vorher am Flughafen)
+    if (dep != null) start = Math.min(start, dep - (isFlight ? 120 : 30) * 60000);
+    let end;
+    if (isHHMM(t.arr)) {
+        end = atTime(day, t.arr);
+        if (dep != null && end <= dep) end += 864e5; // Ankunft am Folgetag (Nachtflug, Nachtzug)
+    } else {
+        let est = null;
+        try { est = window.transit?.legInfo?.(i)?.est || null; } catch (e) {}
+        const min = est ? est.min : null;
+        if (dep != null) end = dep + (min != null ? (isFlight ? Math.max(30, min - 180) + 30 : min) : 120) * 60000;
+        else end = start + (min != null ? min : 180) * 60000;
+    }
+    if (end <= start) end = start + 3600e3;
+    return { start, end };
+}
+// { cur: Stationsindex oder -1, leg: Etappe (i → i+1) oder -1, next: als Nächstes oder -1 }
+function tripPosition(now = Date.now()) {
+    const today = localISO(new Date(now));
+    const n = places.length;
+    for (let i = 0; i < n - 1; i++) {
+        const w = legWindow(i);
+        if (!w) continue;
+        if (now >= w.start && now < w.end) return { cur: -1, leg: i, next: i + 1 };
+        if (computedData[i]?.isoEnd === today && now < w.start) return { cur: i, leg: -1, next: -1 };
+    }
+    // Abreisetag der letzten Station: bis zum Check-out noch dort
+    const last = n - 1;
+    if (last >= 0 && computedData[last]?.isoEnd === today && now < atTime(today, checkoutOf(places[last])))
+        return { cur: last, leg: -1, next: -1 };
+    const up = computedData.findIndex(c => c && c.isoEnd > today);
+    const cur = up >= 0 && computedData[up].isoStart <= today ? up : -1;
+    return { cur, leg: -1, next: cur < 0 && up > 0 ? up : -1 };
+}
 const HOURS_SOURCES = ['manual', 'OpenStreetMap'];
 function normHours(h) {
     if (!isObj(h)) return null;
@@ -1582,14 +1634,15 @@ function renderHome() {
     if (next) {
         if (places.length) {
             const today = todayISO();
-            let idx = computedData.findIndex(c => c && c.isoEnd > today);
+            const pos = tripPosition();
+            let idx = pos.cur >= 0 ? pos.cur : pos.next >= 0 ? pos.next : computedData.findIndex(c => c && c.isoEnd > today);
             if (idx < 0 || idx >= places.length) idx = 0;
-            const current = computedData[idx] && computedData[idx].isoStart <= today;
+            const current = pos.cur === idx;
             const p = places[idx];
             const cd = computedData[idx] || { strStart: '–', strEnd: '–' };
             const n = clampNights(p.nights);
             next.innerHTML = `<div class="home-next-ico">${ico('airplane-tilt')}</div>
-                <div class="dates-badge">${current ? 'Aktuell' : 'Als Nächstes'}</div>
+                <div class="dates-badge">${current ? 'Aktuell' : pos.leg >= 0 ? 'Unterwegs nach' : 'Als Nächstes'}</div>
                 <div class="home-card-title">${esc(displayName(p.name, idx))}</div>
                 <div class="home-card-meta">${cd.strStart} – ${cd.strEnd}${transportInto(idx) && transportInto(idx) !== 'Ausstehend' ? `<br>${idx === 0 ? 'Anreise' : 'Transport'}: ${esc(transportInto(idx))}` : ''}</div>
                 <div class="chip-line"><span class="meta-chip">${ico('moon')}<span>${n} ${nightsWord(n)}</span></span><span class="meta-chip">${ico('bed')}<span>${esc(p.hotel) || 'Unterkunft offen'}</span></span></div>`;
@@ -3694,9 +3747,9 @@ function renderPlaces() {
     }
     // Fortschritt: laufende Station markieren, vergangene dämpfen (wie auf der Startseite).
     const today = todayISO();
-    const upIdx = computedData.findIndex(c => c && c.isoEnd > today);
-    const curIdx = upIdx >= 0 && computedData[upIdx].isoStart <= today ? upIdx : -1;
-    const nextIdx = curIdx < 0 && upIdx > 0 ? upIdx : -1;
+    const pos = tripPosition();
+    const curIdx = pos.cur, nextIdx = pos.next, legIdx = pos.leg;
+    lastTripPosKey = JSON.stringify(pos);
     const finePointer = window.matchMedia?.('(pointer: fine)').matches;
 
     const frag = document.createDocumentFragment();
@@ -3723,7 +3776,7 @@ function renderPlaces() {
         card.dataset.pid = pid;
         card.classList.toggle('is-open', isOpen);
         card.classList.toggle('is-current', i === curIdx);
-        card.classList.toggle('is-past', !!(computedData[i] && computedData[i].isoEnd <= today));
+        card.classList.toggle('is-past', i !== curIdx && (legIdx >= 0 ? i <= legIdx : !!(computedData[i] && computedData[i].isoEnd <= today)));
         const markerHint = p.hotel && !p.hotelLat ? `<span class="hotel-hint">Karte: Stationsmitte</span>` : '';
         const hotelOpen = !p.hotel;
 
@@ -3789,13 +3842,31 @@ function renderPlaces() {
         const nxt = places[i + 1];
         if (nxt && window.transit) {
             // Etappe: eine Zeile; Details (Transport und Buchung, Anhänge, Routen) nach Tipp.
-            frag.appendChild(window.transit.legEl(i));
+            const legNode = window.transit.legEl(i);
+            if (i === legIdx) {
+                legNode.classList.add('is-current');
+                legNode.querySelector('.transit-sum-text b')?.insertAdjacentHTML('beforeend', ' <span class="station-status leg-now">Unterwegs</span>');
+            }
+            frag.appendChild(legNode);
         } else if (nxt) frag.appendChild(buildLegButton(nxt, false, nxt));
         else frag.appendChild(buildTransportLeg(null, false, p));
     });
     list.appendChild(frag);
 }
 
+// Ändert sich mit der Uhrzeit, wo man gerade ist (Check-out vorbei, angekommen), neu zeichnen.
+let lastTripPosKey = '';
+setInterval(() => {
+    if (document.visibilityState !== 'visible' || !places.length) return;
+    try {
+        if (JSON.stringify(tripPosition()) === lastTripPosKey) return;
+        renderPlaces(); renderHome?.();
+    } catch (e) {}
+}, 60000);
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !places.length) return;
+    try { if (JSON.stringify(tripPosition()) !== lastTripPosKey) { renderPlaces(); renderHome?.(); } } catch (e) {}
+});
 // Aufgeklappte Stationen und Anreise/Rückreise überstehen das Neu-Rendern (nicht dauerhaft gespeichert).
 const openStations = new Set(), openEnds = new Set();
 function toggleStation(pid) {
