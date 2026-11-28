@@ -16,7 +16,7 @@
     const DB_NAME = 'jp26-reminders', DB_STORE = 'kv';
     const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
     const KEEP_MS = 45 * 864e5;                  // Merker nach 45 Tagen aufräumen
-    const DAY_FROM = '06:00', DAY_FALLBACK_END = '11:00'; // Check-out ohne eigene Angabe: 11 Uhr (wie in app.js)
+    const DAY_FROM = '06:00';
 
     const validHHMM = v => typeof v === 'string' && HHMM.test(v);
     // Je Art ein Schalter. Ältere Einstellung { on: false } schaltet alle aus.
@@ -40,12 +40,7 @@
     }
     const saveState = st => writeJson(STATE_KEY, st);
 
-    // Lokale Uhrzeit "HH:MM" an einem ISO-Tag → Zeitstempel (ms)
-    function at(iso, hhmm) {
-        const d = parseISODate(iso), [h, m] = hhmm.split(':').map(Number);
-        d.setHours(h, m, 0, 0);
-        return d.getTime();
-    }
+    const at = atTime; // Lokale Uhrzeit "HH:MM" an einem ISO-Tag → ms (app.js)
     function shiftDay(iso, n) { const d = parseISODate(iso); d.setDate(d.getDate() + n); return localISO(d); }
     const endOfDay = iso => at(iso, '23:59') + 59999;
 
@@ -76,7 +71,6 @@
         }
         return out;
     }
-    // Nur die eingeschalteten Arten (Vorabend, Abreisetag, ToDos)
     function buildEvents(settings) {
         return buildAllEvents(settings).filter(e => e.kind === 'todo' ? settings.todoOn : e.kind === 'day' ? settings.dayOn : settings.eveOn);
     }
@@ -98,7 +92,7 @@
             const next = places.slice(i + 1).find(x => String(x.name ?? '').trim());
             const nextName = next ? clean(String(next.name)) : '';
             const co = validHHMM(p.checkout) ? p.checkout : '';
-            const eveDay = shiftDay(cd.isoEnd, -1), dayEnd = at(cd.isoEnd, co || DAY_FALLBACK_END);
+            const eveDay = shiftDay(cd.isoEnd, -1), dayEnd = at(cd.isoEnd, co || DEFAULT_CHECKOUT);
             const where = nextName ? `nach ${nextName}` : `nach Hause – Rückreise ab ${name}`;
             evs.push({ key: `eve|${cd.isoEnd}|${name}`, kind: 'eve', icon: 'suitcase-rolling',
                 text: `Morgen geht's ${where}${coText(co)}`,
@@ -263,7 +257,6 @@
             <span class="rem-text">${esc(e.text)}</span>
             <button type="button" class="rem-close" data-key="${esc(e.key)}" aria-label="Erinnerung ausblenden">${ico('x', '✕')}</button>
         </div>`).join('');
-        // ToDo-Erinnerung antippen: ToDos öffnen
         box.querySelectorAll('.rem-banner[data-todo] .rem-text').forEach(t => {
             t.setAttribute('role', 'link'); t.tabIndex = 0; t.style.cursor = 'pointer';
             const go = () => switchView('view-todos', 'ToDos');
@@ -305,10 +298,10 @@
             <p class="settings-hint" id="rem-bg-text"></p>
             <details class="rem-checkouts"${rows.length ? '' : ' hidden'}>
                 <summary>${ico('caret-down', '▾')}<span>Check-out-Zeiten pro Station</span></summary>
-                <p class="settings-hint">Ohne Angabe gilt 11:00. Ab dem Check-out zeigt die App dich am Abreisetag als unterwegs.</p>
+                <p class="settings-hint">Ohne Angabe gilt ${DEFAULT_CHECKOUT}. Ab dem Check-out zeigt die App dich am Abreisetag als unterwegs.</p>
                 ${rows.map(({ p, i, cd }) => `<div class="form-group rem-place">
                     <label for="rem-co-${i}">${esc(clean(String(p.name)))} <span class="rem-date">· ${esc(fmtDate(cd.isoEnd))}</span></label>
-                    <input type="time" id="rem-co-${i}" data-id="${esc(String(p.id))}" step="60" value="${validHHMM(p.checkout) ? p.checkout : ''}" placeholder="11:00">
+                    <input type="time" id="rem-co-${i}" data-id="${esc(String(p.id))}" step="60" value="${validHHMM(p.checkout) ? p.checkout : ''}" placeholder="${DEFAULT_CHECKOUT}">
                 </div>`).join('')}
             </details>`;
         const save = () => {

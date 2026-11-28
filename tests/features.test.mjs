@@ -6,8 +6,8 @@ import { loadFeature, appPrelude, makeStorage, J } from './helpers.mjs';
 
 const prelude = appPrelude({
     consts: ['isObj', 'finiteOr', 'isHHMM', 'HOURS_SOURCES', 'TRANSPORT_MODES', 'clean', 'ico', 'readJsonKey_', 'escHtml'].filter(n => n !== 'readJsonKey_'),
-    funcs: ['distanceKm', 'parseISODate', 'localISO', 'esc', 'normHours', 'transportMode', 'normTransport', 'readJsonKey', 'writeJson'],
-}) + '\nvar places = [], computedData = [], tripCountry = "";\nfunction safeSetItem(k, v) { localStorage.setItem(k, v); return true; }\n';
+    funcs: ['distanceKm', 'parseISODate', 'localISO', 'esc', 'normHours', 'transportMode', 'normTransport', 'readJsonKey', 'writeJson', 'atTime'],
+}) + '\nvar places = [], computedData = [], tripCountry = "";\nconst DEFAULT_CHECKOUT = "11:00";\nfunction safeSetItem(k, v) { localStorage.setItem(k, v); return true; }\n';
 
 // ───────────────────────── Öffnungszeiten ─────────────────────────
 const OH = loadFeature('openinghours', ['fromOsm', 'issues', 'inWindow', 'parseDaySel'], {}, prelude);

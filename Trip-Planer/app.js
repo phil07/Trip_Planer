@@ -347,21 +347,29 @@ const isHHMM = v => typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v)
 const DEFAULT_CHECKOUT = '11:00';
 const checkoutOf = p => isHHMM(p?.checkout) ? p.checkout : DEFAULT_CHECKOUT;
 function atTime(iso, hhmm) { const d = parseISODate(iso), [h, m] = hhmm.split(':').map(Number); d.setHours(h, m, 0, 0); return d.getTime(); }
+// Flug oder nicht: nach Verkehrsmittel-Auswahl, sonst nach dem Muster einer Flugnummer ("LH 716").
+const isFlightBooking = (label, train) => label === 'Flug' || /^[A-Z0-9]{2} \d/.test(train || '');
+// Am Flughafen ist man vor dem Abflug länger: 2 Std. statt 30 Min. vorher unterwegs.
+const BOARDING_LEAD_MIN = { flight: 120, other: 30 };
+const boardingStart = (dep, isFlight) => dep - (isFlight ? BOARDING_LEAD_MIN.flight : BOARDING_LEAD_MIN.other) * 60000;
+// Ankunftszeit an einem Tag; liegt sie vor der Abfahrt, ist sie am Folgetag (Nachtflug, Nachtzug).
+function arrivalAt(day, dep, arrHHMM) {
+    let end = atTime(day, arrHHMM);
+    if (dep != null && end <= dep) end += 864e5;
+    return end;
+}
 // Zeitfenster der Etappe Station i → i+1 als { start, end } in ms (oder null ohne Datum).
 function legWindow(i) {
     const day = computedData[i]?.isoEnd, to = places[i + 1];
     if (!day || !to) return null;
     const t = to.transit || {};
-    const mode = transportMode(to.transport || '').label;
-    const isFlight = mode === 'Flug' || /^[A-Z0-9]{2} \d/.test(t.train || '');
+    const isFlight = isFlightBooking(transportMode(to.transport || '').label, t.train);
     const dep = isHHMM(t.dep) ? atTime(day, t.dep) : null;
     let start = atTime(day, checkoutOf(places[i]));
-    // Frühe Abfahrt vor dem Check-out: man ist schon vorher los (Flug: ca. 2 Std. vorher am Flughafen)
-    if (dep != null) start = Math.min(start, dep - (isFlight ? 120 : 30) * 60000);
+    if (dep != null) start = Math.min(start, boardingStart(dep, isFlight)); // früh los, vor dem Check-out
     let end;
     if (isHHMM(t.arr)) {
-        end = atTime(day, t.arr);
-        if (dep != null && end <= dep) end += 864e5; // Ankunft am Folgetag (Nachtflug, Nachtzug)
+        end = arrivalAt(day, dep, t.arr);
     } else {
         let est = null;
         try { est = window.transit?.legInfo?.(i)?.est || null; } catch (e) {}
@@ -372,50 +380,46 @@ function legWindow(i) {
     if (end <= start) end = start + 3600e3;
     return { start, end };
 }
-// Anreise: Abflug am Starttag der ersten Station (Nachtflug, der am Folgetag landet, zählt weiter).
-// Nur mit Abflug- und Ankunftszeit, sonst weiß die App nicht, wie lange man unterwegs ist.
+// Anreise: nur mit Abflug- und Ankunftszeit, sonst weiß die App nicht, wie lange man unterwegs ist.
 function arrivalWindow() {
     const day = computedData[0]?.isoStart, t = places[0]?.transit;
     if (!day || !t || !isHHMM(t.dep) || !isHHMM(t.arr)) return null;
-    const isFlight = transportMode(arrivalTransport || '').label === 'Flug' || /^[A-Z0-9]{2} \d/.test(t.train || '');
     const dep = atTime(day, t.dep);
-    let end = atTime(day, t.arr);
-    if (end <= dep) end += 864e5;
-    return { start: dep - (isFlight ? 120 : 30) * 60000, end };
+    const isFlight = isFlightBooking(transportMode(arrivalTransport || '').label, t.train);
+    return { start: boardingStart(dep, isFlight), end: arrivalAt(day, dep, t.arr) };
 }
 // Rückreise: ab Check-out der letzten Station (oder früher, wenn der Flug früher geht).
 function returnWindow() {
     const last = places.length - 1, day = computedData[last]?.isoEnd, t = returnBooking;
     if (last < 0 || !day || !t || !isHHMM(t.dep) || !isHHMM(t.arr)) return null;
-    const isFlight = transportMode(returnTransport || '').label === 'Flug' || /^[A-Z0-9]{2} \d/.test(t.train || '');
     const dep = atTime(day, t.dep);
-    let start = Math.min(atTime(day, checkoutOf(places[last])), dep - (isFlight ? 120 : 30) * 60000);
-    let end = atTime(day, t.arr);
-    if (end <= dep) end += 864e5;
-    return { start, end };
+    const isFlight = isFlightBooking(transportMode(returnTransport || '').label, t.train);
+    const start = Math.min(atTime(day, checkoutOf(places[last])), boardingStart(dep, isFlight));
+    return { start, end: arrivalAt(day, dep, t.arr) };
 }
 // { cur: Stationsindex oder -1, leg: Etappe (i → i+1) oder -1, next: als Nächstes oder -1,
 //   inArr / inRet: unterwegs zur ersten Station bzw. auf der Heimreise }
 function tripPosition(now = Date.now()) {
     const today = localISO(new Date(now));
     const n = places.length;
+    const at = (o) => Object.assign({ cur: -1, leg: -1, next: -1, inArr: false, inRet: false }, o);
     const aw = arrivalWindow();
-    if (aw && now >= aw.start && now < aw.end) return { cur: -1, leg: -1, next: 0, inArr: true, inRet: false };
+    if (aw && now >= aw.start && now < aw.end) return at({ next: 0, inArr: true });
     for (let i = 0; i < n - 1; i++) {
         const w = legWindow(i);
         if (!w) continue;
-        if (now >= w.start && now < w.end) return { cur: -1, leg: i, next: i + 1, inArr: false, inRet: false };
-        if (computedData[i]?.isoEnd === today && now < w.start) return { cur: i, leg: -1, next: -1, inArr: false, inRet: false };
+        if (now >= w.start && now < w.end) return at({ leg: i, next: i + 1 });
+        if (computedData[i]?.isoEnd === today && now < w.start) return at({ cur: i });
     }
     const rw = returnWindow();
-    if (rw && now >= rw.start && now < rw.end) return { cur: -1, leg: -1, next: -1, inArr: false, inRet: true };
+    if (rw && now >= rw.start && now < rw.end) return at({ inRet: true });
     // Abreisetag der letzten Station: bis zum Check-out noch dort
     const last = n - 1;
     if (last >= 0 && computedData[last]?.isoEnd === today && now < atTime(today, checkoutOf(places[last])))
-        return { cur: last, leg: -1, next: -1, inArr: false, inRet: false };
+        return at({ cur: last });
     const up = computedData.findIndex(c => c && c.isoEnd > today);
     const cur = up >= 0 && computedData[up].isoStart <= today ? up : -1;
-    return { cur, leg: -1, next: cur < 0 && up > 0 ? up : -1, inArr: false, inRet: false };
+    return at({ cur, next: cur < 0 && up > 0 ? up : -1 });
 }
 const HOURS_SOURCES = ['manual', 'OpenStreetMap'];
 function normHours(h) {

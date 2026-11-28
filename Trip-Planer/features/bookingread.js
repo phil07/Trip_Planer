@@ -269,6 +269,8 @@
         const from = /^[A-Z0-9]{2} \d/.test(train) ? departureAirport(lines) : '';
         return { train: train.slice(0, 60), dep, arr, from, terminal, gate, seat, note: '' };
     }
+    // Verbindung mit Abflughafen und Ankunft ist vollständig: dann wird nichts mehr nachgelesen.
+    const hasFullTransit = t => !!(t && t.from && t.arr);
     const sameTransit = (a, b) => !!a && !!b && a.train === b.train && a.dep === b.dep;
 
     function loadScript(src) {
@@ -659,9 +661,9 @@
         // die noch leer sind, einmalig erneut lesen. Belegte Verbindungen bleiben unberührt (keine Rückfrage).
         let again; try { again = new Set(JSON.parse(localStorage.getItem(RESCAN_KEY) || '[]')); } catch (e) { again = new Set(); }
         const empty = (await api.all()).filter(d => /^(leg:|arrival$|return$)/.test(d.ref || '') && !again.has(d.id)
-            && !((s => s?.from && s?.arr)(transitSlot(d.ref)?.get())));
+            && !hasFullTransit(transitSlot(d.ref)?.get()));
         for (const d of empty) {
-            if ((s => s?.from && s?.arr)(transitSlot(d.ref)?.get())) continue; // inzwischen von einer anderen Bestätigung gefüllt
+            if (hasFullTransit(transitSlot(d.ref)?.get())) continue; // inzwischen von einer anderen Bestätigung gefüllt
             const ok = await suggest(d.id, d.ref, true);
             if (ok) { again.add(d.id); try { localStorage.setItem(RESCAN_KEY, JSON.stringify([...again])); } catch (e) {} }
         }
