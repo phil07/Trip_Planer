@@ -4648,7 +4648,7 @@ function renderDayPlan() {
     const loose = cities.map(city => ({ city, favs: favs.filter(a => a.topPlace === city && !isPlanned(a)) })).filter(g => g.favs.length);
 
     list.innerHTML = '';
-    const addCard = (title, entries, sub, onRoute, isDay, city) => {
+    const addCard = (title, entries, sub, onRoute, isDay, city, routeLabel = 'Route planen') => {
         const nStops = entries.length;
         const card = document.createElement('div');
         card.className = 'dayplan-card';
@@ -4663,7 +4663,7 @@ function renderDayPlan() {
                 ${entries.map((e, i) => dayEntryHtml(e, !!isDay, entries, i)).join('')}
             </div>
             ${isDay ? `<button type="button" class="dayplan-add">${ico('plus')}<span>Punkt hinzufügen</span></button>` : ''}
-            <button class="btn btn-accent" ${nStops < 1 ? 'disabled' : ''}>Route planen (${nStops} Stopp${nStops === 1 ? '' : 's'})</button>`;
+            <button class="btn btn-accent" ${nStops < 1 ? 'disabled' : ''}>${escHtml(routeLabel)} (${nStops} Stopp${nStops === 1 ? '' : 's'})</button>`;
         card.querySelector('button.btn-accent').addEventListener('click', onRoute);
         card.querySelector('.dayplan-add')?.addEventListener('click', () => openPlanModal(null, { day: isDay, city }));
         list.appendChild(card);
@@ -4676,6 +4676,13 @@ function renderDayPlan() {
         const entries = dayEntries(day);
         const cs = [...new Set(entries.map(e => e.city))].join(', ');
         const city = entries.find(e => e.kind === 'act')?.ref.topPlace || entries[0]?.city || '';
+        // Wechseltag: die Punkte liegen auf der Fahrt – Route von der alten zur neuen Unterkunft
+        const leg = computedData.findIndex((c, i) => c && c.isoEnd === day && places[i + 1]);
+        if (leg >= 0) {
+            const label = `Route ${clean(places[leg].name)} → ${clean(places[leg + 1].name)}`;
+            addCard(fmtDayLong(day), entries, 'Stationswechsel', () => planLegRoute(leg, entries.map(e => e.ref)), day, clean(places[leg + 1].name), label);
+            return;
+        }
         addCard(fmtDayLong(day), entries, cs, () => planDayRoute(city, entries.map(e => e.ref), true), day, city);
     });
     if (loose.length) {
@@ -4806,12 +4813,34 @@ function routeStop(x, city) {
     const q = [name, x?.topPlace || x?.city || city].filter(Boolean).join(', ');
     return q ? { key: q } : null;
 }
+// Unterkunft einer Station als Routenpunkt (Koordinaten, sonst Hotelname, sonst Stationsmitte)
+function stayStop(p) {
+    if (!p) return null;
+    const city = clean(p.name);
+    return routeStop(p.hotelLat ? { lat: p.hotelLat, lng: p.hotelLng } : p.hotel ? { title: p.hotel, city } : p, city);
+}
+// Wechseltag: von der Unterkunft der Station i über die Tagespunkte (in Plan-Reihenfolge) zur
+// Unterkunft der Station i+1, mit dem Verkehrsmittel der Etappe (Mietwagen → Auto usw.).
+function planLegRoute(i, items) {
+    const origin = stayStop(places[i]), destination = stayStop(places[i + 1]);
+    if (!origin || !destination) return;
+    const city = clean(places[i + 1].name);
+    const stops = (items || []).map(x => routeStop(x, x?.city || x?.topPlace || city)).filter(Boolean);
+    let mode = 'transit';
+    try { mode = window.transit?.legInfo?.(i)?.est?.gm || mode; } catch (e) {}
+    if (stops.length > MAPS_MAX_WAYPOINTS) showToast(`Google Maps zeigt höchstens ${MAPS_MAX_WAYPOINTS} Zwischenstopps – die ersten ${MAPS_MAX_WAYPOINTS} sind dabei.`, 4500);
+    haptic();
+    const enc = x => encodeURIComponent(x.key);
+    let url = `https://www.google.com/maps/dir/?api=1&origin=${enc(origin)}&destination=${enc(destination)}&travelmode=${mode}`;
+    if (stops.length) url += `&waypoints=${stops.slice(0, MAPS_MAX_WAYPOINTS).map(enc).join('%7C')}`;
+    window.open(url, '_blank');
+}
 function planDayRoute(city, items, keepOrder) {
     const root = places.find(p => clean(p.name) === city);
     let stops = (items || acts.filter(a => a.topPlace === city && a.favorite)).map(x => routeStop(x, city)).filter(Boolean);
     if (!stops.length) { showToast(`Keine Einträge für ${city || 'diesen Tag'}`); return; }
 
-    let origin = root ? routeStop(root.hotelLat ? { lat: root.hotelLat, lng: root.hotelLng } : root.hotel ? { title: root.hotel, city } : root, city) : null;
+    let origin = root ? stayStop(root) : null;
     if (!origin) { origin = stops[0]; stops = stops.slice(1); }
     if (!stops.length) { showToast('Nur ein Eintrag – nutze dafür die Navigation.'); return; }
 

@@ -1275,3 +1275,25 @@ t('Tagesplan: Punkt direkt an einem Tag hinzufügen (Tag und Ort vorbelegt)', as
     assert.equal(await page.locator('#pl-city').inputValue(), 'Kyoto');
     assert.deepEqual(errors, []);
 });
+
+t('Tagesplan Wechseltag: Route von alter zu neuer Unterkunft, Punkte als Zwischenstopps', async () => {
+    const seed = FIXTURE(); // Tokio ab day(2), 4 Nächte → Wechsel nach Kyoto an day(6)
+    seed.tp_plan = JSON.stringify([
+        { id: 601, day: day(6), city: 'Kyoto', text: 'Nagoya Castle', dayOrder: 0, done: false },
+        { id: 602, day: day(6), city: 'Kyoto', text: 'Fushimi Inari', dayOrder: 1, done: false }]);
+    await open(seed);
+    await page.evaluate(() => { window.__opened = []; window.open = u => { window.__opened.push(u); return null; }; });
+    await go('view-dayplan', 'Tagesplan');
+    const card = page.locator('.dayplan-card', { hasText: 'Nagoya Castle' }).first();
+    assert.match(await card.locator('.dayplan-count').first().innerText(), /Stationswechsel/);
+    const btn = card.locator('button.btn-accent');
+    assert.match(await btn.innerText(), /Route Tokio → Kyoto \(2 Stopps\)/);
+    await btn.click();
+    const url = decodeURIComponent(await page.evaluate(() => window.__opened.pop()));
+    assert.match(url, /origin=35\.6955,139\.7006/);       // Hotel Tokio
+    assert.match(url, /destination=35\.0094,135\.76/);     // Hotel Kyoto
+    assert.match(url, /waypoints=Nagoya Castle, Kyoto\|Fushimi Inari, Kyoto/);
+    assert.match(url, /travelmode=transit/);
+    assert.equal(await page.locator('.transit-day-card', { hasText: 'Weiter nach Kyoto' }).count(), 0, 'keine zweite Wechselkarte');
+    assert.deepEqual(errors, []);
+});
