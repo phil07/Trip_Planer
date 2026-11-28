@@ -230,12 +230,13 @@ test('cleanMap: alte, ungültige und überlange Einträge werden verworfen', () 
     assert.deepEqual(Object.keys(out), ['a']);
     assert.deepEqual(J(RM.t.cleanMap(null)), {});
 });
-test('loadSettings: Standard 19:00, ungültige Zeiten werden ersetzt', () => {
-    assert.deepEqual(J(RM.t.loadSettings()), { on: true, eve: '19:00' });
+test('loadSettings: Standard alles an um 19:00, alte Einstellung on:false schaltet alles aus, Arten einzeln', () => {
+    assert.deepEqual(J(RM.t.loadSettings()), { eveOn: true, dayOn: true, todoOn: true, eve: '19:00', on: true });
     RM.ctx.localStorage.setItem('tp_reminders', JSON.stringify({ on: false, eve: '99:99' }));
-    assert.deepEqual(J(RM.t.loadSettings()), { on: false, eve: '19:00' });
-    RM.ctx.localStorage.setItem('tp_reminders', JSON.stringify({ eve: '20:15' }));
-    assert.equal(RM.t.loadSettings().eve, '20:15');
+    assert.deepEqual(J(RM.t.loadSettings()), { eveOn: false, dayOn: false, todoOn: false, eve: '19:00', on: false });
+    RM.ctx.localStorage.setItem('tp_reminders', JSON.stringify({ eve: '20:15', dayOn: false, todoOn: false }));
+    const s = J(RM.t.loadSettings());
+    assert.equal(s.eve, '20:15'); assert.equal(s.eveOn, true); assert.equal(s.dayOn, false); assert.equal(s.on, true);
 });
 
 // ───────────────────────── Teilen ─────────────────────────

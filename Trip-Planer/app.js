@@ -3386,7 +3386,7 @@ function switchView(id, title, fromPop) {
     if (id === 'view-documents') window.documentsFeature?.render();
     if (id === 'view-todos') window.todos?.render();
     if (id === 'view-logs') renderLogs();
-    if (id === 'view-settings') { updateSyncUI(); updateUndoImportBtn(); }
+    if (id === 'view-settings') { updateSyncUI(); updateUndoImportBtn(); window.reminders?.renderSettings(); }
     if (id === 'view-emergency') window.emergency?.render();
     try { localStorage.setItem('tp_lastview', JSON.stringify({ id, title: title || document.getElementById('pageTitle').innerText })); } catch (e) {}
 }

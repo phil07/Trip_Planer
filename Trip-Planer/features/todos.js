@@ -179,8 +179,7 @@
                 <div class="form-group"><label for="todo-due">Fällig am (optional)</label><input type="date" id="todo-due"></div>
                 <div class="form-group"><label for="todo-time">Uhrzeit</label><input type="time" id="todo-time"></div>
             </div>
-            <p class="form-hint todo-rem-hint" id="todoRemHint" hidden>Erinnerung kommt, wenn die Fälligkeit weniger als 24 Stunden entfernt ist.
-                <button type="button" class="link-btn" id="todoRemSettings">Benachrichtigungen einstellen</button></p>
+            <p class="form-hint todo-rem-hint" id="todoRemHint" hidden>Erinnerung, wenn die Fälligkeit weniger als 24 Stunden entfernt ist (einstellbar unter Einstellungen → Benachrichtigungen).</p>
             <div class="form-group"><label for="todo-note">Notiz (optional)</label><textarea id="todo-note" rows="3" maxlength="${NOTE_MAX}"></textarea></div>
             <label class="todo-done-field"><input type="checkbox" id="todo-done"> Erledigt</label>
         </div>
@@ -196,7 +195,6 @@
         document.getElementById('todoDeleteBtn').addEventListener('click', () => { const id = editId; dlg.close(); remove(id); });
         dlg.querySelector('[data-todo-close]').addEventListener('click', () => dlg.close());
         document.getElementById('todo-due').addEventListener('input', syncDueUi);
-        document.getElementById('todoRemSettings').addEventListener('click', () => { dlg.close(); window.reminders?.open(); });
         document.getElementById('todo-text').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveEdit(); } });
 
         const view = document.getElementById('view-todos');

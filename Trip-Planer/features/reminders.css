@@ -19,3 +19,15 @@
 .rem-perm-btn[hidden] { display: none; }
 .rem-sub { font-size: var(--fs-footnote); font-weight: 600; color: var(--label); margin: 4px 0 8px; }
 .rem-date { font-weight: 500; color: var(--muted); }
+
+/* Einstellungen → Benachrichtigungen */
+#notifySettings .rem-switch { align-items: flex-start; min-height: 44px; margin: 0 0 10px; font-size: var(--fs-callout); }
+#notifySettings .rem-switch input { margin-top: 2px; }
+#notifySettings .rem-switch span { display: flex; flex-direction: column; gap: 2px; }
+#notifySettings .rem-switch small { font-size: var(--fs-footnote); font-weight: 400; color: var(--muted); }
+#notifySettings .rem-eve-time { margin: -4px 0 14px 30px; max-width: 200px; }
+#notifySettings .rem-eve-time input:disabled { opacity: .5; }
+#notifySettings .rem-perm-btn { margin: 0 0 14px; }
+.rem-checkouts { margin-top: 4px; border-top: 1px solid var(--border); padding-top: 8px; }
+.rem-checkouts > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-size: var(--fs-callout); font-weight: 600; color: var(--label); }
+.rem-checkouts .rem-place { margin: 8px 0; }

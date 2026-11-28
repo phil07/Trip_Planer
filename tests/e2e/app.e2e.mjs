@@ -1097,3 +1097,31 @@ t('ToDos: Erinnerung weniger als 24 Stunden vor Fälligkeit, nur solange offen',
     assert.equal(await page.locator('#todoRemHint').isVisible(), false);
     assert.deepEqual(errors, []);
 });
+
+t('Einstellungen → Benachrichtigungen: Arten einzeln schaltbar, nirgends sonst', async () => {
+    await open();
+    await page.evaluate(() => {
+        const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const d = new Date(Date.now() + 2 * 3600e3);
+        localStorage.setItem('tp_todos', JSON.stringify({ v: 1, items: [{ id: 'x', t: 'Visum', due: iso(d), dueTime: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, done: false }] }));
+    });
+    await go('view-settings', 'Einstellungen');
+    const box = page.locator('#notifySettings');
+    assert.equal(await box.locator('#rem-todo-on').isChecked(), true);
+    assert.equal(await page.evaluate(() => window.reminders.buildEvents().some(e => e.kind === 'todo')), true);
+    await box.locator('#rem-todo-on').uncheck();
+    assert.equal(await page.evaluate(() => window.reminders.buildEvents().some(e => e.kind === 'todo')), false);
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('tp_reminders')).todoOn), false);
+    // Vorabend aus: Uhrzeit gesperrt
+    await box.locator('#rem-eve-on').uncheck();
+    assert.equal(await box.locator('#rem-eve').isDisabled(), true);
+    assert.equal(await page.evaluate(() => window.reminders.buildEvents().some(e => e.kind === 'eve')), false);
+    // Check-out-Zeit pro Station
+    await box.locator('.rem-checkouts summary').click();
+    await box.locator('.rem-place input').first().fill('10:30');
+    await box.locator('.rem-place input').first().dispatchEvent('change');
+    assert.equal(await page.evaluate(() => places[0].checkout), '10:30');
+    // ToDo-Dialog verweist nur per Text, ohne eigenen Einstellungs-Knopf; kein Erinnerungs-Dialog mehr
+    assert.equal(await page.locator('#todoRemSettings, #modal-reminders').count(), 0);
+    assert.deepEqual(errors, []);
+});

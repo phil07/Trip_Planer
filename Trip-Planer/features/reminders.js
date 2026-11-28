@@ -10,7 +10,7 @@
 // echtem Server-Push (worker/ – noch nicht deployt, s. docs/push-setup.md).
 (function () {
     'use strict';
-    const SETTINGS_KEY = 'tp_reminders';       // { on, eve } – Geräte-Einstellung, nicht im Backup
+    const SETTINGS_KEY = 'tp_reminders';       // { eveOn, eve, dayOn, todoOn } – Geräte-Einstellung, nicht im Backup
     const STATE_KEY = 'tp_reminders_state';    // { sent: {key: ts}, hidden: {key: ts} }
     const SYNC_TAG = 'trip-planer-reminders';
     const DB_NAME = 'jp26-reminders', DB_STORE = 'kv';
@@ -19,10 +19,16 @@
     const DAY_FROM = '06:00', DAY_FALLBACK_END = '12:00';
 
     const validHHMM = v => typeof v === 'string' && HHMM.test(v);
+    // Je Art ein Schalter. Ältere Einstellung { on: false } schaltet alle aus.
     function loadSettings() {
         const s = readJsonKey(SETTINGS_KEY, isObj, {});
-        return { on: s.on !== false, eve: validHHMM(s.eve) ? s.eve : '19:00' };
+        const def = s.on !== false;
+        const flag = k => typeof s[k] === 'boolean' ? s[k] : def;
+        const o = { eveOn: flag('eveOn'), dayOn: flag('dayOn'), todoOn: flag('todoOn'), eve: validHHMM(s.eve) ? s.eve : '19:00' };
+        o.on = o.eveOn || o.dayOn || o.todoOn;
+        return o;
     }
+    function saveSettings(o) { writeJson(SETTINGS_KEY, { eveOn: !!o.eveOn, dayOn: !!o.dayOn, todoOn: !!o.todoOn, eve: o.eve }); }
     function cleanMap(m) {
         const out = {}, min = Date.now() - KEEP_MS;
         if (isObj(m)) Object.keys(m).slice(0, 500).forEach(k => { const t = Number(m[k]); if (k.length <= 200 && Number.isFinite(t) && t > min) out[k] = t; });
@@ -70,7 +76,11 @@
         }
         return out;
     }
+    // Nur die eingeschalteten Arten (Vorabend, Abreisetag, ToDos)
     function buildEvents(settings) {
+        return buildAllEvents(settings).filter(e => e.kind === 'todo' ? settings.todoOn : e.kind === 'day' ? settings.dayOn : settings.eveOn);
+    }
+    function buildAllEvents(settings) {
         const evs = todoEvents();
         if (!Array.isArray(places) || !places.length || !computedData.length) return evs;
         const coText = co => validHHMM(co) ? ` – Check-out bis ${co}` : ' – Check-out nicht vergessen';
@@ -265,98 +275,82 @@
         }));
     }
 
-    // ─── Einstellungs-Dialog ───────────────────────────────────────────────
+    // ─── Einstellungen (nur unter Einstellungen → Benachrichtigungen) ──────
     function permText() {
-        if (!notifySupported()) return 'Benachrichtigungen werden in diesem Browser nicht unterstützt – Erinnerung nur als Banner in der App.';
+        if (NATIVE()) return 'Benachrichtigungen kommen als App-Mitteilung, auch wenn die App geschlossen ist.';
+        if (!notifySupported()) return 'Benachrichtigungen werden in diesem Browser nicht unterstützt – Erinnerung nur als Banner auf der Startseite.';
         if (Notification.permission === 'granted') return 'Benachrichtigungen sind erlaubt.';
-        if (Notification.permission === 'denied') return 'Benachrichtigungen sind blockiert – in den Browser-/System-Einstellungen erlauben.';
-        return 'Benachrichtigungen sind noch nicht erlaubt.';
+        if (Notification.permission === 'denied') return 'Benachrichtigungen sind blockiert – in den Browser- bzw. Systemeinstellungen erlauben.';
+        return 'Benachrichtigungen sind noch nicht erlaubt – ohne Erlaubnis erscheinen Erinnerungen nur als Banner auf der Startseite.';
     }
     const BG_TEXT = {
         active: 'Hintergrund-Prüfung aktiv – der Browser weckt die App gelegentlich (Zeitpunkt bestimmt das System).',
         unsupported: 'Keine Hintergrund-Prüfung auf diesem Gerät – erinnert wird beim Öffnen der App.',
         denied: 'Hintergrund-Prüfung nicht verfügbar (App installieren, Chrome/Android) – erinnert wird beim Öffnen der App.',
-        off: 'Hintergrund-Prüfung startet, sobald Erinnerungen an und Benachrichtigungen erlaubt sind.'
+        off: ''
     };
-    function ensureDialog() {
-        let dlg = document.getElementById('modal-reminders');
-        if (dlg) return dlg;
-        dlg = document.createElement('dialog');
-        dlg.id = 'modal-reminders';
-        dlg.setAttribute('aria-labelledby', 'modal-reminders-title');
-        dlg.innerHTML = `<h3 id="modal-reminders-title">Erinnerungen</h3>
-            <div class="dialog-body">
-                <label class="rem-switch"><input type="checkbox" id="rem-on"><span>Vor Stationswechseln und fälligen ToDos erinnern</span></label>
-                <div class="form-group"><label for="rem-eve">Vorabend-Erinnerung um</label><input type="time" id="rem-eve" step="60"></div>
-                <div class="rem-perm">
-                    <p class="rem-hint" id="rem-perm-text"></p>
-                    <button type="button" class="btn btn-secondary rem-perm-btn" id="rem-perm-btn">${ico('bell-ringing', '🔔')} Benachrichtigungen erlauben</button>
-                    <p class="rem-hint" id="rem-bg-text"></p>
-                </div>
-                <div class="rem-sub">Check-out-Zeit pro Station</div>
-                <div id="rem-places"></div>
-            </div>
-            <div class="dialog-actions">
-                <button type="button" class="btn" id="rem-save">Speichern</button>
-                <button type="button" class="btn btn-secondary" id="rem-cancel">Abbrechen</button>
-            </div>`;
-        document.body.appendChild(dlg);
-        dlg.querySelector('#rem-cancel').addEventListener('click', () => dlg.close());
-        dlg.querySelector('#rem-save').addEventListener('click', saveDialog);
+    function renderSettings() {
+        const box = document.getElementById('notifySettings');
+        if (!box) return;
+        const s = loadSettings();
+        const rows = (typeof places !== 'undefined' ? places : []).map((p, i) => ({ p, i, cd: computedData[i] })).filter(r => r.cd && clampNights(r.p.nights) >= 1);
+        const sw = (id, on, title, sub) => `<label class="rem-switch"><input type="checkbox" id="${id}" ${on ? 'checked' : ''}><span>${title}<small>${sub}</small></span></label>`;
+        box.innerHTML = `
+            <p class="settings-hint" id="rem-perm-text"></p>
+            <button type="button" class="btn-icon rem-perm-btn" id="rem-perm-btn" hidden>${ico('bell-ringing', '🔔')} Benachrichtigungen erlauben</button>
+            ${sw('rem-eve-on', s.eveOn, 'Vorabend eines Stationswechsels', 'Auch am Abend vor Reisebeginn')}
+            <div class="form-group rem-eve-time"><label for="rem-eve">Uhrzeit am Vorabend</label><input type="time" id="rem-eve" step="60" value="${esc(s.eve)}" ${s.eveOn ? '' : 'disabled'}></div>
+            ${sw('rem-day-on', s.dayOn, 'Check-out am Abreisetag', 'Morgens, spätestens 30 Minuten vor dem Check-out')}
+            ${sw('rem-todo-on', s.todoOn, 'Fällige ToDos', 'Wenn die Fälligkeit weniger als 24 Stunden entfernt ist')}
+            <p class="settings-hint" id="rem-bg-text"></p>
+            <details class="rem-checkouts"${rows.length ? '' : ' hidden'}>
+                <summary>Check-out-Zeiten pro Station</summary>
+                ${rows.map(({ p, i, cd }) => `<div class="form-group rem-place">
+                    <label for="rem-co-${i}">${esc(clean(String(p.name)))} <span class="rem-date">· ${esc(fmtDate(cd.isoEnd))}</span></label>
+                    <input type="time" id="rem-co-${i}" data-id="${esc(String(p.id))}" step="60" value="${validHHMM(p.checkout) ? p.checkout : ''}">
+                </div>`).join('')}
+            </details>`;
+        const save = () => {
+            const cur = loadSettings();
+            const eve = box.querySelector('#rem-eve').value.trim();
+            const next = { eveOn: box.querySelector('#rem-eve-on').checked, dayOn: box.querySelector('#rem-day-on').checked,
+                todoOn: box.querySelector('#rem-todo-on').checked, eve: validHHMM(eve) ? eve : cur.eve };
+            box.querySelector('#rem-eve').disabled = !next.eveOn;
+            saveSettings(next);
+            render(); updatePeriodicSync().then(syncPermUi); check();
+        };
+        box.querySelectorAll('#rem-eve-on, #rem-day-on, #rem-todo-on').forEach(i => i.addEventListener('change', () => { haptic(); save(); }));
+        box.querySelector('#rem-eve').addEventListener('change', save);
+        box.querySelectorAll('.rem-place input').forEach(inp => inp.addEventListener('change', () => {
+            const v = inp.value.trim();
+            if (v && !validHHMM(v)) { showToast('Check-out-Zeit bitte als HH:MM angeben (z. B. 10:00)'); return; }
+            const p = places.find(x => String(x.id) === inp.dataset.id);
+            if (p && (p.checkout || '') !== v) { p.checkout = v; saveData(); }
+        }));
         // Erlaubnis ausschließlich auf Knopfdruck anfragen
-        dlg.querySelector('#rem-perm-btn').addEventListener('click', async () => {
+        box.querySelector('#rem-perm-btn').addEventListener('click', async () => {
             if (!notifySupported()) return;
             try { await Notification.requestPermission(); } catch (e) {}
             await syncPermUi();
-            if (notifyGranted()) { showToast('🔔 Erinnerungen per Benachrichtigung aktiv'); check(); }
+            if (notifyGranted()) { showToast('Erinnerungen per Benachrichtigung aktiv'); check(); }
             else if (Notification.permission === 'denied') showToast('Benachrichtigungen blockiert – in den Einstellungen erlauben');
         });
-        return dlg;
-    }
-    async function syncPermUi() {
-        const dlg = document.getElementById('modal-reminders');
-        if (!dlg) return;
-        dlg.querySelector('#rem-perm-text').textContent = permText();
-        dlg.querySelector('#rem-perm-btn').hidden = !notifySupported() || Notification.permission !== 'default';
-        const bg = dlg.querySelector('#rem-bg-text');
-        bg.textContent = BG_TEXT[await updatePeriodicSync()] || '';
-    }
-    function openDialog() {
-        const dlg = ensureDialog(), s = loadSettings();
-        dlg.querySelector('#rem-on').checked = s.on;
-        dlg.querySelector('#rem-eve').value = s.eve;
-        const list = dlg.querySelector('#rem-places');
-        const rows = places.map((p, i) => ({ p, i, cd: computedData[i] })).filter(r => r.cd && clampNights(r.p.nights) >= 1);
-        list.innerHTML = rows.length ? rows.map(({ p, i, cd }) => `<div class="form-group rem-place">
-                <label for="rem-co-${i}">${esc(clean(String(p.name)))} <span class="rem-date">· Check-out ${esc(fmtDate(cd.isoEnd))}</span></label>
-                <input type="time" id="rem-co-${i}" data-id="${esc(String(p.id))}" step="60" value="${validHHMM(p.checkout) ? p.checkout : ''}">
-            </div>`).join('')
-            : '<p class="rem-hint">Noch keine Stationen mit Übernachtung.</p>';
-        dlg.showModal();
         syncPermUi();
     }
-    function saveDialog() {
-        const dlg = document.getElementById('modal-reminders');
-        const eve = dlg.querySelector('#rem-eve').value.trim();
-        if (!validHHMM(eve)) { showToast('⚠️ Uhrzeit bitte als HH:MM angeben (z. B. 19:00)'); return; }
-        const inputs = [...dlg.querySelectorAll('#rem-places input[type="time"]')];
-        const bad = inputs.find(inp => inp.value.trim() && !validHHMM(inp.value.trim()));
-        if (bad) { showToast('⚠️ Check-out-Zeit bitte als HH:MM angeben (z. B. 10:00)'); bad.focus(); return; }
-        writeJson(SETTINGS_KEY, { on: dlg.querySelector('#rem-on').checked, eve });
-        let changed = false;
-        inputs.forEach(inp => {
-            const p = places.find(x => String(x.id) === inp.dataset.id);
-            const v = inp.value.trim();
-            if (p && (p.checkout || '') !== v) { p.checkout = v; changed = true; }
-        });
-        if (changed) saveData(); else render();
-        dlg.close();
-        showToast('✅ Erinnerungen gespeichert');
-        updatePeriodicSync();
-        check();
+    async function syncPermUi() {
+        const box = document.getElementById('notifySettings');
+        if (!box || !box.querySelector('#rem-perm-text')) return;
+        box.querySelector('#rem-perm-text').textContent = permText();
+        box.querySelector('#rem-perm-btn').hidden = NATIVE() || !notifySupported() || Notification.permission !== 'default';
+        box.querySelector('#rem-bg-text').textContent = NATIVE() ? '' : (BG_TEXT[await updatePeriodicSync()] || '');
+    }
+    // Früher ein eigener Dialog – jetzt führt jeder Aufruf zu den Einstellungen.
+    function openSettings() {
+        if (typeof switchView === 'function') switchView('view-settings', 'Einstellungen');
+        setTimeout(() => document.getElementById('set-notify')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 80);
     }
 
-    window.reminders = { render, check, open: openDialog, buildEvents: () => buildEvents(loadSettings()) };
+    window.reminders = { render, check, open: openSettings, renderSettings, buildEvents: () => buildEvents(loadSettings()) };
 
     document.addEventListener('DOMContentLoaded', () => {
         check();
