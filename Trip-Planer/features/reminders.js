@@ -48,8 +48,30 @@
     //   text – Banner-/Benachrichtigungstext
     //   showFrom/showTo – Zeitraum für das Banner
     //   notifyFrom/notifyTo – Zeitraum für die Benachrichtigung
+    // ToDos mit Fälligkeit: Erinnerung, sobald sie weniger als 24 Stunden entfernt ist (solange offen).
+    // Ohne Uhrzeit gilt das Ende des Tages. Fällt der Beginn in die Nacht (22–7 Uhr), wird um 7 Uhr erinnert.
+    function todoEvents() {
+        const out = [];
+        const items = window.todos?.load?.() || [];
+        const today = localISO(new Date()), tomorrow = shiftDay(today, 1);
+        for (const t of items) {
+            if (t.done || !t.due) continue;
+            const deadline = validHHMM(t.dueTime) ? at(t.due, t.dueTime) : endOfDay(t.due);
+            let from = deadline - 864e5;
+            const fd = new Date(from), h = fd.getHours();
+            if (h >= 22 || h < 7) {
+                const seven = new Date(fd); if (h >= 22) seven.setDate(seven.getDate() + 1); seven.setHours(7, 0, 0, 0);
+                if (seven.getTime() < deadline) from = seven.getTime();
+            }
+            const when = t.due === today ? 'heute' : t.due === tomorrow ? 'morgen' : fmtDate(t.due);
+            out.push({ key: `todo|${t.id}|${t.due}|${t.dueTime || ''}`, kind: 'todo', icon: 'check-square',
+                text: `ToDo fällig ${when}${validHHMM(t.dueTime) ? ` um ${t.dueTime}` : ''}: ${t.t}`,
+                showFrom: from, showTo: deadline, notifyFrom: from, notifyTo: deadline });
+        }
+        return out;
+    }
     function buildEvents(settings) {
-        const evs = [];
+        const evs = todoEvents();
         if (!Array.isArray(places) || !places.length || !computedData.length) return evs;
         const coText = co => validHHMM(co) ? ` – Check-out bis ${co}` : ' – Check-out nicht vergessen';
         const first = computedData[0];
@@ -124,8 +146,10 @@
     function scheduleNative() {
         clearTimeout(nativeT);
         nativeT = setTimeout(async () => {
-            const s = loadSettings(), now = Date.now();
-            const events = s.on ? buildEvents(s).filter(e => e.notifyTo > now).slice(0, NATIVE_MAX) : [];
+            const s = loadSettings(), now = Date.now(), st = loadState();
+            // Schon ausgelöste Erinnerungen (geplanter Zeitpunkt liegt in der Vergangenheit) nicht neu planen –
+            // sonst käme bei jedem Öffnen der App dieselbe Benachrichtigung erneut.
+            const events = s.on ? buildEvents(s).filter(e => e.notifyTo > now && !(st.sent[e.key] && st.sent[e.key] <= now)).slice(0, NATIVE_MAX) : [];
             try {
                 const ids = Array.from({ length: NATIVE_MAX }, (_, i) => ({ id: i + 1 }));
                 await window.Capacitor.nativePromise('LocalNotifications', 'cancel', { notifications: ids });
@@ -134,6 +158,8 @@
                     schedule: { at: new Date(Math.max(e.notifyFrom, now + 5000)).toISOString() }
                 }));
                 if (notifications.length) await window.Capacitor.nativePromise('LocalNotifications', 'schedule', { notifications });
+                events.forEach((e, i) => { st.sent[e.key] = new Date(notifications[i].schedule.at).getTime(); });
+                if (events.length) saveState(st);
             } catch (e) { console.warn('Erinnerungen (App):', e); }
         }, 300);
     }
@@ -222,11 +248,18 @@
             box.setAttribute('role', 'status');
             intro.appendChild(box);
         }
-        box.innerHTML = active.map(e => `<div class="rem-banner rem-banner--${e.kind === 'day' ? 'day' : 'eve'}">
-            <span class="rem-ico">${ico(e.icon, e.kind === 'day' ? '🧳' : '🔔')}</span>
+        box.innerHTML = active.map(e => `<div class="rem-banner rem-banner--${e.kind === 'day' || e.kind === 'todo' ? 'day' : 'eve'}"${e.kind === 'todo' ? ' data-todo="1"' : ''}>
+            <span class="rem-ico">${ico(e.icon, e.kind === 'todo' ? '☑️' : e.kind === 'day' ? '🧳' : '🔔')}</span>
             <span class="rem-text">${esc(e.text)}</span>
             <button type="button" class="rem-close" data-key="${esc(e.key)}" aria-label="Erinnerung ausblenden">${ico('x', '✕')}</button>
         </div>`).join('');
+        // ToDo-Erinnerung antippen: ToDos öffnen
+        box.querySelectorAll('.rem-banner[data-todo] .rem-text').forEach(t => {
+            t.setAttribute('role', 'link'); t.tabIndex = 0; t.style.cursor = 'pointer';
+            const go = () => switchView('view-todos', 'ToDos');
+            t.addEventListener('click', go);
+            t.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+        });
         box.querySelectorAll('.rem-close').forEach(b => b.addEventListener('click', () => {
             const st2 = loadState(); st2.hidden[b.dataset.key] = Date.now(); saveState(st2); haptic(); render();
         }));
@@ -253,7 +286,7 @@
         dlg.setAttribute('aria-labelledby', 'modal-reminders-title');
         dlg.innerHTML = `<h3 id="modal-reminders-title">Erinnerungen</h3>
             <div class="dialog-body">
-                <label class="rem-switch"><input type="checkbox" id="rem-on"><span>Vor Stationswechseln erinnern</span></label>
+                <label class="rem-switch"><input type="checkbox" id="rem-on"><span>Vor Stationswechseln und fälligen ToDos erinnern</span></label>
                 <div class="form-group"><label for="rem-eve">Vorabend-Erinnerung um</label><input type="time" id="rem-eve" step="60"></div>
                 <div class="rem-perm">
                     <p class="rem-hint" id="rem-perm-text"></p>

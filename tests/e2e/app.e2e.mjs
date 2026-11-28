@@ -1059,3 +1059,41 @@ t('Aktivitäten und Tagesplan: Navigation ab aktuellem Standort, auch ohne Koord
     }
     assert.deepEqual(errors, []);
 });
+
+t('ToDos: Erinnerung weniger als 24 Stunden vor Fälligkeit, nur solange offen', async () => {
+    await open();
+    const r = await page.evaluate(() => {
+        const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const now = new Date(), in3d = new Date(Date.now() + 3 * 864e5), in2h = new Date(Date.now() + 2 * 3600e3);
+        const hm = d => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        localStorage.setItem('tp_todos', JSON.stringify({ v: 1, items: [
+            { id: 'soon', t: 'Visum prüfen', due: iso(in2h), dueTime: hm(in2h), done: false },
+            { id: 'later', t: 'JR Pass', due: iso(in3d), done: false },
+            { id: 'nodue', t: 'Ohne Datum', due: '', done: false },
+            { id: 'done', t: 'Erledigt', due: iso(in2h), dueTime: hm(in2h), done: true }] }));
+        const evs = window.reminders.buildEvents().filter(e => e.kind === 'todo');
+        const t = Date.now();
+        return { keys: evs.map(e => e.key.split('|')[1]), active: evs.filter(e => t >= e.notifyFrom && t <= e.notifyTo).map(e => e.text),
+            laterFrom: evs.find(e => e.key.includes('later'))?.notifyFrom - t };
+    });
+    assert.deepEqual(r.keys.sort(), ['later', 'soon']);
+    assert.equal(r.active.length, 1);
+    assert.match(r.active[0], /^ToDo fällig (heute|morgen) um \d{2}:\d{2}: Visum prüfen$/);
+    assert.ok(r.laterFrom > 24 * 3600e3, 'späteres ToDo erinnert erst später');
+    // Banner auf der Startseite, Antippen öffnet die ToDos
+    await page.evaluate(() => { switchView('view-home', 'Start'); window.reminders.render(); });
+    const banner = page.locator('#homeReminder .rem-banner[data-todo]');
+    assert.match(await banner.innerText(), /Visum prüfen/);
+    await banner.locator('.rem-text').click();
+    assert.ok(await page.locator('#view-todos.active').count());
+    // Abhaken: Erinnerung verschwindet
+    await page.click('input[aria-label="Visum prüfen abhaken"]');
+    assert.equal(await page.evaluate(() => window.reminders.buildEvents().filter(e => e.kind === 'todo' && e.key.includes('soon')).length), 0);
+    // Dialog: Uhrzeit nur mit Datum, Hinweis auf Erinnerung
+    await page.click('[data-todo-edit] >> text=JR Pass');
+    assert.equal(await page.locator('#todoRemHint').isVisible(), true);
+    await page.fill('#todo-due', '');
+    assert.equal(await page.locator('#todo-time').isDisabled(), true);
+    assert.equal(await page.locator('#todoRemHint').isVisible(), false);
+    assert.deepEqual(errors, []);
+});

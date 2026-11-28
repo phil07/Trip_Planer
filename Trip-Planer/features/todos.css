@@ -37,3 +37,7 @@
 
 .menu-count { margin-left: auto; min-width: 22px; padding: 1px 7px; border-radius: 999px; background: var(--bg-secondary); color: var(--muted);
     font-size: var(--fs-caption); font-weight: 600; text-align: center; }
+.todo-due-row .form-group { flex: 1 1 0; min-width: 0; }
+.todo-due-row .form-group:last-child { flex: 0 0 120px; }
+.todo-rem-hint .link-btn { padding: 0; margin-left: 2px; }
+.todo-rem-hint { margin: -4px 0 14px; }

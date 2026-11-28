@@ -8,7 +8,7 @@
     'use strict';
     const KEY = 'tp_todos';
     const MAX = 300, TEXT_MAX = 120, NOTE_MAX = 500;
-    const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+    const DATE_RE = /^\d{4}-\d{2}-\d{2}$/, TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
     const icon = (name, fb) => `<i class="ph-light ph-${name}" data-fb="${fb}" aria-hidden="true"></i>`;
     const uid = () => 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const clean = (s, max) => typeof s === 'string' ? s.replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ').replace(/[ \t]+/g, ' ').trim().slice(0, max) : '';
@@ -23,13 +23,17 @@
             id: typeof x.id === 'string' ? x.id.slice(0, 40) : '',
             t: oneLine(x.t, TEXT_MAX),
             due: typeof x.due === 'string' && DATE_RE.test(x.due) ? x.due : '',
+            dueTime: typeof x.dueTime === 'string' && TIME_RE.test(x.dueTime) && DATE_RE.test(x.due || '') ? x.dueTime : '',
             note: clean(x.note, NOTE_MAX),
             done: !!x.done,
             doneAt: Number.isFinite(x.doneAt) ? x.doneAt : 0
         })).filter(x => x.id && x.t && !seen.has(x.id) && seen.add(x.id)).slice(0, MAX);
     }
     function save(items) {
-        return writeJson(KEY, { v: 1, items }); // meldet volle Speicher selbst
+        const ok = writeJson(KEY, { v: 1, items }); // meldet volle Speicher selbst
+        // Erinnerungen (Banner, Benachrichtigungen) neu planen: Fälligkeit/Erledigt kann sich geändert haben
+        try { window.reminders?.render(); } catch (e) {}
+        return ok;
     }
 
     const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -43,13 +47,15 @@
         const [y, m, d] = due.split('-');
         return `${d}.${m}.${y !== t.slice(0, 4) ? y.slice(2) : ''}`;
     }
+    const nowHHMM = () => { const d = new Date(); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
     // Offene: überfällige und fällige zuerst (nach Datum), ohne Datum am Ende in Eingabe-Reihenfolge.
-    const byDue = (a, b) => (a.due || '9999') < (b.due || '9999') ? -1 : (a.due || '9999') > (b.due || '9999') ? 1 : 0;
+    const dueKey = x => x.due ? x.due + ' ' + (x.dueTime || '23:59') : '9999';
+    const byDue = (a, b) => dueKey(a) < dueKey(b) ? -1 : dueKey(a) > dueKey(b) ? 1 : 0;
 
     function row(x) {
         const t = today();
-        const overdue = !x.done && x.due && x.due < t;
-        const dueTxt = dueLabel(x.due);
+        const overdue = !x.done && x.due && (x.due < t || (x.due === t && x.dueTime && x.dueTime < nowHHMM()));
+        const dueTxt = dueLabel(x.due) + (x.dueTime ? ` ${x.dueTime}` : '');
         return `<div class="todo-item${x.done ? ' done' : ''}" data-id="${esc(x.id)}">
             <label class="todo-check"><input type="checkbox" data-todo-toggle="${esc(x.id)}" ${x.done ? 'checked' : ''} aria-label="${esc(x.t)} ${x.done ? 'wieder öffnen' : 'abhaken'}"></label>
             <button type="button" class="todo-main" data-todo-edit="${esc(x.id)}" aria-label="${esc(x.t)} bearbeiten">
@@ -93,7 +99,7 @@
         if (!t) return false;
         const items = load();
         if (items.length >= MAX) { showToast(`Maximal ${MAX} Aufgaben`); return false; }
-        items.push({ id: uid(), t, due: '', note: '', done: false, doneAt: 0 });
+        items.push({ id: uid(), t, due: '', dueTime: '', note: '', done: false, doneAt: 0 });
         save(items); haptic(12);
         return true;
     }
@@ -130,18 +136,29 @@
         editId = id;
         document.getElementById('todo-text').value = it.t;
         document.getElementById('todo-due').value = it.due;
+        document.getElementById('todo-time').value = it.dueTime;
+        syncDueUi();
         document.getElementById('todo-note').value = it.note;
         document.getElementById('todo-done').checked = it.done;
         document.getElementById('modal-todo').showModal();
+    }
+    // Uhrzeit nur mit Datum; Hinweis auf die Erinnerung, sobald ein Datum gesetzt ist
+    function syncDueUi() {
+        const has = DATE_RE.test(document.getElementById('todo-due').value);
+        const time = document.getElementById('todo-time');
+        time.disabled = !has; if (!has) time.value = '';
+        document.getElementById('todoRemHint').hidden = !has;
     }
     function saveEdit() {
         const t = oneLine(document.getElementById('todo-text').value, TEXT_MAX);
         if (!t) { showToast('Bitte einen Text eingeben'); document.getElementById('todo-text').focus(); return; }
         const dueRaw = document.getElementById('todo-due').value;
+        const timeRaw = document.getElementById('todo-time').value;
         const items = load(), it = items.find(x => x.id === editId);
         if (it) {
             const done = document.getElementById('todo-done').checked;
-            Object.assign(it, { t, due: DATE_RE.test(dueRaw) ? dueRaw : '', note: clean(document.getElementById('todo-note').value, NOTE_MAX) });
+            const due = DATE_RE.test(dueRaw) ? dueRaw : '';
+            Object.assign(it, { t, due, dueTime: due && TIME_RE.test(timeRaw) ? timeRaw : '', note: clean(document.getElementById('todo-note').value, NOTE_MAX) });
             if (done !== it.done) { it.done = done; it.doneAt = done ? Date.now() : 0; }
             save(items); haptic(12);
         }
@@ -158,7 +175,12 @@
         <h3 id="modal-todo-title">Aufgabe bearbeiten</h3>
         <div class="dialog-body">
             <div class="form-group"><label for="todo-text">Aufgabe</label><input type="text" id="todo-text" maxlength="${TEXT_MAX}" autocomplete="off"></div>
-            <div class="form-group"><label for="todo-due">Fällig am (optional)</label><input type="date" id="todo-due"></div>
+            <div class="input-row todo-due-row">
+                <div class="form-group"><label for="todo-due">Fällig am (optional)</label><input type="date" id="todo-due"></div>
+                <div class="form-group"><label for="todo-time">Uhrzeit</label><input type="time" id="todo-time"></div>
+            </div>
+            <p class="form-hint todo-rem-hint" id="todoRemHint" hidden>Erinnerung kommt, wenn die Fälligkeit weniger als 24 Stunden entfernt ist.
+                <button type="button" class="link-btn" id="todoRemSettings">Benachrichtigungen einstellen</button></p>
             <div class="form-group"><label for="todo-note">Notiz (optional)</label><textarea id="todo-note" rows="3" maxlength="${NOTE_MAX}"></textarea></div>
             <label class="todo-done-field"><input type="checkbox" id="todo-done"> Erledigt</label>
         </div>
@@ -173,6 +195,8 @@
         document.getElementById('todoSaveBtn').addEventListener('click', saveEdit);
         document.getElementById('todoDeleteBtn').addEventListener('click', () => { const id = editId; dlg.close(); remove(id); });
         dlg.querySelector('[data-todo-close]').addEventListener('click', () => dlg.close());
+        document.getElementById('todo-due').addEventListener('input', syncDueUi);
+        document.getElementById('todoRemSettings').addEventListener('click', () => { dlg.close(); window.reminders?.open(); });
         document.getElementById('todo-text').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveEdit(); } });
 
         const view = document.getElementById('view-todos');
