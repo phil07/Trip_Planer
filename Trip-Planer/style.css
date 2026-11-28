@@ -1579,3 +1579,4 @@ body .settings-card .theme-btn i { display: block; line-height: 1; }
 .em-call.em-call { background: var(--bg-elevated); color: var(--label); box-shadow: none; border: 1px solid var(--border); }
 .em-call.em-call .em-call-num { color: var(--em-red); }
 .em-call.em-call .em-call-title { color: var(--muted); }
+.st-links { display: flex; flex-wrap: wrap; gap: 8px; }

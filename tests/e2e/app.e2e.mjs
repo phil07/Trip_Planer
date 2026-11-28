@@ -1019,3 +1019,22 @@ t('Texterkennung: Bild wird vorbereitet (Statusleiste weg, dunkel invertiert, ve
     assert.ok(r.bg > 200, 'dunkler Hintergrund wird hell: ' + r.bg);
     assert.deepEqual(errors, []);
 });
+
+t('Station: Navigation zur Unterkunft öffnet Google Maps ab aktuellem Standort', async () => {
+    await open();
+    await go('view-places', 'Stationen');
+    await page.evaluate(() => { window.__opened = []; window.open = (u) => { window.__opened.push(u); return null; }; });
+    const card = page.locator('#placesList .place-card.station >> nth=0');
+    await card.locator('.station-head').click();
+    await card.locator('.hotel-nav').click();
+    const urls = await page.evaluate(() => {
+        const p = places[0], out = [window.__opened[0]];
+        // ohne Koordinaten: Suche nach Hotelname und Ort
+        out.push(hotelNavUrl({ name: 'Kyoto', hotel: 'Royal Park' }));
+        return out.concat([p.hotelLat, p.hotelLng]);
+    });
+    assert.equal(urls[0], `https://www.google.com/maps/dir/?api=1&destination=${urls[2]},${urls[3]}`);
+    assert.ok(!/origin=/.test(urls[0]), 'Start = aktueller Standort');
+    assert.equal(urls[1], 'https://www.google.com/maps/dir/?api=1&destination=Royal%20Park%2C%20Kyoto');
+    assert.deepEqual(errors, []);
+});

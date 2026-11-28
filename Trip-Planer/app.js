@@ -1366,6 +1366,20 @@ function ratingHtmlFor(a) {
 // dort werden echte Lokale nachgeladen statt Tipps (siehe loadCategory).
 
 const clean = n => n.replace(/ \(Ankunft\)| \(Abreise\)/g, '');
+// Navigation zur Unterkunft in Google Maps, Start = aktueller Standort (ohne origin nimmt Maps den
+// Standort des Geräts). Mit hinterlegten Koordinaten exakt, sonst Suche nach Name und Ort.
+function hotelNavUrl(p) {
+    if (!p || !p.hotel) return '';
+    const dest = Number.isFinite(p.hotelLat) && Number.isFinite(p.hotelLng)
+        ? `${p.hotelLat},${p.hotelLng}` : encodeURIComponent(`${p.hotel}, ${clean(p.name || '')}`);
+    return `https://www.google.com/maps/dir/?api=1&destination=${dest}`;
+}
+function navigateToHotel(pid) {
+    const url = hotelNavUrl(places.find(x => Number(x.id) === Number(pid)));
+    if (!url) return;
+    haptic(10);
+    window.open(url, '_blank', 'noopener');
+}
 // Escaped alle HTML-Sonderzeichen, bevor Nutzereingaben (Stationsname, Hotel, manuell
 // erfasste Aktivitätstitel/-beschreibungen …) per innerHTML gerendert werden (XSS-Schutz).
 // (Wird an vielen Stellen im Code bereits als `esc(...)` referenziert, war aber bislang
@@ -3738,7 +3752,10 @@ function renderPlaces() {
                             <input type="text" id="hi-${pid}" value="${escHtml(p.hotel)}" placeholder="Unterkunft eingeben…" aria-label="Unterkunft">
                             <button class="hotel-save-btn" onclick="saveHotelFromInput(${pid})">OK</button>
                         </div>
-                        ${p.hotel ? `<button type="button" class="st-link taxi-open" onclick="taxiCard.openPlace(${pid})">${ico('taxi', '🚕')}<span>Taxi-Karte</span></button>` : ''}
+                        ${p.hotel ? `<div class="st-links">
+                            <button type="button" class="st-link hotel-nav" onclick="navigateToHotel(${pid})">${ico('navigation-arrow', '🧭')}<span>Navigation</span></button>
+                            <button type="button" class="st-link taxi-open" onclick="taxiCard.openPlace(${pid})">${ico('taxi', '🚕')}<span>Taxi-Karte</span></button>
+                        </div>` : ''}
                     </section>
                     <section class="st-group" aria-label="Buchungen">
                         <h4 class="st-title">Buchungen</h4>
