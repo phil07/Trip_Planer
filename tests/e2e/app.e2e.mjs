@@ -1179,16 +1179,54 @@ t('Stationswechsel-Tag: bis Check-out an der Station, dann unterwegs (roter Punk
         Date.now = realNow;
         return out;
     });
-    assert.deepEqual(JSON.parse(r.before), { cur: 0, leg: -1, next: -1 });
-    assert.deepEqual(JSON.parse(r.during), { cur: -1, leg: 0, next: 1 });
-    assert.deepEqual(JSON.parse(r.late), { cur: -1, leg: 0, next: 1 });
-    assert.deepEqual(JSON.parse(r.after), { cur: 1, leg: -1, next: -1 });
-    assert.deepEqual(JSON.parse(r.earlyCo), { cur: -1, leg: 0, next: 1 });
-    assert.deepEqual(JSON.parse(r.estDuring), { cur: -1, leg: 0, next: 1 });
-    assert.deepEqual(JSON.parse(r.estAfter), { cur: 1, leg: -1, next: -1 });
+    const core = j => { const p = JSON.parse(j); return { cur: p.cur, leg: p.leg, next: p.next }; };
+    assert.deepEqual(core(r.before), { cur: 0, leg: -1, next: -1 });
+    assert.deepEqual(core(r.during), { cur: -1, leg: 0, next: 1 });
+    assert.deepEqual(core(r.late), { cur: -1, leg: 0, next: 1 });
+    assert.deepEqual(core(r.after), { cur: 1, leg: -1, next: -1 });
+    assert.deepEqual(core(r.earlyCo), { cur: -1, leg: 0, next: 1 });
+    assert.deepEqual(core(r.estDuring), { cur: -1, leg: 0, next: 1 });
+    assert.deepEqual(core(r.estAfter), { cur: 1, leg: -1, next: -1 });
     assert.match(r.legText, /Unterwegs/);
     assert.match(r.legText, /ab 15:25 Uhr · an 17:55 Uhr/);
     assert.equal(r.currentStations, 0);
     assert.match(r.kyotoStatus, /Als Nächstes/i);
+    assert.deepEqual(errors, []);
+});
+
+t('Anreise und Rückreise: unterwegs zwischen Abflug und Landung, Heimreise ab Check-out', async () => {
+    const seed = FIXTURE();
+    seed.tp_start = day(-4);
+    seed.tp_arrival = 'Flug';
+    seed.tp_return = 'Flug';
+    seed.tp_return_booking = JSON.stringify({ train: 'JL 407', dep: '10:40', arr: '20:30', from: 'KIX', terminal: '', gate: '', seat: '', note: '' });
+    await open(seed);
+    await go('view-places', 'Stationen');
+    const r = await page.evaluate(() => {
+        const iso0 = computedData[0].isoStart, isoL = computedData[places.length - 1].isoEnd;
+        places[0].transit = { train: 'JL 408', dep: '20:05', arr: '06:30', from: '', terminal: '3', gate: '', seat: '', note: '' };
+        const P = (d, hm) => JSON.stringify(tripPosition(atTime(d, hm)));
+        const out = {
+            arrBefore: P(iso0, '18:00'), arrDuring: P(iso0, '21:00'), arrNightAfter: P(localISO(new Date(atTime(iso0, '05:00') + 864e5)), '05:00'),
+            arrAfter: P(localISO(new Date(atTime(iso0, '05:00') + 864e5)), '07:00'),
+            retBefore: P(isoL, '07:00'), retDuring: P(isoL, '12:30'), retAfter: P(isoL, '21:00')
+        };
+        // Anzeige: Anreise als laufend markiert
+        const realNow = Date.now; Date.now = () => atTime(iso0, '21:00');
+        renderPlaces();
+        out.arrEl = !!document.querySelector('#placesList .transit-leg--end.is-current');
+        out.arrText = document.querySelector('#placesList .transit-leg--end.is-current')?.textContent || '';
+        Date.now = realNow;
+        return out;
+    });
+    assert.equal(JSON.parse(r.arrBefore).inArr, false);
+    assert.equal(JSON.parse(r.arrDuring).inArr, true);
+    assert.equal(JSON.parse(r.arrAfter).inArr, false);
+    assert.equal(JSON.parse(r.arrNightAfter).inArr, true, 'Nachtflug: vor der Landung am Folgetag');
+    assert.equal(JSON.parse(r.retDuring).inRet, true);
+    assert.equal(JSON.parse(r.retBefore).inRet, false);
+    assert.equal(JSON.parse(r.retAfter).inRet, false);
+    assert.equal(r.arrEl, true);
+    assert.match(r.arrText, /Unterwegs/);
     assert.deepEqual(errors, []);
 });
